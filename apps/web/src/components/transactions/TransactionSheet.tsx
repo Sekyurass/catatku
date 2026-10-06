@@ -26,9 +26,11 @@ import {
 } from '../../lib/queries';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
-import { Field, Input, selectClass } from '../ui/Field';
+import { DatePicker } from '../ui/DatePicker';
+import { Field, Input } from '../ui/Field';
 import { RupiahInput } from '../ui/RupiahInput';
 import { Segmented } from '../ui/Segmented';
+import { ColorDot, Select, type SelectOption } from '../ui/Select';
 import { EmptyState, ErrorState, Skeleton } from '../ui/States';
 import { useToast } from '../ui/Toast';
 import { CategoryPicker } from './CategoryPicker';
@@ -323,14 +325,36 @@ function TransactionForm({
   };
 
   const activeWallets = wallets.filter((w) => !w.archivedAt);
-  const walletOptions = (exclude?: string) =>
+  const walletOptions = (exclude?: string): SelectOption[] =>
     activeWallets
       .filter((w) => w.id !== exclude)
-      .map((w) => (
-        <option key={w.id} value={w.id}>
-          {w.name} · {formatRupiah(w.balance)}
-        </option>
-      ));
+      .map((w) => ({
+        value: w.id,
+        label: w.name,
+        detail: formatRupiah(w.balance),
+        leading: <ColorDot color={w.color} />,
+      }));
+  const walletSelect = (
+    name: 'walletId' | 'toWalletId',
+    a: { id: string },
+    options: SelectOption[],
+    placeholder?: string,
+  ) => (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <Select
+          {...a}
+          ref={field.ref}
+          value={field.value}
+          onChange={(v) => field.onChange(v)}
+          options={options}
+          placeholder={placeholder}
+        />
+      )}
+    />
+  );
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
@@ -379,19 +403,10 @@ function TransactionForm({
       {isTransfer ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Dari dompet" error={errors.walletId?.message}>
-            {(a) => (
-              <select {...a} className={selectClass} {...register('walletId')}>
-                {walletOptions()}
-              </select>
-            )}
+            {(a) => walletSelect('walletId', a, walletOptions())}
           </Field>
           <Field label="Ke dompet" error={errors.toWalletId?.message}>
-            {(a) => (
-              <select {...a} className={selectClass} {...register('toWalletId')}>
-                <option value="">Pilih dompet tujuan</option>
-                {walletOptions(walletId)}
-              </select>
-            )}
+            {(a) => walletSelect('toWalletId', a, walletOptions(walletId), 'Pilih dompet tujuan')}
           </Field>
         </div>
       ) : (
@@ -409,11 +424,7 @@ function TransactionForm({
             )}
           />
           <Field label="Dompet" error={errors.walletId?.message}>
-            {(a) => (
-              <select {...a} className={selectClass} {...register('walletId')}>
-                {walletOptions()}
-              </select>
-            )}
+            {(a) => walletSelect('walletId', a, walletOptions())}
           </Field>
         </>
       )}
@@ -440,12 +451,11 @@ function TransactionForm({
                 {preset.label}
               </button>
             ))}
-            <Input
+            <DatePicker
               {...a}
-              type="date"
-              max="9999-12-31"
-              className="w-auto flex-1"
-              {...register('date')}
+              value={date}
+              onChange={(v) => setValue('date', v, { shouldDirty: true, shouldValidate: true })}
+              className="min-w-44 flex-1"
             />
           </div>
         )}

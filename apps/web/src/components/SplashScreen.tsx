@@ -7,7 +7,8 @@ export const FAREWELL_MS = 1400;
 
 /**
  * `intro`: muncul seketika (menutup layar kosong saat memuat).
- * `farewell`: memudar masuk di atas aplikasi saat keluar, bar memendek.
+ * `farewell`: memudar masuk di atas aplikasi saat keluar; bar memendek kanan → kiri,
+ * kebalikan dari bar intro yang mengisi kiri → kanan.
  */
 export function SplashScreen({
   leaving = false,
@@ -45,7 +46,8 @@ export function SplashScreen({
           <span
             className={cn(
               'block h-full rounded-full bg-primary',
-              farewell ? 'origin-right animate-splash-bar-out' : 'origin-left animate-splash-bar',
+              'origin-left',
+              farewell ? 'animate-splash-bar-out' : 'animate-splash-bar',
             )}
           />
         </span>

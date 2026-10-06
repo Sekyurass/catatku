@@ -7,10 +7,14 @@ import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { TransactionRow } from '../components/transactions/TransactionRow';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { Field, Input, selectClass } from '../components/ui/Field';
+import { IconBadge } from '../components/IconBadge';
+import { DatePicker } from '../components/ui/DatePicker';
+import { Field, Input } from '../components/ui/Field';
+import { ColorDot, Select } from '../components/ui/Select';
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
 import { cn } from '../lib/cn';
 import { formatDayLabel } from '../lib/format';
+import { categoryIcon } from '../lib/icons';
 import {
   type TransactionFilters,
   useCategories,
@@ -146,81 +150,85 @@ export function TransactionsPage() {
         <Card id="panel-filter" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Jenis">
             {(a) => (
-              <select
+              <Select
                 {...a}
-                className={selectClass}
                 value={filters.type ?? ''}
-                onChange={(e) => update({ type: e.target.value })}
-              >
-                <option value="">Semua jenis</option>
-                {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                onChange={(type) => update({ type })}
+                options={[
+                  { value: '', label: 'Semua jenis' },
+                  ...Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label })),
+                ]}
+              />
             )}
           </Field>
           <Field label="Dompet">
             {(a) => (
-              <select
+              <Select
                 {...a}
-                className={selectClass}
                 value={filters.walletId ?? ''}
-                onChange={(e) => update({ walletId: e.target.value })}
-              >
-                <option value="">Semua dompet</option>
-                {wallets.data?.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                    {w.archivedAt ? ' (diarsipkan)' : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={(walletId) => update({ walletId })}
+                options={[
+                  { value: '', label: 'Semua dompet' },
+                  ...(wallets.data ?? []).map((w) => ({
+                    value: w.id,
+                    label: w.name,
+                    detail: w.archivedAt ? 'diarsipkan' : undefined,
+                    leading: <ColorDot color={w.color} />,
+                  })),
+                ]}
+              />
             )}
           </Field>
           <Field label="Kategori">
             {(a) => (
-              <select
+              <Select
                 {...a}
-                className={selectClass}
                 value={filters.categoryId ?? ''}
-                onChange={(e) => update({ categoryId: e.target.value })}
-              >
-                <option value="">Semua kategori</option>
-                {(['EXPENSE', 'INCOME'] as const).map((type) => (
-                  <optgroup key={type} label={TYPE_LABELS[type]}>
-                    {categories.data
-                      ?.filter((c) => c.type === type)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
+                onChange={(categoryId) => update({ categoryId })}
+                options={[
+                  { value: '', label: 'Semua kategori' },
+                  ...(['EXPENSE', 'INCOME'] as const).flatMap((type) =>
+                    (categories.data ?? [])
+                      .filter((c) => c.type === type)
+                      .map((c) => ({
+                        value: c.id,
+                        label: c.name,
+                        group: TYPE_LABELS[type],
+                        leading: (
+                          <IconBadge
+                            icon={categoryIcon(c.icon)}
+                            color={c.color}
+                            size="sm"
+                            className="size-7"
+                          />
+                        ),
+                      })),
+                  ),
+                ]}
+              />
             )}
           </Field>
           <Field label="Dari tanggal">
             {(a) => (
-              <Input
+              <DatePicker
                 {...a}
-                type="date"
                 value={filters.from ?? ''}
                 max={filters.to}
-                onChange={(e) => update({ from: e.target.value })}
+                clearable
+                placeholder="Semua tanggal"
+                onChange={(from) => update({ from })}
               />
             )}
           </Field>
           <Field label="Sampai tanggal">
             {(a) => (
-              <Input
+              <DatePicker
                 {...a}
-                type="date"
                 value={filters.to ?? ''}
                 min={filters.from}
-                onChange={(e) => update({ to: e.target.value })}
+                clearable
+                placeholder="Semua tanggal"
+                onChange={(to) => update({ to })}
               />
             )}
           </Field>

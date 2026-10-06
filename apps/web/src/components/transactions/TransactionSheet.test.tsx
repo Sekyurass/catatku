@@ -81,7 +81,7 @@ describe('TransactionSheet (catat cepat)', () => {
     setup();
     const amount = await screen.findByLabelText('Nominal');
     await waitFor(() => expect(amount).toHaveFocus());
-    expect(screen.getByLabelText('Dompet')).toHaveValue('w2');
+    expect(screen.getByRole('combobox', { name: 'Dompet' })).toHaveTextContent('BCA');
     expect(screen.getByRole('button', { name: 'Hari ini' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -157,7 +157,10 @@ describe('TransactionSheet (catat cepat)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
     expect(await screen.findByText('Pilih dompet tujuan', { selector: 'p' })).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByLabelText('Ke dompet'), 'w1');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Ke dompet' }));
+    // Dompet asal (BCA) tidak ditawarkan sebagai tujuan.
+    expect(screen.queryByRole('option', { name: /BCA/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('option', { name: /Tunai/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
     await waitFor(() => expect(posts()).toHaveLength(1));
     const [url, init] = posts()[0]!;

@@ -41,8 +41,6 @@ export const inputClass =
   'min-h-11 w-full rounded-control border border-line bg-surface px-3 text-base text-fg placeholder:text-muted/70 ' +
   'aria-[invalid=true]:border-expense focus-visible:border-primary';
 
-export const selectClass = `${inputClass} native-select pr-10`;
-
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
     return <input ref={ref} className={cn(inputClass, className)} {...props} />;
