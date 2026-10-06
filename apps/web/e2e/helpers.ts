@@ -27,7 +27,14 @@ export async function signUpViaApi(request: APIRequestContext, name = 'Penguji E
     expect(r.ok(), await r.text()).toBe(true);
     return (await r.json()) as T;
   };
-  return { email, post };
+  const get = async <T>(path: string): Promise<T> => {
+    const r = await request.get(`/api/v1${path}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    expect(r.ok(), await r.text()).toBe(true);
+    return (await r.json()) as T;
+  };
+  return { email, post, get };
 }
 
 /** Tunggu intro logo hilang dan skeleton selesai. */

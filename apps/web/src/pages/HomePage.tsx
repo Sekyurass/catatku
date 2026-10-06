@@ -23,6 +23,7 @@ import {
 import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IconBadge } from '../components/IconBadge';
+import { PendingRecurringCard } from '../components/recurring/PendingRecurringCard';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { TransactionRow } from '../components/transactions/TransactionRow';
 import { AutoHeight } from '../components/ui/AutoHeight';
@@ -33,6 +34,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
 import { useAuth } from '../lib/auth';
 import { groupCategories } from '../lib/chart';
 import { cn } from '../lib/cn';
+import { useFeature } from '../lib/features';
 import { formatMonthLabel } from '../lib/format';
 import { categoryIcon } from '../lib/icons';
 import { useByCategory, useSummary, useTrend, useWallets } from '../lib/queries';
@@ -49,6 +51,7 @@ export function HomePage() {
   const wallets = useWallets();
   const summary = useSummary(month);
   const { openNew } = useQuickAdd();
+  const recurringOn = useFeature('recurring_transactions');
 
   const noWallets = wallets.isSuccess && wallets.data.length === 0;
 
@@ -75,6 +78,7 @@ export function HomePage() {
       ) : (
         <>
           <SummaryCards summary={summary} />
+          {recurringOn && <PendingRecurringCard />}
           <TrendCard />
           <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
             <CategoryCard month={month} />

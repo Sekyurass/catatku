@@ -41,6 +41,7 @@ function toDTO(row: Row, counterpart: WalletRef | null = null): TransactionDTO {
     category: row.category,
     transferGroupId: row.transferGroupId,
     counterpartWallet: counterpart,
+    recurringRuleId: row.recurringRuleId,
     deletedAt: row.deletedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

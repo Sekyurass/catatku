@@ -7,6 +7,9 @@ export type CategoryType = (typeof CATEGORY_TYPES)[number];
 export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE', 'TRANSFER'] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
+export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
+export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
+
 export const PLANS = ['FREE', 'PREMIUM'] as const;
 export type Plan = (typeof PLANS)[number];
 

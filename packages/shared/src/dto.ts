@@ -1,4 +1,10 @@
-import type { CategoryType, Plan, TransactionType, WalletType } from './constants';
+import type {
+  CategoryType,
+  Plan,
+  RecurrenceFrequency,
+  TransactionType,
+  WalletType,
+} from './constants';
 
 export interface UserDTO {
   id: string;
@@ -52,6 +58,8 @@ export interface TransactionDTO {
   transferGroupId: string | null;
   /** Untuk transfer: dompet di sisi lain transfer. */
   counterpartWallet: { id: string; name: string; color: string } | null;
+  /** Diisi bila transaksi dibuat oleh aturan transaksi berulang. */
+  recurringRuleId: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -60,6 +68,42 @@ export interface TransactionDTO {
 export interface TransactionPage {
   items: TransactionDTO[];
   nextCursor: string | null;
+}
+
+type Ref = { id: string; name: string; color: string };
+type CategoryRef = Ref & { icon: string };
+
+export interface RecurringRuleDTO {
+  id: string;
+  type: 'INCOME' | 'EXPENSE';
+  /** Selalu positif; arah uang mengikuti `type`. */
+  amount: number;
+  walletId: string;
+  wallet: Ref;
+  categoryId: string;
+  category: CategoryRef;
+  note: string | null;
+  frequency: RecurrenceFrequency;
+  interval: number;
+  startDate: string;
+  endDate: string | null;
+  autoPost: boolean;
+  paused: boolean;
+  /** Tanggal kejadian berikutnya; null bila jadwal sudah melewati tanggal berakhir. */
+  nextRunAt: string | null;
+  createdAt: string;
+}
+
+/** Kejadian aturan "minta konfirmasi dulu" yang sudah jatuh tempo. */
+export interface PendingOccurrenceDTO {
+  id: string;
+  ruleId: string;
+  date: string;
+  type: 'INCOME' | 'EXPENSE';
+  amount: number;
+  note: string | null;
+  wallet: Ref;
+  category: CategoryRef;
 }
 
 export interface TransferDTO {

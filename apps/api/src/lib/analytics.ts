@@ -10,6 +10,7 @@ export type EventName =
   | 'password_reset'
   | 'wallet_created'
   | 'transaction_created'
+  | 'recurring_rule_created'
   | 'budget_saved'
   | 'export_csv';
 

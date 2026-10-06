@@ -4,6 +4,8 @@ import type {
   CategoryDTO,
   CategoryType,
   ListTransactionsQuery,
+  PendingOccurrenceDTO,
+  RecurringRuleDTO,
   SummaryDTO,
   TransactionPage,
   TrendDTO,
@@ -30,7 +32,27 @@ export const queryKeys = {
     ['reports', 'by-category', month, type] as const,
   trend: (months: number) => ['reports', 'trend', months] as const,
   budgets: (month: string) => ['budgets', month] as const,
+  recurring: ['recurring', 'rules'] as const,
+  recurringPending: ['recurring', 'pending'] as const,
 };
+
+export function useRecurringRules(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.recurring,
+    queryFn: ({ signal }) =>
+      api<{ items: RecurringRuleDTO[] }>('/recurring', { signal }).then((r) => r.items),
+    enabled,
+  });
+}
+
+export function usePendingOccurrences(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.recurringPending,
+    queryFn: ({ signal }) =>
+      api<{ items: PendingOccurrenceDTO[] }>('/recurring/pending', { signal }).then((r) => r.items),
+    enabled,
+  });
+}
 
 export function fetchBudgets(month: string, signal?: AbortSignal) {
   return api<BudgetMonthDTO>('/budgets', { query: { month }, signal });
@@ -101,10 +123,10 @@ export function useTransactions(filters: TransactionFilters) {
   });
 }
 
-/** Semua data yang ikut berubah saat uang bergerak: saldo, riwayat, laporan, anggaran. */
+/** Semua data yang ikut berubah saat uang bergerak: saldo, riwayat, laporan, anggaran, berulang. */
 export function invalidateMoney(qc: QueryClient) {
   return Promise.all(
-    ['wallets', 'transactions', 'reports', 'budgets'].map((key) =>
+    ['wallets', 'transactions', 'reports', 'budgets', 'recurring'].map((key) =>
       qc.invalidateQueries({ queryKey: [key] }),
     ),
   );

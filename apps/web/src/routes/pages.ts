@@ -32,6 +32,9 @@ export const WalletsPage = page(() => import('../pages/WalletsPage').then((m) =>
 export const CategoriesPage = page(() =>
   import('../pages/CategoriesPage').then((m) => m.CategoriesPage),
 );
+export const RecurringPage = page(() =>
+  import('../pages/RecurringPage').then((m) => m.RecurringPage),
+);
 export const ProfilePage = page(() => import('../pages/ProfilePage').then((m) => m.ProfilePage));
 export const NotFoundPage = page(() => import('../pages/NotFoundPage').then((m) => m.NotFoundPage));
 
@@ -41,6 +44,7 @@ const APP_PAGES = [
   BudgetsPage,
   WalletsPage,
   CategoriesPage,
+  RecurringPage,
   ProfilePage,
   // Sesi bisa berakhir kapan saja (kedaluwarsa); halaman masuk sudah siap tanpa layar memuat.
   LoginPage,

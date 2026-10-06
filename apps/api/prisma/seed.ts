@@ -1,6 +1,12 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
-import { currentMonth, shiftMonth, toDateString } from '@catatku/shared';
+import {
+  currentMonth,
+  firstIndexOnOrAfter,
+  occurrenceDate,
+  shiftMonth,
+  toDateString,
+} from '@catatku/shared';
 import { type Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedDefaults } from '../src/db/defaults';
@@ -83,6 +89,7 @@ async function seedDemo() {
     amount: number,
     date: string,
     note?: string,
+    recurringRuleId?: string,
   ) =>
     rows.push({
       userId: user.id,
@@ -92,6 +99,7 @@ async function seedDemo() {
       amount: BigInt(type === 'EXPENSE' ? -amount : amount),
       date: dbDate(date),
       note: note || null,
+      recurringRuleId: recurringRuleId ?? null,
     });
   const transfer = (fromId: string, toId: string, amount: number, date: string, note: string) => {
     const transferGroupId = randomUUID();
@@ -109,15 +117,68 @@ async function seedDemo() {
   const today = toDateString();
   const thisMonth = currentMonth();
   const startMonth = shiftMonth(thisMonth, -5);
-  let date = `${startMonth}-01`;
 
+  // Riwayat sebelum hari ini sudah tercatat, jadi jadwal dimulai dari kejadian setelah hari ini.
+  const monthlyRule = async (
+    walletId: string,
+    type: 'INCOME' | 'EXPENSE',
+    categoryId: string,
+    amount: number,
+    day: number,
+    note: string,
+    autoPost = true,
+  ) => {
+    const schedule = {
+      startDate: `${startMonth}-${String(day).padStart(2, '0')}`,
+      frequency: 'MONTHLY' as const,
+      interval: 1,
+    };
+    const nextIndex = firstIndexOnOrAfter(schedule, addDays(today, 1));
+    return prisma.recurringRule.create({
+      data: {
+        userId: user.id,
+        walletId,
+        categoryId,
+        type,
+        amount: BigInt(amount),
+        note,
+        frequency: schedule.frequency,
+        interval: schedule.interval,
+        startDate: dbDate(schedule.startDate),
+        autoPost,
+        nextIndex,
+        nextRunAt: dbDate(occurrenceDate(schedule, nextIndex)),
+      },
+    });
+  };
+  const [gaji, kos, listrik, pulsa] = await Promise.all([
+    monthlyRule(bca.id, 'INCOME', 'cat_gaji', 5_000_000, 25, 'Gaji bulanan'),
+    monthlyRule(bca.id, 'EXPENSE', 'cat_tagihan', 1_200_000, 1, 'Bayar kos'),
+    monthlyRule(bca.id, 'EXPENSE', 'cat_tagihan', 200_000, 5, 'Listrik', false),
+    monthlyRule(gopay.id, 'EXPENSE', 'cat_tagihan', 100_000, 7, 'Pulsa & data'),
+  ]);
+  let pendingListrik: string | null = null;
+
+  let date = `${startMonth}-01`;
   while (date <= today) {
     const day = Number(date.slice(8));
-    if (day === 25) add(bca.id, 'INCOME', 'cat_gaji', 5_000_000, date, 'Gaji bulanan');
-    if (day === 1) add(bca.id, 'EXPENSE', 'cat_tagihan', 1_200_000, date, 'Bayar kos');
-    if (day === 5)
-      add(bca.id, 'EXPENSE', 'cat_tagihan', between(150_000, 250_000), date, 'Listrik');
-    if (day === 7) add(gopay.id, 'EXPENSE', 'cat_tagihan', 100_000, date, 'Pulsa & data');
+    if (day === 25) add(bca.id, 'INCOME', 'cat_gaji', 5_000_000, date, 'Gaji bulanan', gaji.id);
+    if (day === 1) add(bca.id, 'EXPENSE', 'cat_tagihan', 1_200_000, date, 'Bayar kos', kos.id);
+    if (day === 5) {
+      // Tagihan listrik bulan ini dibiarkan menunggu konfirmasi untuk contoh di Beranda.
+      if (date.startsWith(thisMonth)) pendingListrik = date;
+      else
+        add(
+          bca.id,
+          'EXPENSE',
+          'cat_tagihan',
+          between(150_000, 250_000),
+          date,
+          'Listrik',
+          listrik.id,
+        );
+    }
+    if (day === 7) add(gopay.id, 'EXPENSE', 'cat_tagihan', 100_000, date, 'Pulsa & data', pulsa.id);
     if (day === 2 || day === 16) transfer(bca.id, tunai.id, 500_000, date, 'Tarik tunai');
     if ([3, 10, 18, 26].includes(day)) transfer(bca.id, gopay.id, 250_000, date, 'Top up GoPay');
 
@@ -171,6 +232,16 @@ async function seedDemo() {
   }
 
   await prisma.transaction.createMany({ data: rows });
+  if (pendingListrik) {
+    await prisma.recurringOccurrence.create({
+      data: {
+        ruleId: listrik.id,
+        userId: user.id,
+        date: dbDate(pendingListrik),
+        status: 'PENDING',
+      },
+    });
+  }
 
   const budgets: Array<[string, number]> = [
     ['cat_makan', 1_500_000],

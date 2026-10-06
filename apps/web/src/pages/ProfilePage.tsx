@@ -7,6 +7,7 @@ import {
   KeyRound,
   LogOut,
   Pencil,
+  Repeat,
   Tags,
   Trash2,
   WalletMinimal,
@@ -26,6 +27,7 @@ import { useToast } from '../components/ui/Toast';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { AvatarImageError, compressAvatar } from '../lib/avatar';
+import { useFeature } from '../lib/features';
 import { applyServerErrors } from '../lib/forms';
 import { FormAlert } from './auth/AuthLayout';
 
@@ -42,7 +44,14 @@ const LINKS = [
     description: 'Atur kategori pemasukan & pengeluaran',
     icon: Tags,
   },
-] as const;
+];
+
+const RECURRING_LINK = {
+  to: '/berulang',
+  label: 'Transaksi berulang',
+  description: 'Gaji, sewa, langganan yang tercatat otomatis',
+  icon: Repeat,
+};
 
 const rowClass =
   'flex min-h-14 w-full items-center gap-3 rounded-control px-3 py-2 text-left hover:bg-surface-muted';
@@ -52,6 +61,7 @@ export function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState<'profile' | 'password' | 'photo' | null>(null);
   const close = () => setDialog(null);
+  const recurringOn = useFeature('recurring_transactions');
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,18 +94,20 @@ export function ProfilePage() {
       </Card>
       <Card className="p-1">
         <ul>
-          {LINKS.map(({ to, label, description, icon: Icon }) => (
-            <li key={to}>
-              <Link to={to} className={rowClass}>
-                <Icon className="size-5 text-primary" aria-hidden />
-                <span className="flex-1">
-                  <span className="block font-medium">{label}</span>
-                  <span className="block text-sm text-muted">{description}</span>
-                </span>
-                <ChevronRight className="size-5 text-muted" aria-hidden />
-              </Link>
-            </li>
-          ))}
+          {[...LINKS, ...(recurringOn ? [RECURRING_LINK] : [])].map(
+            ({ to, label, description, icon: Icon }) => (
+              <li key={to}>
+                <Link to={to} className={rowClass}>
+                  <Icon className="size-5 text-primary" aria-hidden />
+                  <span className="flex-1">
+                    <span className="block font-medium">{label}</span>
+                    <span className="block text-sm text-muted">{description}</span>
+                  </span>
+                  <ChevronRight className="size-5 text-muted" aria-hidden />
+                </Link>
+              </li>
+            ),
+          )}
           <li>
             <button type="button" onClick={() => setDialog('password')} className={rowClass}>
               <KeyRound className="size-5 text-primary" aria-hidden />

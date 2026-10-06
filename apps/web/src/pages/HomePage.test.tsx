@@ -3,6 +3,7 @@ import {
   currentMonth,
   formatRupiah,
   monthRange,
+  type PendingOccurrenceDTO,
   type SummaryDTO,
   type TransactionDTO,
   type TrendDTO,
@@ -49,6 +50,7 @@ const TX: TransactionDTO = {
   category: { id: 'cat_makan', name: 'Makan', icon: 'utensils', color: '#EA580C' },
   counterpartWallet: null,
   transferGroupId: null,
+  recurringRuleId: null,
   deletedAt: null,
   createdAt: '2026-10-02T05:00:00.000Z',
   updatedAt: '2026-10-02T05:00:00.000Z',
@@ -120,9 +122,32 @@ const json = (body: unknown) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-function setup({ wallets = [WALLET] }: { wallets?: WalletDTO[] } = {}) {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+const PENDING: PendingOccurrenceDTO = {
+  id: 'occ1',
+  ruleId: 'rule1',
+  date: `${month}-05`,
+  type: 'EXPENSE',
+  amount: 350_000,
+  note: 'Tagihan listrik',
+  wallet: { id: 'w1', name: 'Tunai', color: '#0F766E' },
+  category: { id: 'cat_tagihan', name: 'Tagihan', icon: 'receipt', color: '#7C3AED' },
+};
+
+function setup({
+  wallets = [WALLET],
+  recurring = false,
+  pending = [PENDING],
+}: { wallets?: WalletDTO[]; recurring?: boolean; pending?: PendingOccurrenceDTO[] } = {}) {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
+    if (url.pathname.endsWith('/features'))
+      return json({ flags: { recurring_transactions: recurring } });
+    if (url.pathname.endsWith('/recurring/pending')) return json({ items: pending });
+    if (init?.method === 'POST' && url.pathname.includes('/recurring/pending/')) {
+      return url.pathname.endsWith('/confirm')
+        ? json({ transactionId: 't9' })
+        : new Response(null, { status: 204 });
+    }
     if (url.pathname.endsWith('/wallets')) return json({ items: wallets });
     if (url.pathname.endsWith('/categories')) return json({ items: [] });
     if (url.pathname.endsWith('/reports/summary')) return json(SUMMARY);
@@ -196,6 +221,41 @@ describe('HomePage (dashboard)', () => {
     expect(screen.getByRole('link', { name: 'Buat dompet' })).toHaveAttribute(
       'href',
       '/mulai?langkah=2',
+    );
+  });
+
+  it('tidak menampilkan kartu konfirmasi bila fitur berulang mati', async () => {
+    const { fetchMock } = setup();
+    await screen.findByRole('region', { name: 'Ringkasan bulan ini' });
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/features'))).toBe(true),
+    );
+    expect(screen.queryByText(/Menunggu konfirmasi/)).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/recurring'))).toBe(false);
+  });
+
+  it('mencatat kejadian berulang dengan nominal yang disesuaikan', async () => {
+    const { fetchMock } = setup({ recurring: true });
+    expect(await screen.findByText('Menunggu konfirmasi (1)')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Catat Tagihan listrik' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Catat transaksi berulang' }));
+    const amount = dialog.getByLabelText('Nominal');
+    await userEvent.clear(amount);
+    await userEvent.type(amount, '412500');
+    await userEvent.click(dialog.getByRole('button', { name: 'Simpan' }));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([u]) => String(u).includes('/occ1/confirm'));
+      expect(call?.[1]?.body).toBe(JSON.stringify({ amount: 412_500 }));
+    });
+  });
+
+  it('melewati kejadian berulang', async () => {
+    const { fetchMock } = setup({ recurring: true });
+    await userEvent.click(await screen.findByRole('button', { name: 'Lewati Tagihan listrik' }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/occ1/skip'))).toBe(true),
     );
   });
 });

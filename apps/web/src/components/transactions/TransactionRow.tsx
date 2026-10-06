@@ -1,4 +1,5 @@
 import { formatRupiah, type TransactionDTO } from '@catatku/shared';
+import { Repeat } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { categoryIcon, TransferIcon } from '../../lib/icons';
 import { IconBadge } from '../IconBadge';
@@ -25,6 +26,7 @@ export function TransactionRow({
 }) {
   const { title, subtitle } = describe(tx);
   const isTransfer = tx.type === 'TRANSFER';
+  const recurring = tx.recurringRuleId !== null;
   const amountText =
     isTransfer && !showTransferSign
       ? formatRupiah(Math.abs(tx.amount))
@@ -35,7 +37,7 @@ export function TransactionRow({
       type="button"
       onClick={() => onSelect(tx)}
       className="flex min-h-14 w-full items-center gap-3 rounded-control px-2 py-2 text-left hover:bg-surface-muted"
-      aria-label={`${title}, ${amountText}, ${subtitle}. Ketuk untuk mengubah.`}
+      aria-label={`${title}${recurring ? ' (berulang)' : ''}, ${amountText}, ${subtitle}. Ketuk untuk mengubah.`}
     >
       {isTransfer ? (
         <IconBadge icon={TransferIcon} color="#475569" />
@@ -43,7 +45,18 @@ export function TransactionRow({
         <IconBadge icon={categoryIcon(tx.category?.icon)} color={tx.category?.color ?? '#64748B'} />
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium text-fg">{title}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="truncate font-medium text-fg">{title}</span>
+          {recurring && (
+            <span
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-primary-soft px-1.5 py-0.5 text-[11px] font-semibold text-primary"
+              title="Dari transaksi berulang"
+            >
+              <Repeat className="size-3" aria-hidden />
+              Berulang
+            </span>
+          )}
+        </span>
         <span className="block truncate text-sm text-muted">{subtitle}</span>
       </span>
       <span

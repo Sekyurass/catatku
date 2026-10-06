@@ -12,6 +12,7 @@ import {
   NotFoundPage,
   OnboardingPage,
   ProfilePage,
+  RecurringPage,
   RegisterPage,
   ResetPasswordPage,
   TransactionsPage,
@@ -69,6 +70,7 @@ export function App() {
           <Route path="anggaran" element={<BudgetsPage />} />
           <Route path="dompet" element={<WalletsPage />} />
           <Route path="kategori" element={<CategoriesPage />} />
+          <Route path="berulang" element={<RecurringPage />} />
           <Route path="profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

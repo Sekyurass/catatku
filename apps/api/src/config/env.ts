@@ -29,6 +29,10 @@ const envSchema = z
     SMTP_USER: z.string().default(''),
     SMTP_PASS: z.string().default(''),
     MAIL_FROM: z.string().default('Catatku <no-reply@catatku.local>'),
+    SCHEDULER_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((v) => v === 'true'),
     RESET_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(RESET_LINK_TTL_MINUTES),
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.BCRYPT_COST >= 12, {

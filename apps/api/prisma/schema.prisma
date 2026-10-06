@@ -30,14 +30,27 @@ enum TransactionType {
   TRANSFER
 }
 
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum OccurrenceStatus {
+  PENDING
+  POSTED
+  SKIPPED
+}
+
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  plan         Plan     @default(FREE)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  plan            Plan      @default(FREE)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   /// null = belum ada foto profil. Juga dipakai klien sebagai versi cache foto.
   avatarUpdatedAt DateTime?
 
@@ -50,6 +63,8 @@ model User {
   resetTokens     PasswordResetToken[]
   idempotencyKeys IdempotencyKey[]
   events          AnalyticsEvent[]
+  recurringRules  RecurringRule[]
+  occurrences     RecurringOccurrence[]
 }
 
 /// Tautan "lupa kata sandi": sekali pakai, umur pendek, hanya hash yang disimpan.
@@ -103,8 +118,9 @@ model Wallet {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+  recurringRules RecurringRule[]
 
   @@index([userId])
 }
@@ -121,9 +137,10 @@ model Category {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
-  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  budgets      Budget[]
+  user           User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+  budgets        Budget[]
+  recurringRules RecurringRule[]
 
   @@index([userId])
 }
@@ -140,18 +157,73 @@ model Transaction {
   note            String?
   /// Dua baris transfer berbagi nilai yang sama.
   transferGroupId String?
+  /// Diisi bila dibuat oleh aturan berulang. Aturan dihapus -> null, transaksinya tetap ada.
+  recurringRuleId String?
   deletedAt       DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  wallet   Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet        Wallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
 
   @@index([userId, date(sort: Desc), createdAt(sort: Desc)])
   @@index([userId, walletId])
   @@index([userId, categoryId])
   @@index([transferGroupId])
+  @@index([recurringRuleId])
+}
+
+/// Fase 1.1. Jadwal dihitung dari startDate + indeks kejadian (lihat shared/recurrence.ts).
+model RecurringRule {
+  id         String              @id @default(cuid())
+  userId     String
+  walletId   String
+  categoryId String
+  type       TransactionType
+  /// Rupiah utuh, selalu positif; tanda diberikan saat transaksi dibuat.
+  amount     BigInt
+  note       String?
+  frequency  RecurrenceFrequency
+  interval   Int                 @default(1)
+  startDate  DateTime            @db.Date
+  endDate    DateTime?           @db.Date
+  autoPost   Boolean             @default(true)
+  /// Indeks kejadian berikutnya yang belum diproses (0 = startDate).
+  nextIndex  Int                 @default(0)
+  /// Tanggal kejadian ke-nextIndex; null = jadwal sudah melewati endDate.
+  nextRunAt  DateTime?           @db.Date
+  pausedAt   DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet       Wallet                @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  category     Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  occurrences  RecurringOccurrence[]
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([nextRunAt])
+}
+
+/// Satu baris per (aturan, tanggal): kunci idempotensi scheduler sekaligus antrean konfirmasi.
+model RecurringOccurrence {
+  id            String           @id @default(cuid())
+  ruleId        String
+  userId        String
+  date          DateTime         @db.Date
+  status        OccurrenceStatus
+  transactionId String?          @unique
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  rule RecurringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, date])
+  @@index([userId, status])
 }
 
 model Budget {

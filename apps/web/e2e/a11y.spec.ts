@@ -60,7 +60,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 }
 
 async function auditAppPages(page: Page) {
-  const { post } = await signUpViaApi(page.request);
+  const { post, get } = await signUpViaApi(page.request);
   const wallet = await post<{ id: string }>('/wallets', {
     name: 'Tunai',
     type: 'CASH',
@@ -81,6 +81,27 @@ async function auditAppPages(page: Page) {
     categoryId: 'cat_gaji',
     date: today,
   });
+  // Beranda (kartu konfirmasi), riwayat (lencana Berulang), dan /berulang ikut diaudit bila flag menyala.
+  const { flags } = await get<{ flags: Record<string, boolean> }>('/features');
+  const recurring = flags.recurring_transactions === true;
+  if (recurring) {
+    const rule = { walletId: wallet.id, frequency: 'MONTHLY', startDate: today };
+    await post('/recurring', {
+      ...rule,
+      type: 'EXPENSE',
+      amount: 200_000,
+      categoryId: 'cat_tagihan',
+      note: 'Listrik',
+      autoPost: false,
+    });
+    await post('/recurring', {
+      ...rule,
+      type: 'EXPENSE',
+      amount: 100_000,
+      categoryId: 'cat_tagihan',
+      note: 'Internet',
+    });
+  }
 
   for (const path of [
     '/',
@@ -88,6 +109,7 @@ async function auditAppPages(page: Page) {
     '/anggaran',
     '/dompet',
     '/kategori',
+    '/berulang',
     '/profil',
     '/mulai',
     '/tidak-ada',
@@ -96,6 +118,18 @@ async function auditAppPages(page: Page) {
     await waitForApp(page);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     await test.step(path, async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+  }
+
+  if (recurring) {
+    await page.goto('/berulang');
+    await waitForApp(page);
+    await page.getByRole('button', { name: 'Tambah' }).click();
+    await expect(page.getByRole('dialog', { name: 'Transaksi berulang baru' })).toBeVisible();
+    await waitForApp(page);
+    await test.step('/berulang (form)', async () => {
       await expectNoViolations(page);
       await expectTouchTargets(page);
     });

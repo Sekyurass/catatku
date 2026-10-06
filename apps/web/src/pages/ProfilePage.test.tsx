@@ -25,6 +25,11 @@ const auth = vi.hoisted(() => ({
 }));
 vi.mock('../lib/auth', () => ({ useAuth: () => auth }));
 
+const features = vi.hoisted(() => ({ recurring: false }));
+vi.mock('../lib/features', () => ({
+  useFeature: (key: string) => key === 'recurring_transactions' && features.recurring,
+}));
+
 const compressAvatar = vi.hoisted(() => vi.fn());
 vi.mock('../lib/avatar', async (importOriginal) => ({
   ...(await importOriginal<typeof AvatarModule>()),
@@ -42,6 +47,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  features.recurring = false;
   auth.user.avatarUpdatedAt = null;
   auth.updateProfile.mockReset().mockResolvedValue(undefined);
   auth.changePassword.mockReset().mockResolvedValue(undefined);
@@ -56,6 +62,18 @@ describe('ProfilePage', () => {
     expect(screen.getByText('DL')).toBeInTheDocument();
     expect(screen.getByText('Dina Lestari')).toBeInTheDocument();
     expect(screen.getByText('dina@contoh.id')).toBeInTheDocument();
+  });
+
+  it('tautan Transaksi berulang hanya muncul bila flag menyala', () => {
+    const { unmount } = renderPage();
+    expect(screen.queryByRole('link', { name: /Transaksi berulang/ })).not.toBeInTheDocument();
+    unmount();
+    features.recurring = true;
+    renderPage();
+    expect(screen.getByRole('link', { name: /Transaksi berulang/ })).toHaveAttribute(
+      'href',
+      '/berulang',
+    );
   });
 
   it('foto yang dipilih dikompres lalu diunggah', async () => {

@@ -59,7 +59,17 @@ npm run dev                              # API :4000 + web :5173
 ```
 
 Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12345**
-(sudah berisi 3 dompet, transaksi 6 bulan, transfer, dan anggaran berlanjut). Akun baru dari halaman **Daftar**
+(sudah berisi 3 dompet, transaksi 6 bulan, transfer, anggaran berlanjut, dan 4 transaksi berulang:
+gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini).
+
+Fitur Fase 1 berada di balik feature flag yang **nonaktif** setelah seed. Untuk menyalakannya:
+
+```sql
+-- Untuk semua pengguna (SQL editor Supabase / psql)
+UPDATE "FeatureFlag" SET enabled = true WHERE key = 'recurring_transactions';
+```
+
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on` di `apps/api/.env` (restart API). Akun baru dari halaman **Daftar**
 langsung diarahkan ke onboarding 3 langkah di `/mulai`: sambutan → dompet pertama → transaksi pertama
 (bisa dilewati kapan saja).
 
@@ -141,6 +151,23 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
   di tema gelap primer berwarna terang sehingga teks di atasnya memakai `--on-primary`, sedangkan
   permukaan merek besar memakai `--brand`. Warna kategori dicerahkan otomatis lewat `color-mix`.
   Audit axe E2E berjalan di kedua tema.
+- **Transaksi berulang** (Fase 1.1, flag `recurring_transactions`): aturan menyimpan jadwal
+  (`startDate` + `frequency` harian/mingguan/bulanan/tahunan + `interval` 1–99) dan indeks kejadian
+  berikutnya. Tanggal ke-n selalu dihitung dari `startDate`, jadi "tanggal 31" jatuh di akhir bulan pada
+  bulan pendek lalu kembali ke 31 (tidak bergeser), dan 29 Feb jatuh ke 28 Feb di tahun biasa.
+  - **Penjadwal `node-cron` di proses API** (`jobs/scheduler.ts`): sekali saat start lalu tiap jam menit ke-5,
+    zona `Asia/Jakarta`. Tanpa layanan tambahan; cocok untuk satu instance. Bila nanti diskalakan, cukup
+    pindahkan `runDueRules()` ke cron eksternal yang memanggil endpoint internal.
+  - **Idempoten**: setiap kejadian punya baris `RecurringOccurrence` unik per `(ruleId, date)`, dan aturan
+    dimajukan dengan _optimistic lock_ (`nextIndex` lama sebagai syarat update). Dua proses yang berjalan
+    bersamaan atau restart di tengah jalan tidak pernah mencatat dobel.
+  - **Catch-up**: bila server mati beberapa hari, kejadian yang terlewat dicatat saat proses berikutnya
+    (maks. 62 per aturan per putaran, sisanya di putaran berikut). Aturan baru dengan tanggal mulai di masa
+    lalu, aturan yang dilanjutkan setelah dijeda, dan perubahan jadwal **tidak** membuat transaksi mundur.
+  - **Mode konfirmasi** (`autoPost = false`): kejadian masuk antrean `PENDING` dan tampil di Beranda untuk
+    **Catat** (nominal boleh disesuaikan, mis. tagihan listrik) atau **Lewati**.
+  - Dompet/kategori yang diarsipkan otomatis menjeda aturannya; menghapus aturan tidak menghapus transaksi
+    yang sudah tercatat (tanda "Berulang" hilang). Transaksi hasil aturan diberi lencana **Berulang**.
 
 ## API (Fase 0)
 
@@ -179,6 +206,14 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
   - `Jumlah` bilangan bulat Rupiah bertanda; transfer muncul dua baris (keluar/masuk) dengan dompet lawannya
   - Dikirim bertahap per 500 baris (streaming); teks berawalan `= + - @` diberi awalan `'` (anti CSV injection)
 
+### Fase 1 (di balik feature flag; flag mati → 404)
+
+- ✅ `recurring_transactions`: `GET/POST /recurring`, `PATCH/DELETE /recurring/:id`
+  - Body: `{ type: INCOME|EXPENSE, amount, walletId, categoryId, note?, frequency: DAILY|WEEKLY|MONTHLY|YEARLY,
+interval?: 1–99, startDate, endDate?: string|null, autoPost?: boolean }`; `PATCH` juga menerima `paused`
+  - `GET /recurring/pending` → kejadian menunggu konfirmasi; `POST /recurring/pending/:id/confirm`
+    `{ amount? }` → `{ transactionId }` (409 bila sudah diproses), `POST /recurring/pending/:id/skip` → 204
+
 ## Event analitik & gerbang fase
 
 | Event                                        | Dicatat oleh           | `props`                          |
@@ -188,6 +223,8 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 | `transaction_created`                        | API                    | `type` (EXPENSE/INCOME/TRANSFER) |
 | `budget_saved`                               | API                    | `items`, `monthOnly` (jumlah)    |
 | `export_csv`                                 | API                    | –                                |
+| `password_reset_requested`, `password_reset` | API auth               | –                                |
+| `recurring_rule_created`                     | API                    | `frequency`, `autoPost`          |
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                     |
 
 Contoh kueri untuk menilai gerbang Fase 0 → Fase 1 (jalankan di SQL editor Supabase):
