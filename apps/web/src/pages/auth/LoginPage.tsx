@@ -1,5 +1,6 @@
 import { type LoginInput, loginSchema } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { LockKeyhole, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -34,8 +35,8 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Masuk"
-      subtitle="Selamat datang kembali!"
+      title="Selamat datang kembali!"
+      subtitle="Masuk untuk lanjut mencatat keuanganmu."
       footer={
         <>
           Belum punya akun?{' '}
@@ -57,13 +58,22 @@ export function LoginPage() {
               type="email"
               autoComplete="email"
               inputMode="email"
+              icon={Mail}
+              placeholder="nama@email.com"
+              className="min-h-12"
               {...register('email')}
             />
           )}
         </Field>
         <Field label="Kata sandi" error={errors.password?.message}>
           {(a) => (
-            <PasswordInput {...a} autoComplete="current-password" {...register('password')} />
+            <PasswordInput
+              {...a}
+              autoComplete="current-password"
+              icon={LockKeyhole}
+              className="min-h-12"
+              {...register('password')}
+            />
           )}
         </Field>
         <Button type="submit" size="lg" loading={isSubmitting} className="mt-2 w-full">

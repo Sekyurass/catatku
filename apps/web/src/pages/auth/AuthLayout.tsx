@@ -3,9 +3,10 @@ import { useLocation } from 'react-router-dom';
 import { Logo } from '../../components/Logo';
 import { cn } from '../../lib/cn';
 import { LoginPage, RegisterPage } from '../../routes/pages';
+import { AuthShowcase } from './AuthShowcase';
 
 /**
- * Kartu masuk dan daftar bergeser seperti dua langkah berurutan: Daftar datang dari kanan,
+ * Kolom form masuk dan daftar bergeser seperti dua langkah berurutan: Daftar datang dari kanan,
  * Masuk dari kiri. Kunjungan pertama (tanpa navigasi sebelumnya) cukup memudar.
  */
 function enterAnimation(pathname: string, key: string) {
@@ -34,22 +35,23 @@ export function AuthLayout({
   }, []);
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center overflow-x-hidden px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <Logo />
-          <p className="text-sm text-muted">Catat keuangan dalam hitungan detik.</p>
+    <div className="min-h-dvh bg-surface lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-4 lg:bg-bg lg:p-4">
+      <main className="flex min-h-dvh flex-col overflow-x-hidden px-5 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-6 sm:px-10 lg:min-h-0 lg:rounded-[28px] lg:bg-surface lg:px-14 lg:shadow-card">
+        <Logo className="self-center lg:self-start" />
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
+          <div className={animation}>
+            <h1 className="text-3xl font-bold tracking-tight text-fg">{title}</h1>
+            <p className="mt-2 mb-8 text-base text-muted">{subtitle}</p>
+            {children}
+          </div>
         </div>
-        <div
-          className={cn('rounded-card border border-line bg-surface p-6 shadow-card', animation)}
-        >
-          <h1 className="text-2xl font-bold text-fg">{title}</h1>
-          <p className="mt-1 mb-6 text-sm text-muted">{subtitle}</p>
-          {children}
-        </div>
-        <p className={cn('mt-6 text-center text-sm text-muted', animation)}>{footer}</p>
-      </div>
-    </main>
+        <p className={cn('text-center text-sm text-muted', animation)}>{footer}</p>
+      </main>
+      <AuthShowcase
+        variant={pathname === '/daftar' ? 'register' : 'login'}
+        animate={key === 'default'}
+      />
+    </div>
   );
 }
 

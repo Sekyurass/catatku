@@ -54,5 +54,7 @@ test('foto profil: unggah → tampil → hapus, lalu keluar', async ({ page }) =
 
   await page.getByRole('button', { name: 'Keluar', exact: true }).click();
   await expect(page).toHaveURL(/\/masuk$/);
-  await expect(page.getByRole('heading', { name: 'Masuk', level: 1 })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Selamat datang kembali!', level: 1 }),
+  ).toBeVisible();
 });

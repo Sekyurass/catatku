@@ -50,24 +50,58 @@ describe('DatePicker', () => {
     expect(selected).toHaveFocus();
   });
 
-  it('memilih dengan klik lalu menutup dan mengembalikan fokus', async () => {
+  it('klik tanggal hanya menandai; "Pilih" menyimpan, menutup, dan mengembalikan fokus', async () => {
     render(<Harness initial="2026-10-05" />);
     await userEvent.click(trigger());
-    await userEvent.click(screen.getByRole('button', { name: 'Senin, 12 Oktober 2026' }));
+    const day = screen.getByRole('button', { name: 'Senin, 12 Oktober 2026' });
+    await userEvent.click(day);
+    expect(day).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('dialog')).toHaveTextContent('Sen, 12 Okt 2026');
+    expect(screen.getByRole('status')).toHaveTextContent('2026-10-05');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Pilih' }));
     expect(screen.getByRole('status')).toHaveTextContent('2026-10-12');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(trigger()).toHaveFocus();
   });
 
-  it('navigasi keyboard: panah, PageDown, Enter', async () => {
+  it('"Batal" dan Esc membuang tanggal yang belum dipilih', async () => {
+    render(<Harness initial="2026-10-05" />);
+    await userEvent.click(trigger());
+    await userEvent.click(screen.getByRole('button', { name: 'Senin, 12 Oktober 2026' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Batal' }));
+    expect(screen.getByRole('status')).toHaveTextContent('2026-10-05');
+
+    await userEvent.click(trigger());
+    expect(screen.getByRole('button', { name: 'Senin, 5 Oktober 2026' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await userEvent.keyboard('{ArrowRight}{Enter}{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('2026-10-05');
+  });
+
+  it('klik dua kali langsung menyimpan', async () => {
+    render(<Harness initial="2026-10-05" />);
+    await userEvent.click(trigger());
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Kamis, 15 Oktober 2026' }));
+    expect(screen.getByRole('status')).toHaveTextContent('2026-10-15');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('navigasi keyboard: panah, PageDown, Enter menandai', async () => {
     render(<Harness initial="2026-10-31" />);
     await userEvent.click(trigger());
     await userEvent.keyboard('{ArrowRight}');
     expect(screen.getByRole('button', { name: 'Minggu, 1 November 2026' })).toHaveFocus();
     expect(screen.getByText('November 2026')).toBeInTheDocument();
     await userEvent.keyboard('{ArrowUp}{PageDown}');
-    expect(screen.getByRole('button', { name: 'Rabu, 25 November 2026' })).toHaveFocus();
+    const day = screen.getByRole('button', { name: 'Rabu, 25 November 2026' });
+    expect(day).toHaveFocus();
     await userEvent.keyboard('{Enter}');
+    expect(day).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Pilih' }));
     expect(screen.getByRole('status')).toHaveTextContent('2026-11-25');
   });
 

@@ -36,6 +36,8 @@ const APP_PAGES = [
   WalletsPage,
   CategoriesPage,
   ProfilePage,
+  // Sesi bisa berakhir kapan saja (kedaluwarsa); halaman masuk sudah siap tanpa layar memuat.
+  LoginPage,
 ];
 
 /** Unduh chunk halaman aplikasi saat browser senggang supaya pindah menu tidak menunggu jaringan. */

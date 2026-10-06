@@ -1,5 +1,6 @@
 import { registerSchema } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { LockKeyhole, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
@@ -41,8 +42,8 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Buat akun"
-      subtitle="Gratis, cukup satu menit."
+      title="Buat akun gratis"
+      subtitle="Cukup satu menit untuk mulai mencatat."
       footer={
         <>
           Sudah punya akun?{' '}
@@ -58,7 +59,16 @@ export function RegisterPage() {
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <FormAlert message={formError} />
         <Field label="Nama panggilan" error={errors.name?.message}>
-          {(a) => <Input {...a} autoComplete="given-name" {...register('name')} />}
+          {(a) => (
+            <Input
+              {...a}
+              autoComplete="given-name"
+              icon={UserRound}
+              placeholder="Mis. Dina"
+              className="min-h-12"
+              {...register('name')}
+            />
+          )}
         </Field>
         <Field label="Email" error={errors.email?.message}>
           {(a) => (
@@ -67,16 +77,33 @@ export function RegisterPage() {
               type="email"
               autoComplete="email"
               inputMode="email"
+              icon={Mail}
+              placeholder="nama@email.com"
+              className="min-h-12"
               {...register('email')}
             />
           )}
         </Field>
         <Field label="Kata sandi" hint="Minimal 8 karakter." error={errors.password?.message}>
-          {(a) => <PasswordInput {...a} autoComplete="new-password" {...register('password')} />}
+          {(a) => (
+            <PasswordInput
+              {...a}
+              autoComplete="new-password"
+              icon={LockKeyhole}
+              className="min-h-12"
+              {...register('password')}
+            />
+          )}
         </Field>
         <Field label="Ulangi kata sandi" error={errors.confirmPassword?.message}>
           {(a) => (
-            <PasswordInput {...a} autoComplete="new-password" {...register('confirmPassword')} />
+            <PasswordInput
+              {...a}
+              autoComplete="new-password"
+              icon={ShieldCheck}
+              className="min-h-12"
+              {...register('confirmPassword')}
+            />
           )}
         </Field>
         <Button type="submit" size="lg" loading={isSubmitting} className="mt-2 w-full">

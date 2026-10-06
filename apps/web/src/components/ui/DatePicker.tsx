@@ -78,8 +78,9 @@ interface DatePickerProps {
 }
 
 /**
- * Kalender pengganti <input type="date">. Minggu dimulai Senin. Keyboard: panah (hari/minggu),
- * PageUp/PageDown (bulan), Home/End (awal/akhir minggu), Enter memilih, Esc menutup.
+ * Kalender pengganti <input type="date">. Minggu dimulai Senin. Klik/Enter pada tanggal hanya
+ * menandai (draf); "Pilih" menyimpan, sedangkan "Batal", Esc, atau klik di luar membuang draf.
+ * Keyboard: panah (hari/minggu), PageUp/PageDown (bulan), Home/End (awal/akhir minggu).
  */
 export function DatePicker({
   id,
@@ -94,6 +95,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const { open, setOpen, anchorRef, popupRef, style } = usePopover<HTMLButtonElement>();
   const [focused, setFocused] = useState(() => value || today());
+  const [draft, setDraft] = useState(value);
   // Fokus pindah ke grid hanya saat dibuka dan saat navigasi keyboard; tombol bulan tetap memegang fokusnya.
   const focusGrid = useRef(false);
   const outOfRange = (d: string) =>
@@ -102,6 +104,7 @@ export function DatePicker({
 
   const show = () => {
     focusGrid.current = true;
+    setDraft(value);
     setFocused(clamp(value || today()));
     setOpen(true);
   };
@@ -109,9 +112,13 @@ export function DatePicker({
     setOpen(false);
     if (refocus) anchorRef.current?.focus();
   };
-  const choose = (date: string) => {
-    onChange(date);
+  const commit = (date: string) => {
+    if (date !== value) onChange(date);
     close();
+  };
+  const mark = (date: string) => {
+    setDraft(date);
+    setFocused(date);
   };
 
   useEffect(() => {
@@ -193,7 +200,26 @@ export function DatePicker({
           }}
           className="z-50 w-[20.5rem] max-w-[calc(100vw-1rem)] animate-pop-in overflow-y-auto rounded-card border border-line bg-surface p-2 shadow-lg"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 border-b border-line px-2 pb-2">
+            <div className="min-w-0">
+              <p className="text-xs text-muted">Tanggal dipilih</p>
+              <p className="truncate text-lg font-semibold" aria-live="polite">
+                {draft ? triggerFormat.format(utc(draft)) : 'Belum dipilih'}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={outOfRange(todayStr)}
+              onClick={() => {
+                focusGrid.current = true;
+                mark(todayStr);
+              }}
+              className="min-h-11 shrink-0 rounded-control px-3 text-sm font-semibold text-primary hover:bg-primary-soft disabled:opacity-40"
+            >
+              Hari ini
+            </button>
+          </div>
+          <div className="mt-1 flex items-center justify-between">
             <button
               type="button"
               className={navClass}
@@ -203,9 +229,7 @@ export function DatePicker({
             >
               <ChevronLeft className="size-5" aria-hidden />
             </button>
-            <p className="font-semibold" aria-live="polite">
-              {formatMonthLabel(month)}
-            </p>
+            <p className="font-semibold">{formatMonthLabel(month)}</p>
             <button
               type="button"
               className={navClass}
@@ -243,7 +267,7 @@ export function DatePicker({
                 <tr key={week[0]}>
                   {week.map((date) => {
                     const inMonth = date.startsWith(month);
-                    const isSelected = date === value;
+                    const isSelected = date === draft;
                     const isToday = date === todayStr;
                     return (
                       <td key={date} className="p-0 text-center">
@@ -255,7 +279,8 @@ export function DatePicker({
                           aria-label={fullFormat.format(utc(date))}
                           aria-pressed={isSelected}
                           aria-current={isToday ? 'date' : undefined}
-                          onClick={() => choose(date)}
+                          onClick={() => mark(date)}
+                          onDoubleClick={() => commit(date)}
                           onFocus={() => date !== focused && setFocused(date)}
                           className={cn(
                             'mx-auto flex size-11 items-center justify-center rounded-full text-sm tabular transition-colors',
@@ -277,25 +302,30 @@ export function DatePicker({
               ))}
             </tbody>
           </table>
-          <div className="mt-1 flex items-center justify-between border-t border-line pt-1">
-            {clearable && value ? (
+          <div className="mt-1 flex items-center gap-2 border-t border-line pt-2">
+            {clearable && value && (
               <button
                 type="button"
-                onClick={() => choose('')}
+                onClick={() => commit('')}
                 className="min-h-11 rounded-control px-3 text-sm font-medium text-muted hover:bg-surface-muted hover:text-fg"
               >
                 Hapus
               </button>
-            ) : (
-              <span />
             )}
             <button
               type="button"
-              disabled={outOfRange(todayStr)}
-              onClick={() => choose(todayStr)}
-              className="min-h-11 rounded-control px-3 text-sm font-semibold text-primary hover:bg-primary-soft disabled:opacity-40"
+              onClick={() => close()}
+              className="ml-auto min-h-11 rounded-control px-4 text-sm font-semibold text-fg hover:bg-surface-muted"
             >
-              Hari ini
+              Batal
+            </button>
+            <button
+              type="button"
+              disabled={!draft}
+              onClick={() => commit(draft)}
+              className="min-h-11 rounded-control bg-primary px-5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
+            >
+              Pilih
             </button>
           </div>
         </div>

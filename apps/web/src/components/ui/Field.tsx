@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, type LucideIcon } from 'lucide-react';
 import { forwardRef, type InputHTMLAttributes, type ReactNode, useId, useState } from 'react';
 import { cn } from '../../lib/cn';
 
@@ -41,36 +41,62 @@ export const inputClass =
   'min-h-11 w-full rounded-control border border-line bg-surface px-3 text-base text-fg placeholder:text-muted/70 ' +
   'aria-[invalid=true]:border-expense focus-visible:border-primary';
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, ...props }, ref) {
-    return <input ref={ref} className={cn(inputClass, className)} {...props} />;
-  },
-);
+type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+  /** Ikon dekoratif di kiri input. */
+  icon?: LucideIcon;
+};
 
-export const PasswordInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  function PasswordInput({ className, ...props }, ref) {
-    const [visible, setVisible] = useState(false);
-    return (
-      <div className="relative">
-        <input
-          ref={ref}
-          type={visible ? 'text' : 'password'}
-          className={cn(inputClass, 'pr-12', className)}
-          {...props}
-        />
-        <button
-          type="button"
-          onClick={() => setVisible((v) => !v)}
-          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted hover:text-fg"
-          aria-label={visible ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-        >
-          {visible ? (
-            <EyeOff className="size-5" aria-hidden />
-          ) : (
-            <Eye className="size-5" aria-hidden />
-          )}
-        </button>
-      </div>
-    );
-  },
-);
+function LeadingIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <Icon
+      className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted"
+      aria-hidden
+    />
+  );
+}
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { className, icon, ...props },
+  ref,
+) {
+  const input = (
+    <input ref={ref} className={cn(inputClass, icon && 'pl-11', className)} {...props} />
+  );
+  if (!icon) return input;
+  return (
+    <div className="relative">
+      <LeadingIcon icon={icon} />
+      {input}
+    </div>
+  );
+});
+
+export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(function PasswordInput(
+  { className, icon, ...props },
+  ref,
+) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      {icon && <LeadingIcon icon={icon} />}
+      <input
+        ref={ref}
+        type={visible ? 'text' : 'password'}
+        className={cn(inputClass, 'pr-12', icon && 'pl-11', className)}
+        {...props}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted hover:text-fg"
+        aria-label={visible ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+      >
+        {visible ? (
+          <EyeOff className="size-5" aria-hidden />
+        ) : (
+          <Eye className="size-5" aria-hidden />
+        )}
+      </button>
+    </div>
+  );
+});
