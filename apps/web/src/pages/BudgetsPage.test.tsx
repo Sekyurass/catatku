@@ -20,6 +20,7 @@ const item = (
   categoryId,
   category: { id: categoryId, name, icon: 'utensils', color: '#EA580C' },
   month,
+  since: limitAmount > 0 ? shiftMonth(month, -1) : null,
   limitAmount,
   spent,
   remaining: limitAmount - spent,
@@ -42,7 +43,8 @@ const DATA: BudgetMonthDTO = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-function setup(data: BudgetMonthDTO = DATA) {
+function setup() {
+  let data = DATA;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     if (url.pathname.endsWith('/budgets') && init?.method === 'PUT') {
@@ -50,14 +52,15 @@ function setup(data: BudgetMonthDTO = DATA) {
         items: { categoryId: string; limitAmount: number }[];
       };
       const [change] = body.items;
-      return json({
+      data = {
         ...data,
         items: data.items.map((i) =>
           i.categoryId === change!.categoryId
             ? item(i.categoryId, i.category.name, change!.limitAmount, i.spent, 'ok')
             : i,
         ),
-      });
+      };
+      return json(data);
     }
     if (url.pathname.endsWith('/budgets')) {
       const m = url.searchParams.get('month')!;
@@ -95,6 +98,7 @@ describe('BudgetsPage', () => {
 
     const transport = screen.getByRole('button', { name: 'Ubah anggaran Transport' });
     expect(within(transport).getByText('Aman')).toBeInTheDocument();
+    expect(within(transport).getByText((t) => t.startsWith('Berlanjut sejak'))).toBeInTheDocument();
 
     expect(screen.getByRole('progressbar', { name: 'Anggaran Hiburan terpakai' })).toHaveAttribute(
       'aria-valuetext',
@@ -122,7 +126,9 @@ describe('BudgetsPage', () => {
         items: [{ categoryId: 'cat_belanja', limitAmount: 300_000 }],
       });
     });
-    expect(await screen.findByText('Anggaran disimpan')).toBeInTheDocument();
+    expect(
+      await screen.findByText((t) => t.startsWith('Anggaran Belanja berlaku mulai')),
+    ).toBeInTheDocument();
     expect(
       await screen.findByRole('button', { name: 'Ubah anggaran Belanja' }),
     ).toBeInTheDocument();

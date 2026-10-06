@@ -67,10 +67,13 @@ export interface TransferDTO {
 }
 
 export interface BudgetDTO {
+  /** Pengaturan anggaran yang berlaku di bulan ini (bisa warisan bulan sebelumnya); null = tanpa anggaran. */
   id: string | null;
   categoryId: string;
   category: { id: string; name: string; icon: string; color: string };
   month: string;
+  /** Bulan pengaturan yang berlaku dibuat; anggaran berlanjut ke bulan berikutnya sampai diubah. */
+  since: string | null;
   limitAmount: number;
   spent: number;
   remaining: number;

@@ -1,5 +1,6 @@
 import type { BudgetDTO, BudgetMonthDTO, PutBudgetsInput } from '@catatku/shared';
 import { budgetStatus, currentMonth, monthRange } from '@catatku/shared';
+import type { Budget } from '@prisma/client';
 import { validationError } from '../../lib/errors';
 import { toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
@@ -7,19 +8,42 @@ import { prisma } from '../../lib/prisma';
 const visibleTo = (userId: string) => ({ OR: [{ userId: null }, { userId }] });
 
 /**
- * Semua kategori pengeluaran aktif beserta anggaran & realisasinya di bulan itu.
+ * Baris Budget = pengaturan yang berlaku mulai `month` dan seterusnya sampai ada baris
+ * yang lebih baru. limitAmount 0 = penanda "anggaran dihentikan" mulai bulan itu.
+ * Kembalikan pengaturan yang berlaku di `month` (baris terbaru dengan month ≤ bulan itu) per kategori.
+ */
+async function effectiveBudgets(
+  userId: string,
+  month: string,
+  opts: { before?: boolean; categoryIds?: string[] } = {},
+): Promise<Map<string, Budget>> {
+  const rows = await prisma.budget.findMany({
+    where: {
+      userId,
+      month: opts.before ? { lt: month } : { lte: month },
+      ...(opts.categoryIds && { categoryId: { in: opts.categoryIds } }),
+    },
+    orderBy: { month: 'desc' },
+  });
+  const map = new Map<string, Budget>();
+  for (const row of rows) if (!map.has(row.categoryId)) map.set(row.categoryId, row);
+  return map;
+}
+
+/**
+ * Semua kategori pengeluaran aktif beserta anggaran yang berlaku & realisasinya di bulan itu.
  * Kategori tanpa anggaran tetap ikut (id null, limit 0) agar bisa langsung diatur.
  * Urutan: yang beranggaran (paling kritis dulu), lalu sisanya menurut pengeluaran terbesar.
  */
 export async function getBudgets(userId: string, month = currentMonth()): Promise<BudgetMonthDTO> {
   const { start, end } = monthRange(month);
-  const [categories, budgets, spending] = await Promise.all([
+  const [categories, effective, spending] = await Promise.all([
     prisma.category.findMany({
       where: { type: 'EXPENSE', ...visibleTo(userId) },
       select: { id: true, name: true, icon: true, color: true, archivedAt: true },
       orderBy: { createdAt: 'asc' },
     }),
-    prisma.budget.findMany({ where: { userId, month } }),
+    effectiveBudgets(userId, month),
     prisma.transaction.groupBy({
       by: ['categoryId'],
       where: {
@@ -32,11 +56,16 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
     }),
   ]);
 
+  const activeBudget = (categoryId: string) => {
+    const b = effective.get(categoryId);
+    return b && b.limitAmount > 0n ? b : undefined;
+  };
+
   const items: BudgetDTO[] = categories
-    // Kategori yang diarsipkan hanya tampil bila masih punya anggaran bulan itu.
-    .filter((c) => !c.archivedAt || budgets.some((b) => b.categoryId === c.id))
+    // Kategori yang diarsipkan hanya tampil bila anggarannya masih berlaku bulan itu.
+    .filter((c) => !c.archivedAt || activeBudget(c.id))
     .map((c) => {
-      const budget = budgets.find((b) => b.categoryId === c.id);
+      const budget = activeBudget(c.id);
       const limitAmount = toNumber(budget?.limitAmount);
       const spent = Math.abs(toNumber(spending.find((s) => s.categoryId === c.id)?._sum.amount));
       return {
@@ -44,6 +73,7 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
         categoryId: c.id,
         category: { id: c.id, name: c.name, icon: c.icon, color: c.color },
         month,
+        since: budget?.month ?? null,
         limitAmount,
         spent,
         remaining: limitAmount - spent,
@@ -65,7 +95,10 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
   };
 }
 
-/** Atur banyak anggaran sekaligus. limitAmount 0 = hapus anggaran kategori itu. */
+/**
+ * Atur banyak anggaran sekaligus, berlaku mulai `month` dan seterusnya; bulan sebelumnya tidak berubah.
+ * limitAmount 0 = hentikan anggaran kategori itu mulai `month`.
+ */
 export async function putBudgets(userId: string, input: PutBudgetsInput): Promise<BudgetMonthDTO> {
   const { month } = input;
   const limits = new Map(input.items.map((i) => [i.categoryId, i.limitAmount]));
@@ -89,15 +122,24 @@ export async function putBudgets(userId: string, input: PutBudgetsInput): Promis
     }
   }
 
+  // Menghentikan anggaran warisan butuh penanda 0; tanpa warisan, baris bulan ini cukup dihapus.
+  const inherited = toClear.length
+    ? await effectiveBudgets(userId, month, { before: true, categoryIds: toClear })
+    : new Map<string, Budget>();
+  const needsStop = toClear.filter((id) => (inherited.get(id)?.limitAmount ?? 0n) > 0n);
+  const toDelete = toClear.filter((id) => !needsStop.includes(id));
+
+  const upsert = (categoryId: string, limit: number) =>
+    prisma.budget.upsert({
+      where: { userId_categoryId_month: { userId, categoryId, month } },
+      create: { userId, categoryId, month, limitAmount: BigInt(limit) },
+      update: { limitAmount: BigInt(limit) },
+    });
+
   await prisma.$transaction([
-    prisma.budget.deleteMany({ where: { userId, month, categoryId: { in: toClear } } }),
-    ...toSet.map(([categoryId, limit]) =>
-      prisma.budget.upsert({
-        where: { userId_categoryId_month: { userId, categoryId, month } },
-        create: { userId, categoryId, month, limitAmount: BigInt(limit) },
-        update: { limitAmount: BigInt(limit) },
-      }),
-    ),
+    prisma.budget.deleteMany({ where: { userId, month, categoryId: { in: toDelete } } }),
+    ...needsStop.map((categoryId) => upsert(categoryId, 0)),
+    ...toSet.map(([categoryId, limit]) => upsert(categoryId, limit)),
   ]);
   return getBudgets(userId, month);
 }

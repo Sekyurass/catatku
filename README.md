@@ -119,6 +119,9 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 - ✅ `GET /budgets?month=` (semua kategori pengeluaran aktif + anggaran & realisasinya; tanpa anggaran → `id: null`),
   `PUT /budgets` body `{ month, items: [{ categoryId, limitAmount }] }` (upsert massal; `limitAmount: 0` menghapus; idempoten)
   - Status: `ok` < 80%, `warning` 80–99%, `over` ≥ 100%. Hanya kategori pengeluaran yang aktif yang bisa dianggarkan
+  - **Anggaran berlanjut**: baris `Budget(month)` berlaku mulai bulan itu sampai ada baris yang lebih baru
+    (`since` di respons = bulan asalnya). Mengubah bulan X tidak mengubah bulan sebelum X; menghentikan
+    anggaran warisan disimpan sebagai baris `limitAmount = 0` (tanpa migrasi skema)
 - ✅ `GET /export/transactions.csv` (filter sama dengan `GET /transactions`, tanpa `cursor/limit`)
   - UTF-8 + BOM, pemisah koma, baris `CRLF`; kolom `Tanggal,Jenis,Kategori,Dompet,Dompet lawan,Jumlah,Catatan`
   - `Jumlah` bilangan bulat Rupiah bertanda; transfer muncul dua baris (keluar/masuk) dengan dompet lawannya

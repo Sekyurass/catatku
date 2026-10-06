@@ -4,6 +4,7 @@ import { authed, createWallet, registerUser, type TestUser } from './helpers';
 
 const month = currentMonth();
 const nextMonth = shiftMonth(month, 1);
+const prevMonth = shiftMonth(month, -1);
 
 interface BudgetItem {
   id: string | null;
@@ -87,10 +88,47 @@ describe('PUT/GET /budgets', () => {
     expect(res.body.totalLimit).toBe(1_200_000);
   });
 
-  it('anggaran berlaku per bulan', async () => {
-    const res = await authed(user).get('/api/v1/budgets').query({ month: nextMonth });
-    expect(res.body.totalLimit).toBe(0);
-    expect(res.body.items.every((i: BudgetItem) => i.id === null && i.spent === 0)).toBe(true);
+  it('anggaran berlanjut ke bulan berikutnya, bulan sebelumnya tidak terpengaruh', async () => {
+    const next = await authed(user).get('/api/v1/budgets').query({ month: nextMonth });
+    expect(next.body.totalLimit).toBe(1_200_000);
+    expect(byCategory(next.body.items, 'cat_makan')).toMatchObject({
+      since: month,
+      limitAmount: 1_000_000,
+      spent: 0,
+      status: 'ok',
+    });
+
+    const prev = await authed(user).get('/api/v1/budgets').query({ month: prevMonth });
+    expect(prev.body.totalLimit).toBe(0);
+  });
+
+  it('mengubah di bulan depan hanya berlaku mulai bulan itu', async () => {
+    await authed(user)
+      .put('/api/v1/budgets')
+      .send({ month: nextMonth, items: [{ categoryId: 'cat_makan', limitAmount: 1_500_000 }] })
+      .expect(200);
+    const now = await authed(user).get('/api/v1/budgets').query({ month });
+    expect(byCategory(now.body.items, 'cat_makan').limitAmount).toBe(1_000_000);
+    const later = await authed(user)
+      .get('/api/v1/budgets')
+      .query({ month: shiftMonth(month, 3) });
+    expect(byCategory(later.body.items, 'cat_makan')).toMatchObject({
+      limitAmount: 1_500_000,
+      since: nextMonth,
+    });
+  });
+
+  it('menghentikan anggaran warisan mulai bulan tertentu', async () => {
+    await authed(user)
+      .put('/api/v1/budgets')
+      .send({ month: nextMonth, items: [{ categoryId: 'cat_hiburan', limitAmount: 0 }] })
+      .expect(200);
+    const now = await authed(user).get('/api/v1/budgets').query({ month });
+    expect(byCategory(now.body.items, 'cat_hiburan').limitAmount).toBe(200_000);
+    for (const m of [nextMonth, shiftMonth(month, 6)]) {
+      const res = await authed(user).get('/api/v1/budgets').query({ month: m });
+      expect(byCategory(res.body.items, 'cat_hiburan')).toMatchObject({ id: null, since: null });
+    }
   });
 
   it('menolak kategori pemasukan, nominal negatif, dan bulan tidak valid', async () => {

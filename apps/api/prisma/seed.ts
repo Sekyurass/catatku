@@ -181,14 +181,13 @@ async function seedDemo() {
     [kopi.id, 250_000],
   ];
   await prisma.budget.createMany({
-    data: budgets.flatMap(([categoryId, limit]) =>
-      [thisMonth, shiftMonth(thisMonth, -1)].map((month) => ({
-        userId: user.id,
-        categoryId,
-        month,
-        limitAmount: BigInt(limit),
-      })),
-    ),
+    // Diatur sejak bulan lalu; bulan ini mewarisinya otomatis.
+    data: budgets.map(([categoryId, limit]) => ({
+      userId: user.id,
+      categoryId,
+      month: shiftMonth(thisMonth, -1),
+      limitAmount: BigInt(limit),
+    })),
   });
 
   return { email: DEMO_EMAIL, password: DEMO_PASSWORD, transactions: rows.length };

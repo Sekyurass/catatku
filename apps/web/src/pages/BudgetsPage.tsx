@@ -91,7 +91,7 @@ export function BudgetsPage() {
               <EmptyState
                 icon={PiggyBank}
                 title={`Belum ada anggaran untuk ${formatMonthLabel(month)}`}
-                description="Tentukan batas pengeluaran per kategori supaya kamu tahu kapan perlu mengerem. Pilih kategori di bawah untuk mulai."
+                description="Tentukan batas pengeluaran per kategori supaya kamu tahu kapan perlu mengerem. Cukup atur sekali, anggaran otomatis berlanjut ke bulan berikutnya."
               />
             </Card>
           )}
@@ -250,7 +250,14 @@ function BudgetCard({ item, onEdit }: { item: BudgetDTO; onEdit: () => void }) {
     >
       <span className="flex items-center gap-3">
         <IconBadge icon={categoryIcon(item.category.icon)} color={item.category.color} size="sm" />
-        <span className="min-w-0 flex-1 truncate font-medium">{item.category.name}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{item.category.name}</span>
+          {item.since && item.since !== item.month && (
+            <span className="block truncate text-xs text-muted">
+              Berlanjut sejak {formatMonthLabel(item.since)}
+            </span>
+          )}
+        </span>
         <StatusBadge status={item.status} />
       </span>
       <ProgressBar
@@ -295,7 +302,14 @@ function BudgetForm({
         body: { month, items: [{ categoryId: item.categoryId, limitAmount }] },
       });
       qc.setQueryData(queryKeys.budgets(month), data);
-      toast({ message: kind === 'delete' ? 'Anggaran dihapus' : 'Anggaran disimpan' });
+      toast({
+        message:
+          kind === 'delete'
+            ? `Anggaran ${item.category.name} dihentikan mulai ${formatMonthLabel(month)}`
+            : `Anggaran ${item.category.name} berlaku mulai ${formatMonthLabel(month)}`,
+      });
+      // Bulan lain bisa ikut berubah karena anggaran berlanjut.
+      void qc.invalidateQueries({ queryKey: ['budgets'] });
       onDone();
     } catch (err) {
       setFormError(applyServerErrors(err, () => undefined, []));
@@ -324,7 +338,7 @@ function BudgetForm({
       <Field
         label="Batas per bulan"
         error={error}
-        hint="Kamu akan diingatkan saat pemakaian mencapai 80% dan 100%."
+        hint={`Berlaku mulai ${formatMonthLabel(month)} dan bulan-bulan berikutnya sampai kamu ubah. Kamu akan diingatkan saat pemakaian mencapai 80% dan 100%.`}
       >
         {(a) => (
           <RupiahInput
@@ -350,7 +364,7 @@ function BudgetForm({
             onClick={() => void save(0, 'delete')}
             icon={<Trash2 className="size-4" aria-hidden />}
           >
-            Hapus anggaran
+            Hentikan mulai bulan ini
           </Button>
         )}
         <Button
