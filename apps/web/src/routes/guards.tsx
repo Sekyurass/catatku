@@ -1,30 +1,54 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { Logo } from '../components/Logo';
+import { SPLASH_FADE_MS, SplashScreen } from '../components/SplashScreen';
 import { useAuth } from '../lib/auth';
 
-function Splash() {
-  return (
-    <div className="flex min-h-dvh items-center justify-center" role="status" aria-label="Memuat">
-      <Logo className="animate-pulse" />
-    </div>
-  );
+export const INTRO_MS = 2000;
+
+type IntroPhase = 'show' | 'leaving' | 'done';
+
+/** Intro logo minimal INTRO_MS sejak area aplikasi dibuka, lalu memudar. */
+function useIntro(ready: boolean): IntroPhase {
+  const [startedAt] = useState(() => Date.now());
+  const [phase, setPhase] = useState<IntroPhase>('show');
+
+  useEffect(() => {
+    if (!ready) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const total = reduced ? SPLASH_FADE_MS : INTRO_MS;
+    const leaveIn = Math.max(0, startedAt + total - SPLASH_FADE_MS - Date.now());
+    const leave = setTimeout(() => setPhase('leaving'), leaveIn);
+    const done = setTimeout(() => setPhase('done'), leaveIn + SPLASH_FADE_MS);
+    return () => {
+      clearTimeout(leave);
+      clearTimeout(done);
+    };
+  }, [ready, startedAt]);
+
+  return phase;
 }
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const location = useLocation();
-  if (status === 'loading') return <Splash />;
+  const intro = useIntro(status === 'authenticated');
+
   if (status === 'anonymous') {
     return <Navigate to="/masuk" replace state={{ from: location.pathname + location.search }} />;
   }
-  return children;
+  // Splash tetap di posisi yang sama dari 'loading' sampai selesai memudar, jadi animasinya tidak restart.
+  return (
+    <>
+      {status === 'authenticated' && children}
+      {intro !== 'done' && <SplashScreen leaving={intro === 'leaving'} />}
+    </>
+  );
 }
 
 export function GuestOnly({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const location = useLocation();
-  if (status === 'loading') return <Splash />;
+  if (status === 'loading') return <SplashScreen progress={false} />;
   if (status === 'authenticated') {
     const from = (location.state as { from?: string } | null)?.from ?? '/';
     return <Navigate to={from} replace />;
