@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { currentMonth, shiftMonth, toDateString } from '@catatku/shared';
 import { type Prisma, PrismaClient } from '@prisma/client';
