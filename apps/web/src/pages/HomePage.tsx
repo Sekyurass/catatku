@@ -340,14 +340,14 @@ function TrendCard({ className }: { className?: string }) {
         }
       />
       {trend.isPending ? (
-        <Skeleton className="min-h-56 flex-1 sm:min-h-64" />
+        <Skeleton className="min-h-72 flex-1 sm:min-h-80" />
       ) : trend.isError ? (
         <ErrorState message={trend.error.message} onRetry={() => void trend.refetch()} />
       ) : !hasData ? (
         <EmptyState icon={ChartColumn} title="Belum ada data 6 bulan terakhir" />
       ) : (
         <>
-          <div className="relative min-h-56 flex-1 sm:min-h-64">
+          <div className="relative min-h-72 flex-1 sm:min-h-80">
             <Suspense fallback={<Skeleton className="absolute inset-0" />}>
               <TrendChart points={trend.data.months} />
             </Suspense>

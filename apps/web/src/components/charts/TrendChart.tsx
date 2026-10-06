@@ -1,5 +1,6 @@
 import { formatRupiah, type TrendPoint } from '@catatku/shared';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { rupiahTicks } from '../../lib/chart';
 import { formatCompact, formatMonthLabel, formatMonthShort } from '../../lib/format';
 import { usePrefersReducedMotion } from '../../lib/motion';
 
@@ -15,6 +16,7 @@ const SERIES = [
 export default function TrendChart({ points }: { points: TrendPoint[] }) {
   const reduceMotion = usePrefersReducedMotion();
   const data = points.map((p) => ({ ...p, label: formatMonthShort(p.month) }));
+  const ticks = rupiahTicks(Math.max(...points.flatMap((p) => [p.income, p.expense])));
   return (
     <div className="absolute inset-0" aria-hidden>
       <ResponsiveContainer width="100%" height="100%">
@@ -27,7 +29,10 @@ export default function TrendChart({ points }: { points: TrendPoint[] }) {
             tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
           />
           <YAxis
-            width={44}
+            width={52}
+            ticks={ticks}
+            domain={[0, ticks.at(-1) ?? 0]}
+            interval={0}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v: number) => formatCompact(v)}
