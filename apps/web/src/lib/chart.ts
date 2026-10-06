@@ -4,10 +4,10 @@ const NICE_STEPS = [
 ];
 
 /**
- * Titik sumbu Rupiah mulai 0 dengan kelipatan rapi (mis. tiap 500 rb).
+ * Titik sumbu Rupiah mulai 0 dengan kelipatan rapi (mis. tiap 1 jt), maks. 8 garis.
  * Dipilih langkah terkecil yang menghasilkan paling banyak `maxIntervals` interval.
  */
-export function rupiahTicks(max: number, maxIntervals = 12): number[] {
+export function rupiahTicks(max: number, maxIntervals = 7): number[] {
   if (max <= 0) return [0, 500_000];
   const step =
     NICE_STEPS.find((s) => Math.ceil(max / s) <= maxIntervals) ??

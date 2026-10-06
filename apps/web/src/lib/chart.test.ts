@@ -2,25 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { rupiahTicks } from './chart';
 
 describe('rupiahTicks', () => {
-  it('kelipatan 500 rb untuk pengeluaran bulanan ±5 jt', () => {
+  it('kelipatan 1 jt untuk nominal bulanan ±5 jt', () => {
     expect(rupiahTicks(5_404_000)).toEqual([
-      0, 500_000, 1_000_000, 1_500_000, 2_000_000, 2_500_000, 3_000_000, 3_500_000, 4_000_000,
-      4_500_000, 5_000_000, 5_500_000,
+      0, 1_000_000, 2_000_000, 3_000_000, 4_000_000, 5_000_000, 6_000_000,
+    ]);
+  });
+
+  it('kelipatan 500 rb untuk nominal ±3 jt', () => {
+    expect(rupiahTicks(2_965_000)).toEqual([
+      0, 500_000, 1_000_000, 1_500_000, 2_000_000, 2_500_000, 3_000_000,
     ]);
   });
 
   it('langkah lebih kecil untuk nominal kecil', () => {
-    expect(rupiahTicks(120_000)).toEqual([
-      0, 10_000, 20_000, 30_000, 40_000, 50_000, 60_000, 70_000, 80_000, 90_000, 100_000, 110_000,
-      120_000,
-    ]);
+    expect(rupiahTicks(120_000)).toEqual([0, 25_000, 50_000, 75_000, 100_000, 125_000]);
   });
 
-  it('langkah membesar agar garis tidak terlalu rapat', () => {
-    const ticks = rupiahTicks(40_000_000);
-    expect(ticks.length - 1).toBeLessThanOrEqual(12);
-    expect(ticks[1]).toBe(5_000_000);
-    expect(ticks.at(-1)).toBe(40_000_000);
+  it('tidak pernah lebih dari 8 garis', () => {
+    for (const max of [1, 99_999, 7_300_000, 40_000_000, 3_000_000_000]) {
+      expect(rupiahTicks(max).length).toBeLessThanOrEqual(8);
+    }
   });
 
   it('data kosong tetap punya sumbu', () => {
