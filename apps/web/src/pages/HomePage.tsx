@@ -31,6 +31,7 @@ import { Card, CardHeader } from '../components/ui/Card';
 import { Segmented } from '../components/ui/Segmented';
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
 import { useAuth } from '../lib/auth';
+import { groupCategories } from '../lib/chart';
 import { cn } from '../lib/cn';
 import { formatMonthLabel } from '../lib/format';
 import { categoryIcon } from '../lib/icons';
@@ -75,7 +76,7 @@ export function HomePage() {
         <>
           <SummaryCards summary={summary} />
           <TrendCard />
-          <div className="grid items-start gap-4 lg:grid-cols-2 lg:gap-6">
+          <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
             <CategoryCard month={month} />
             <RecentCard summary={summary} onAdd={() => openNew()} />
           </div>
@@ -223,6 +224,7 @@ function CategoryCard({ month, className }: { month: string; className?: string 
   const expense = useByCategory(month, 'EXPENSE');
   const income = useByCategory(month, 'INCOME');
   const report = type === 'EXPENSE' ? expense : income;
+  const items = report.data ? groupCategories(report.data.items) : [];
   const { start, end } = monthRange(month);
   const label = type === 'EXPENSE' ? 'pengeluaran' : 'pemasukan';
 
@@ -238,88 +240,90 @@ function CategoryCard({ month, className }: { month: string; className?: string 
           { value: 'INCOME', label: 'Pemasukan' },
         ]}
       />
-      <AutoHeight>
-        <div key={type} className="animate-fade-in">
-          {report.isPending ? (
-            <div
-              className="flex flex-col items-center gap-4"
-              aria-busy="true"
-              aria-label="Memuat kategori"
-            >
-              <Skeleton className="size-40 rounded-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-            </div>
-          ) : report.isError ? (
-            <ErrorState message={report.error.message} onRetry={() => void report.refetch()} />
-          ) : report.data.items.length === 0 ? (
-            <EmptyState icon={ChartPie} title={`Belum ada ${label} bulan ini`} />
-          ) : (
-            <div className="@container">
-              <div className="flex flex-col gap-4 @md:flex-row @md:items-center">
-                <div className="@md:w-44 @md:shrink-0">
-                  <Suspense fallback={<Skeleton className="mx-auto size-40 rounded-full" />}>
-                    <CategoryDonut items={report.data.items} total={report.data.total} />
-                  </Suspense>
-                </div>
-                <ul
-                  className="flex min-w-0 flex-1 flex-col"
-                  aria-label={`Rincian ${label} per kategori`}
-                >
-                  {report.data.items.map((item) => {
-                    const percent = Math.round(item.ratio * 100);
-                    const content = (
-                      <>
-                        <IconBadge icon={categoryIcon(item.icon)} color={item.color} size="sm" />
-                        <span className="flex min-w-0 flex-1 flex-col gap-1">
-                          <span className="flex items-baseline justify-between gap-2">
-                            <span className="truncate text-sm font-medium">{item.name}</span>
-                            <span className="tabular shrink-0 text-sm font-semibold whitespace-nowrap">
-                              {formatRupiah(item.total)}
-                            </span>
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted"
-                              aria-hidden
-                            >
-                              <span
-                                className="block h-full rounded-full"
-                                style={{
-                                  width: `${Math.max(percent, 2)}%`,
-                                  backgroundColor: item.color,
-                                }}
-                              />
-                            </span>
-                            <span className="tabular shrink-0 text-xs whitespace-nowrap text-muted">
-                              {percent}% · {item.count} transaksi
-                            </span>
-                          </span>
-                        </span>
-                      </>
-                    );
-                    const rowClass = 'flex min-h-14 items-center gap-3 rounded-control px-2 py-2';
-                    return (
-                      <li key={item.categoryId ?? 'none'}>
-                        {item.categoryId ? (
-                          <Link
-                            to={`/transaksi?categoryId=${item.categoryId}&from=${start}&to=${end}`}
-                            className={cn(rowClass, 'hover:bg-surface-muted')}
-                          >
-                            {content}
-                          </Link>
-                        ) : (
-                          <div className={rowClass}>{content}</div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+      <div className="flex flex-1 flex-col justify-center">
+        <AutoHeight>
+          <div key={type} className="animate-fade-in">
+            {report.isPending ? (
+              <div
+                className="flex flex-col items-center gap-4"
+                aria-busy="true"
+                aria-label="Memuat kategori"
+              >
+                <Skeleton className="size-40 rounded-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
               </div>
-            </div>
-          )}
-        </div>
-      </AutoHeight>
+            ) : report.isError ? (
+              <ErrorState message={report.error.message} onRetry={() => void report.refetch()} />
+            ) : report.data.items.length === 0 ? (
+              <EmptyState icon={ChartPie} title={`Belum ada ${label} bulan ini`} />
+            ) : (
+              <div className="@container">
+                <div className="flex flex-col gap-4 @md:flex-row @md:items-center">
+                  <div className="@md:w-44 @md:shrink-0">
+                    <Suspense fallback={<Skeleton className="mx-auto size-40 rounded-full" />}>
+                      <CategoryDonut items={items} total={report.data.total} />
+                    </Suspense>
+                  </div>
+                  <ul
+                    className="flex min-w-0 flex-1 flex-col"
+                    aria-label={`Rincian ${label} per kategori`}
+                  >
+                    {items.map((item) => {
+                      const percent = Math.round(item.ratio * 100);
+                      const content = (
+                        <>
+                          <IconBadge icon={categoryIcon(item.icon)} color={item.color} size="sm" />
+                          <span className="flex min-w-0 flex-1 flex-col gap-1">
+                            <span className="flex items-baseline justify-between gap-2">
+                              <span className="truncate text-sm font-medium">{item.name}</span>
+                              <span className="tabular shrink-0 text-sm font-semibold whitespace-nowrap">
+                                {formatRupiah(item.total)}
+                              </span>
+                            </span>
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted"
+                                aria-hidden
+                              >
+                                <span
+                                  className="block h-full rounded-full"
+                                  style={{
+                                    width: `${Math.max(percent, 2)}%`,
+                                    backgroundColor: item.color,
+                                  }}
+                                />
+                              </span>
+                              <span className="tabular shrink-0 text-xs whitespace-nowrap text-muted">
+                                {percent}% · {item.count} transaksi
+                              </span>
+                            </span>
+                          </span>
+                        </>
+                      );
+                      const rowClass = 'flex min-h-14 items-center gap-3 rounded-control px-2 py-2';
+                      return (
+                        <li key={item.categoryId ?? item.name}>
+                          {item.categoryId ? (
+                            <Link
+                              to={`/transaksi?categoryId=${item.categoryId}&from=${start}&to=${end}`}
+                              className={cn(rowClass, 'hover:bg-surface-muted')}
+                            >
+                              {content}
+                            </Link>
+                          ) : (
+                            <div className={rowClass}>{content}</div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </AutoHeight>
+      </div>
     </Card>
   );
 }

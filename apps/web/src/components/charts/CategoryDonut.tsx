@@ -29,7 +29,7 @@ export default function CategoryDonut({
             animationEasing="ease-out"
           >
             {items.map((item) => (
-              <Cell key={item.categoryId ?? 'none'} fill={item.color} />
+              <Cell key={item.categoryId ?? item.name} fill={item.color} />
             ))}
           </Pie>
         </PieChart>
