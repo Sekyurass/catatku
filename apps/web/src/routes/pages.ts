@@ -10,10 +10,8 @@ function page(load: Loader) {
   );
 }
 
-export const LoginPage = page(() => import('../pages/auth/LoginPage').then((m) => m.LoginPage));
-export const RegisterPage = page(() =>
-  import('../pages/auth/RegisterPage').then((m) => m.RegisterPage),
-);
+/** Masuk dan Daftar satu halaman (satu chunk) agar perpindahannya bisa dianimasikan bersambung. */
+export const AuthPage = page(() => import('../pages/auth/AuthPage').then((m) => m.AuthPage));
 export const ForgotPasswordPage = page(() =>
   import('../pages/auth/ForgotPasswordPage').then((m) => m.ForgotPasswordPage),
 );
@@ -51,7 +49,7 @@ const APP_PAGES = [
   NotificationSettingsPage,
   ProfilePage,
   // Sesi bisa berakhir kapan saja (kedaluwarsa); halaman masuk sudah siap tanpa layar memuat.
-  LoginPage,
+  AuthPage,
 ];
 
 /** Unduh chunk halaman aplikasi saat browser senggang supaya pindah menu tidak menunggu jaringan. */

@@ -4,21 +4,21 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../../lib/auth';
-import { LoginPage } from './LoginPage';
+import { LoginForm } from './LoginForm';
 
 function renderPage() {
   return render(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
         <AuthProvider>
-          <LoginPage />
+          <LoginForm />
         </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
-describe('LoginPage', () => {
+describe('LoginForm', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',

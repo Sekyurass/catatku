@@ -19,6 +19,8 @@ const COPY = {
   },
 } as const;
 
+export type ShowcaseVariant = keyof typeof COPY;
+
 const TRANSACTIONS = [
   { icon: Utensils, color: '#EA580C', name: 'Makan siang', meta: 'GoPay', amount: -25_000 },
   { icon: Bus, color: '#2563EB', name: 'Transport', meta: 'Tunai', amount: -15_000 },
@@ -41,13 +43,7 @@ function enter(animate: boolean, delayMs: number): { className?: string; style?:
 }
 
 /** Panel ilustrasi di layar lebar: cuplikan aplikasi dari HTML, dekoratif untuk pembaca layar. */
-export function AuthShowcase({
-  variant,
-  animate,
-}: {
-  variant: keyof typeof COPY;
-  animate: boolean;
-}) {
+export function AuthShowcase({ variant, animate }: { variant: ShowcaseVariant; animate: boolean }) {
   const copy = COPY[variant];
   const main = enter(animate, 100);
   const budget = enter(animate, 250);
@@ -150,7 +146,8 @@ export function AuthShowcase({
         </div>
       </div>
 
-      <div className="relative px-12 pt-14 pb-12">
+      {/* key: teks dipasang ulang saat varian berganti sehingga memudar masuk, bukan berganti mendadak. */}
+      <div key={variant} className="relative px-12 pt-14 pb-12 motion-safe:animate-fade-in">
         <p className="text-3xl leading-tight font-bold">{copy.title}</p>
         <p className="mt-3 max-w-md text-base text-white/90">{copy.body}</p>
       </div>

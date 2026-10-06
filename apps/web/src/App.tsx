@@ -1,44 +1,41 @@
 import { Suspense } from 'react';
-import { Outlet, Route, Routes } from 'react-router-dom';
+import { Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { SplashScreen } from './components/SplashScreen';
 import { AppLayout } from './layouts/AppLayout';
 import { GuestOnly, RequireAuth } from './routes/guards';
 import {
+  AuthPage,
   BudgetsPage,
   CategoriesPage,
   ForgotPasswordPage,
   HomePage,
-  LoginPage,
   NotFoundPage,
   NotificationSettingsPage,
   OnboardingPage,
   ProfilePage,
   RecurringPage,
-  RegisterPage,
   ResetPasswordPage,
   TransactionsPage,
   WalletsPage,
 } from './routes/pages';
 
+function GuestAuthPage() {
+  const { pathname } = useLocation();
+  return (
+    <GuestOnly afterAuth={pathname === '/daftar' ? '/mulai' : undefined}>
+      <AuthPage />
+    </GuestOnly>
+  );
+}
+
 export function App() {
   return (
     <Routes>
-      <Route
-        path="/masuk"
-        element={
-          <GuestOnly>
-            <LoginPage />
-          </GuestOnly>
-        }
-      />
-      <Route
-        path="/daftar"
-        element={
-          <GuestOnly afterAuth="/mulai">
-            <RegisterPage />
-          </GuestOnly>
-        }
-      />
+      {/* Satu elemen untuk kedua rute agar halaman tidak dipasang ulang saat berpindah tab. */}
+      <Route element={<GuestAuthPage />}>
+        <Route path="/masuk" element={null} />
+        <Route path="/daftar" element={null} />
+      </Route>
       <Route
         path="/lupa-kata-sandi"
         element={

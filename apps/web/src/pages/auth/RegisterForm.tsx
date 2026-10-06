@@ -3,13 +3,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { LockKeyhole, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { Button } from '../../components/ui/Button';
 import { Field, Input, PasswordInput } from '../../components/ui/Field';
 import { useAuth } from '../../lib/auth';
 import { applyServerErrors } from '../../lib/forms';
-import { AuthLayout, FormAlert } from './AuthLayout';
+import { FormAlert } from './AuthLayout';
+import { AuthPanel } from './AuthPanel';
 
 /** Konfirmasi hanya dicek di browser; server cukup menerima satu kata sandi. */
 const registerFormSchema = registerSchema
@@ -20,7 +20,7 @@ const registerFormSchema = registerSchema
   });
 type RegisterForm = z.infer<typeof registerFormSchema>;
 
-export function RegisterPage() {
+export function RegisterForm() {
   const { register: signUp } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -41,21 +41,7 @@ export function RegisterPage() {
   });
 
   return (
-    <AuthLayout
-      title="Buat akun gratis"
-      subtitle="Cukup satu menit untuk mulai mencatat."
-      footer={
-        <>
-          Sudah punya akun?{' '}
-          <Link
-            to="/masuk"
-            className="font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Masuk
-          </Link>
-        </>
-      }
-    >
+    <AuthPanel title="Buat akun gratis" subtitle="Cukup satu menit untuk mulai mencatat.">
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <FormAlert message={formError} />
         <Field label="Nama panggilan" error={errors.name?.message}>
@@ -110,6 +96,6 @@ export function RegisterPage() {
           Daftar
         </Button>
       </form>
-    </AuthLayout>
+    </AuthPanel>
   );
 }

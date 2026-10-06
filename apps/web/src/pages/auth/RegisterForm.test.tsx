@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RegisterPage } from './RegisterPage';
+import { RegisterForm } from './RegisterForm';
 
 const auth = vi.hoisted(() => ({ register: vi.fn() }));
 vi.mock('../../lib/auth', () => ({ useAuth: () => auth }));
@@ -13,7 +13,7 @@ async function fillForm(confirm: string) {
   const user = userEvent.setup();
   render(
     <MemoryRouter initialEntries={['/daftar']}>
-      <RegisterPage />
+      <RegisterForm />
     </MemoryRouter>,
   );
   await user.type(screen.getByLabelText('Nama panggilan'), 'Dina');
@@ -23,7 +23,7 @@ async function fillForm(confirm: string) {
   await user.click(screen.getByRole('button', { name: 'Daftar' }));
 }
 
-describe('RegisterPage', () => {
+describe('RegisterForm', () => {
   it('menolak bila konfirmasi kata sandi tidak sama', async () => {
     await fillForm('rahasia12');
     expect(await screen.findByText('Kata sandi tidak sama')).toBeVisible();

@@ -18,7 +18,7 @@ import {
   useState,
 } from 'react';
 import { FAREWELL_MS, SPLASH_FADE_MS, SplashScreen } from '../components/SplashScreen';
-import { LoginPage } from '../routes/pages';
+import { AuthPage } from '../routes/pages';
 import { api, refreshSession, setAccessToken, setSessionLostHandler } from './api';
 import { clearAvatarCache } from './avatar';
 import { disablePush } from './push';
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .catch(() => undefined)
         .then(() => api('/auth/logout', { method: 'POST' })),
       wait(reduced ? 0 : FAREWELL_MS),
-      LoginPage.preload(),
+      AuthPage.preload(),
     ]);
     setSignedOut(true);
     endSession();

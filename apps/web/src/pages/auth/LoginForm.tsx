@@ -8,9 +8,10 @@ import { Button } from '../../components/ui/Button';
 import { Field, Input, PasswordInput } from '../../components/ui/Field';
 import { useAuth } from '../../lib/auth';
 import { applyServerErrors } from '../../lib/forms';
-import { AuthLayout, FormAlert } from './AuthLayout';
+import { FormAlert } from './AuthLayout';
+import { AuthPanel } from './AuthPanel';
 
-export function LoginPage() {
+export function LoginForm() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,21 +36,7 @@ export function LoginPage() {
   });
 
   return (
-    <AuthLayout
-      title="Selamat datang kembali!"
-      subtitle="Masuk untuk lanjut mencatat keuanganmu."
-      footer={
-        <>
-          Belum punya akun?{' '}
-          <Link
-            to="/daftar"
-            className="font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Daftar gratis
-          </Link>
-        </>
-      }
-    >
+    <AuthPanel title="Selamat datang kembali!" subtitle="Masuk untuk lanjut mencatat keuanganmu.">
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <FormAlert message={formError} />
         <Field label="Email" error={errors.email?.message}>
@@ -88,6 +75,6 @@ export function LoginPage() {
           Masuk
         </Button>
       </form>
-    </AuthLayout>
+    </AuthPanel>
   );
 }
