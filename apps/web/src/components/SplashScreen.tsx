@@ -2,20 +2,30 @@ import { WalletMinimal } from 'lucide-react';
 import { cn } from '../lib/cn';
 
 export const SPLASH_FADE_MS = 400;
+/** Lama layar "Sampai jumpa" tampil sebelum memudar, selaras dengan animasi bar-nya. */
+export const FAREWELL_MS = 1400;
 
+/**
+ * `intro`: muncul seketika (menutup layar kosong saat memuat).
+ * `farewell`: memudar masuk di atas aplikasi saat keluar, bar memendek.
+ */
 export function SplashScreen({
   leaving = false,
   progress = true,
+  farewell,
 }: {
   leaving?: boolean;
   progress?: boolean;
+  /** Teks perpisahan; bila diisi, splash tampil sebagai layar keluar. */
+  farewell?: string;
 }) {
   return (
     <div
       role="status"
-      aria-label="Memuat Catatku"
+      aria-label={farewell ?? 'Memuat Catatku'}
       className={cn(
         'fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg transition-opacity duration-400 ease-out',
+        farewell && 'animate-appear',
         leaving && 'pointer-events-none opacity-0',
       )}
     >
@@ -25,9 +35,19 @@ export function SplashScreen({
         </span>
         <span className="animate-splash-text text-3xl">Catatku</span>
       </span>
+      {farewell && (
+        <p className="-mt-2 animate-splash-text text-base text-muted" aria-hidden>
+          {farewell}
+        </p>
+      )}
       {progress && (
         <span className="h-1 w-32 overflow-hidden rounded-full bg-primary-soft" aria-hidden>
-          <span className="block h-full origin-left animate-splash-bar rounded-full bg-primary" />
+          <span
+            className={cn(
+              'block h-full rounded-full bg-primary',
+              farewell ? 'origin-right animate-splash-bar-out' : 'origin-left animate-splash-bar',
+            )}
+          />
         </span>
       )}
     </div>

@@ -34,9 +34,15 @@ const iconColor = {
   warning: 'text-amber-400',
 };
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+/** Semua toast dibuang saat `resetKey` berubah (mis. pengguna keluar) agar aksi lama tidak terbawa. */
+export function ToastProvider({ children, resetKey }: { children: ReactNode; resetKey?: string }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
   const nextId = useRef(1);
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey);
+    setToasts([]);
+  }
 
   const dismiss = useCallback((id: number) => {
     setToasts((list) => list.filter((t) => t.id !== id));

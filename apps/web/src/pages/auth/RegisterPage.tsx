@@ -1,13 +1,23 @@
-import { type RegisterInput, registerSchema } from '@catatku/shared';
+import { registerSchema } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
+import { z } from 'zod';
 import { Button } from '../../components/ui/Button';
 import { Field, Input, PasswordInput } from '../../components/ui/Field';
 import { useAuth } from '../../lib/auth';
 import { applyServerErrors } from '../../lib/forms';
 import { AuthLayout, FormAlert } from './AuthLayout';
+
+/** Konfirmasi hanya dicek di browser; server cukup menerima satu kata sandi. */
+const registerFormSchema = registerSchema
+  .extend({ confirmPassword: z.string() })
+  .refine((v) => v.confirmPassword === v.password, {
+    path: ['confirmPassword'],
+    error: 'Kata sandi tidak sama',
+  });
+type RegisterForm = z.infer<typeof registerFormSchema>;
 
 export function RegisterPage() {
   const { register: signUp } = useAuth();
@@ -17,13 +27,13 @@ export function RegisterPage() {
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
+  } = useForm<RegisterForm>({ resolver: zodResolver(registerFormSchema) });
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit(async ({ name, email, password }) => {
     setFormError(null);
     try {
       // Setelah status jadi 'authenticated', GuestOnly yang mengarahkan ke onboarding.
-      await signUp(values);
+      await signUp({ name, email, password });
     } catch (err) {
       setFormError(applyServerErrors(err, setError, ['name', 'email', 'password']));
     }
@@ -63,6 +73,11 @@ export function RegisterPage() {
         </Field>
         <Field label="Kata sandi" hint="Minimal 8 karakter." error={errors.password?.message}>
           {(a) => <PasswordInput {...a} autoComplete="new-password" {...register('password')} />}
+        </Field>
+        <Field label="Ulangi kata sandi" error={errors.confirmPassword?.message}>
+          {(a) => (
+            <PasswordInput {...a} autoComplete="new-password" {...register('confirmPassword')} />
+          )}
         </Field>
         <Button type="submit" size="lg" loading={isSubmitting} className="mt-2 w-full">
           Daftar

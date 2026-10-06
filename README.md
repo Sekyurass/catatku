@@ -126,6 +126,11 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
 - **Analitik ringan tanpa pihak ketiga**: tabel `AnalyticsEvent { userId, name, props }`, ditulis
   _fire-and-forget_ (gagal mencatat tidak pernah menggagalkan request). `props` hanya berisi enum/angka
   kecil — tidak ada nominal, nama dompet, catatan, atau email.
+- **Foto profil di Postgres, bukan object storage**: browser memotong tengah, memperkecil ke 384×384, dan
+  mengompres ke WebP (fallback JPEG) sehingga ukurannya ±20–40 kB. Byte disimpan di tabel terpisah
+  `UserAvatar` agar query `User` biasa tidak ikut memuat gambar; `User.avatarUpdatedAt` menjadi versi cache.
+  Server memeriksa jenis file dari _magic bytes_ (bukan header) dan menolak > 300 kB. Bila nanti volume
+  foto besar, pindah ke Supabase Storage cukup mengganti `avatar.service.ts`.
 
 ## API (Fase 0)
 
@@ -133,6 +138,8 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 
 - ✅ `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
 - ✅ `GET/PATCH /me` (ubah nama/email; ganti email wajib `currentPassword`), `PUT /me/password` (mengakhiri semua sesi lain, membalas sesi baru + cookie refresh)
+- ✅ `GET/PUT/DELETE /me/avatar` — PUT berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`,
+  maks 300 kB) → `{ user }`; GET mengembalikan gambar (klien memakai `?v=<avatarUpdatedAt>` untuk cache)
 - ✅ `GET /features`, `GET /health` (di root)
 - ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped", step?: 1–3 }` → 204
   (hanya event klien yang terdaftar; event lain dicatat server sendiri)

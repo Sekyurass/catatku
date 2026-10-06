@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { AVATAR_MAX_BYTES, AVATAR_MIME_TYPES } from '@catatku/shared';
+import express, { Router } from 'express';
 import { createAuthLimiter } from '../../middleware/rateLimit';
 import * as ctrl from './auth.controller';
 
@@ -9,5 +10,12 @@ export function createProfileRouter(opts: { rateLimit?: number } = {}) {
   router.get('/', ctrl.me);
   router.patch('/', limiter, ctrl.updateProfile);
   router.put('/password', limiter, ctrl.changePassword);
+  router.get('/avatar', ctrl.getAvatar);
+  router.put(
+    '/avatar',
+    express.raw({ type: [...AVATAR_MIME_TYPES], limit: AVATAR_MAX_BYTES }),
+    ctrl.putAvatar,
+  );
+  router.delete('/avatar', ctrl.deleteAvatar);
   return router;
 }

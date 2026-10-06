@@ -9,6 +9,7 @@ import { env } from '../../config/env';
 import { parse } from '../../lib/validate';
 import { currentUserId } from '../../middleware/auth';
 import * as authService from './auth.service';
+import * as avatarService from './avatar.service';
 
 export const REFRESH_COOKIE = 'catatku_rt';
 
@@ -60,6 +61,24 @@ export async function updateProfile(req: Request, res: Response) {
 export async function changePassword(req: Request, res: Response) {
   const input = parse(changePasswordSchema, req.body);
   sendSession(res, await authService.changePassword(currentUserId(req), input, meta(req)));
+}
+
+export async function putAvatar(req: Request, res: Response) {
+  res.json({ user: await avatarService.setAvatar(currentUserId(req), req.body) });
+}
+
+/** Klien selalu meminta dengan `?v=<avatarUpdatedAt>`, jadi respons aman di-cache lama. */
+export async function getAvatar(req: Request, res: Response) {
+  const avatar = await avatarService.getAvatar(currentUserId(req));
+  res.set({
+    'Content-Type': avatar.mimeType,
+    'Cache-Control': 'private, max-age=31536000, immutable',
+  });
+  res.send(Buffer.from(avatar.data));
+}
+
+export async function deleteAvatar(req: Request, res: Response) {
+  res.json({ user: await avatarService.removeAvatar(currentUserId(req)) });
 }
 
 export async function logout(req: Request, res: Response) {

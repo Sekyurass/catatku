@@ -77,6 +77,64 @@ describe('PATCH /me', () => {
   });
 });
 
+const webp = (size = 64) => {
+  const bytes = Buffer.alloc(size, 7);
+  bytes.write('RIFF', 0, 'ascii');
+  bytes.write('WEBP', 8, 'ascii');
+  return bytes;
+};
+
+describe('/me/avatar', () => {
+  it('menyimpan, mengembalikan, lalu menghapus foto profil', async () => {
+    const user = await registerUser();
+    expect((await authed(user).get('/api/v1/me')).body.user.avatarUpdatedAt).toBeNull();
+    expect((await authed(user).get('/api/v1/me/avatar')).status).toBe(404);
+
+    const image = webp();
+    const put = await authed(user)
+      .put('/api/v1/me/avatar')
+      .set('Content-Type', 'image/webp')
+      .send(image);
+    expect(put.status).toBe(200);
+    expect(typeof put.body.user.avatarUpdatedAt).toBe('string');
+
+    const got = await authed(user).get('/api/v1/me/avatar').buffer(true);
+    expect(got.status).toBe(200);
+    expect(got.headers['content-type']).toBe('image/webp');
+    expect(Buffer.compare(got.body as Buffer, image)).toBe(0);
+
+    const del = await authed(user).delete('/api/v1/me/avatar');
+    expect(del.status).toBe(200);
+    expect(del.body.user.avatarUpdatedAt).toBeNull();
+    expect((await authed(user).get('/api/v1/me/avatar')).status).toBe(404);
+  });
+
+  it('jenis file ditentukan dari isi, bukan dari Content-Type', async () => {
+    const user = await registerUser();
+    const fake = await authed(user)
+      .put('/api/v1/me/avatar')
+      .set('Content-Type', 'image/png')
+      .send(Buffer.from('<svg onload="alert(1)"></svg>'));
+    expect(fake.status).toBe(400);
+
+    const json = await authed(user).put('/api/v1/me/avatar').send({ image: 'abc' });
+    expect(json.status).toBe(400);
+  });
+
+  it('menolak file yang terlalu besar', async () => {
+    const user = await registerUser();
+    const res = await authed(user)
+      .put('/api/v1/me/avatar')
+      .set('Content-Type', 'image/webp')
+      .send(webp(400_000));
+    expect(res.status).toBe(413);
+  });
+
+  it('401 tanpa token', async () => {
+    expect((await request(app).get('/api/v1/me/avatar')).status).toBe(401);
+  });
+});
+
 describe('PUT /me/password', () => {
   it('mengganti kata sandi, mengakhiri sesi lain, dan memberi sesi baru', async () => {
     const user = await registerUser();

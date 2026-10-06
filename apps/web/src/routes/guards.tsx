@@ -29,12 +29,14 @@ function useIntro(ready: boolean): IntroPhase {
 }
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { status } = useAuth();
+  const { status, signedOut } = useAuth();
   const location = useLocation();
   const intro = useIntro(status === 'authenticated');
 
   if (status === 'anonymous') {
-    return <Navigate to="/masuk" replace state={{ from: location.pathname + location.search }} />;
+    // Setelah "Keluar", pengguna berikutnya di perangkat ini mulai dari beranda, bukan halaman terakhir.
+    const state = signedOut ? undefined : { from: location.pathname + location.search };
+    return <Navigate to="/masuk" replace state={state} />;
   }
   // Splash tetap di posisi yang sama dari 'loading' sampai selesai memudar, jadi animasinya tidak restart.
   return (

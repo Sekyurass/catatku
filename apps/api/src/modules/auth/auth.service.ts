@@ -34,6 +34,7 @@ export function toUserDTO(user: User): UserDTO {
     name: user.name,
     plan: user.plan,
     createdAt: user.createdAt.toISOString(),
+    avatarUpdatedAt: user.avatarUpdatedAt?.toISOString() ?? null,
   };
 }
 

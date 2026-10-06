@@ -15,6 +15,11 @@ export const MAX_AMOUNT = 1_000_000_000_000;
 
 export const BUDGET_WARNING_RATIO = 0.8;
 
+/** Foto profil dikompres di browser; server tetap menolak yang lebih besar dari ini. */
+export const AVATAR_MAX_BYTES = 300_000;
+export const AVATAR_MIME_TYPES = ['image/webp', 'image/jpeg', 'image/png'] as const;
+export type AvatarMimeType = (typeof AVATAR_MIME_TYPES)[number];
+
 /** Kunci feature flag untuk fase berikutnya. Semua nonaktif di Fase 0. */
 export const FEATURE_FLAGS = {
   RECURRING_TRANSACTIONS: 'recurring_transactions',

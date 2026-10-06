@@ -1,6 +1,7 @@
 import { House, ListOrdered, Loader2, LogOut, PiggyBank, Plus, UserRound } from 'lucide-react';
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { Avatar } from '../components/Avatar';
 import { Logo } from '../components/Logo';
 import { QuickAddProvider, useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
@@ -147,9 +148,12 @@ function SideLogout() {
   return (
     <div className="mt-auto flex flex-col gap-2 border-t border-line pt-4">
       {user && (
-        <div className="hidden min-w-0 px-3 lg:block">
-          <p className="truncate text-sm font-semibold">{user.name}</p>
-          <p className="truncate text-xs text-muted">{user.email}</p>
+        <div className="hidden min-w-0 items-center gap-3 px-3 lg:flex">
+          <Avatar user={user} className="size-9 text-sm" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{user.name}</p>
+            <p className="truncate text-xs text-muted">{user.email}</p>
+          </div>
         </div>
       )}
       <button
@@ -160,9 +164,9 @@ function SideLogout() {
           await logout();
         }}
         className={cn(
-          'flex min-h-11 flex-col items-center justify-center gap-1 rounded-control px-1 py-2 text-[11px] font-medium text-muted',
+          'flex min-h-11 flex-col items-center justify-center gap-1 rounded-control px-1 py-2 text-[11px] font-semibold text-expense-text transition-colors',
           'lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-0 lg:text-sm',
-          'hover:bg-expense/10 hover:text-expense-text disabled:opacity-60',
+          'hover:bg-expense hover:text-white disabled:opacity-60',
         )}
       >
         {busy ? (

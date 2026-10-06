@@ -6,6 +6,8 @@ export interface UserDTO {
   name: string;
   plan: Plan;
   createdAt: string;
+  /** null = belum ada foto profil. Berubah setiap foto diganti. */
+  avatarUpdatedAt: string | null;
 }
 
 export interface AuthResponse {

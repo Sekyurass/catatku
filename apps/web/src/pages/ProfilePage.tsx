@@ -1,17 +1,30 @@
 import { registerSchema, type UserDTO } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronRight, KeyRound, LogOut, Pencil, Tags, WalletMinimal } from 'lucide-react';
-import { useState } from 'react';
+import {
+  Camera,
+  ChevronRight,
+  ImageUp,
+  KeyRound,
+  LogOut,
+  Pencil,
+  Tags,
+  Trash2,
+  WalletMinimal,
+} from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
+import { Avatar } from '../components/Avatar';
 import { ExportButton } from '../components/ExportButton';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
 import { Field, Input, PasswordInput } from '../components/ui/Field';
 import { useToast } from '../components/ui/Toast';
+import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { AvatarImageError, compressAvatar } from '../lib/avatar';
 import { applyServerErrors } from '../lib/forms';
 import { FormAlert } from './auth/AuthLayout';
 
@@ -33,31 +46,29 @@ const LINKS = [
 const rowClass =
   'flex min-h-14 w-full items-center gap-3 rounded-control px-3 py-2 text-left hover:bg-surface-muted';
 
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join('');
-}
-
 export function ProfilePage() {
   const { user, logout } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [dialog, setDialog] = useState<'profile' | 'password' | null>(null);
+  const [dialog, setDialog] = useState<'profile' | 'password' | 'photo' | null>(null);
   const close = () => setDialog(null);
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold">Profil</h1>
       <Card className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary-soft text-lg font-semibold text-primary"
-        >
-          {initials(user?.name ?? '')}
-        </span>
+        {user && (
+          <button
+            type="button"
+            onClick={() => setDialog('photo')}
+            aria-label="Ubah foto profil"
+            className="relative shrink-0 rounded-full"
+          >
+            <Avatar user={user} className="size-16 text-xl" />
+            <span className="absolute -right-0.5 -bottom-0.5 flex size-7 items-center justify-center rounded-full border-2 border-surface bg-primary text-white">
+              <Camera className="size-3.5" aria-hidden />
+            </span>
+          </button>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{user?.name}</p>
           <p className="truncate text-sm text-muted">{user?.email}</p>
@@ -107,19 +118,24 @@ export function ProfilePage() {
         </div>
         <ExportButton label="Unduh CSV" />
       </Card>
+      {/* Di tablet & desktop tombol Keluar ada di sidebar; HP tidak punya sidebar. */}
       <Button
-        variant="secondary"
+        variant="danger"
+        size="lg"
         loading={busy}
-        icon={<LogOut className="size-4" aria-hidden />}
+        icon={<LogOut className="size-5" aria-hidden />}
         onClick={async () => {
           setBusy(true);
           await logout();
         }}
-        className="self-start"
+        className="w-full md:hidden"
       >
         Keluar
       </Button>
 
+      <Dialog open={dialog === 'photo'} onClose={close} title="Foto profil">
+        {dialog === 'photo' && user && <PhotoForm user={user} onDone={close} />}
+      </Dialog>
       <Dialog open={dialog === 'profile'} onClose={close} title="Ubah profil">
         {dialog === 'profile' && user && <ProfileForm user={user} onDone={close} />}
       </Dialog>
@@ -131,6 +147,86 @@ export function ProfilePage() {
       >
         {dialog === 'password' && <PasswordForm onDone={close} />}
       </Dialog>
+    </div>
+  );
+}
+
+function PhotoForm({ user, onDone }: { user: UserDTO; onDone: () => void }) {
+  const { uploadAvatar, removeAvatar } = useAuth();
+  const toast = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState<'upload' | 'remove' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const hasPhoto = Boolean(user.avatarUpdatedAt);
+
+  const run = async (kind: 'upload' | 'remove', action: () => Promise<void>, message: string) => {
+    setError(null);
+    setBusy(kind);
+    try {
+      await action();
+      toast({ message });
+      onDone();
+    } catch (err) {
+      setError(
+        err instanceof AvatarImageError || err instanceof ApiError
+          ? err.message
+          : 'Foto gagal diproses. Coba foto lain.',
+      );
+      setBusy(null);
+    }
+  };
+
+  const onFile = (file: File | undefined) => {
+    if (fileRef.current) fileRef.current.value = '';
+    if (!file) return;
+    void run(
+      'upload',
+      async () => uploadAvatar(await compressAvatar(file)),
+      'Foto profil diperbarui',
+    );
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <FormAlert message={error} />
+      <Avatar user={user} className="size-32 text-4xl" />
+      <p className="text-center text-sm text-muted">
+        Foto dipotong persegi dari bagian tengah dan diperkecil otomatis.
+      </p>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => onFile(e.target.files?.[0])}
+      />
+      <div className="flex w-full flex-col gap-2">
+        <Button
+          size="lg"
+          data-autofocus
+          loading={busy === 'upload'}
+          disabled={busy !== null}
+          icon={<ImageUp className="size-5" aria-hidden />}
+          onClick={() => fileRef.current?.click()}
+        >
+          {hasPhoto ? 'Ganti foto' : 'Pilih foto'}
+        </Button>
+        {hasPhoto && (
+          <Button
+            variant="secondary"
+            size="lg"
+            loading={busy === 'remove'}
+            disabled={busy !== null}
+            icon={<Trash2 className="size-5" aria-hidden />}
+            onClick={() => void run('remove', removeAvatar, 'Foto profil dihapus')}
+            className="text-expense-text"
+          >
+            Hapus foto
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

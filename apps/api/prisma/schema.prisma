@@ -38,7 +38,10 @@ model User {
   plan         Plan     @default(FREE)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  /// null = belum ada foto profil. Juga dipakai klien sebagai versi cache foto.
+  avatarUpdatedAt DateTime?
 
+  avatar          UserAvatar?
   wallets         Wallet[]
   categories      Category[]
   transactions    Transaction[]
@@ -46,6 +49,16 @@ model User {
   refreshTokens   RefreshToken[]
   idempotencyKeys IdempotencyKey[]
   events          AnalyticsEvent[]
+}
+
+/// Byte foto profil dipisah dari User agar query User biasa tidak ikut memuat gambar.
+model UserAvatar {
+  userId    String   @id
+  mimeType  String
+  data      Bytes
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {

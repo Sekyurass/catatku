@@ -16,46 +16,61 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { FAREWELL_MS, SPLASH_FADE_MS, SplashScreen } from '../components/SplashScreen';
 import { api, refreshSession, setAccessToken, setSessionLostHandler } from './api';
+import { clearAvatarCache } from './avatar';
 
 type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 
 interface AuthContextValue {
   status: AuthStatus;
   user: UserDTO | null;
+  /** true bila sesi berakhir karena pengguna menekan "Keluar" (bukan sesi kedaluwarsa). */
+  signedOut: boolean;
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   updateProfile: (input: UpdateProfileInput) => Promise<void>;
   /** Sesi di perangkat lain berakhir; perangkat ini menerima sesi baru. */
   changePassword: (input: ChangePasswordInput) => Promise<void>;
+  uploadAvatar: (image: Blob) => Promise<void>;
+  removeAvatar: () => Promise<void>;
+  /** Menampilkan layar "Sampai jumpa" lalu kembali ke halaman masuk. */
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<UserDTO | null>(null);
+  const [signedOut, setSignedOut] = useState(false);
+  const [farewell, setFarewell] = useState<{ message: string; leaving: boolean } | null>(null);
 
   const applySession = useCallback((session: AuthResponse | null) => {
     setAccessToken(session?.accessToken ?? null);
     setUser(session?.user ?? null);
     setStatus(session ? 'authenticated' : 'anonymous');
+    if (session) setSignedOut(false);
   }, []);
+
+  const endSession = useCallback(() => {
+    applySession(null);
+    queryClient.clear();
+    clearAvatarCache();
+  }, [applySession, queryClient]);
 
   useEffect(() => {
     let active = true;
     refreshSession().then((session) => active && applySession(session));
-    setSessionLostHandler(() => {
-      applySession(null);
-      queryClient.clear();
-    });
+    setSessionLostHandler(endSession);
     return () => {
       active = false;
       setSessionLostHandler(null);
     };
-  }, [applySession, queryClient]);
+  }, [applySession, endSession]);
 
   const login = useCallback(
     async (input: LoginInput) => {
@@ -83,20 +98,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   );
 
+  const uploadAvatar = useCallback(async (image: Blob) => {
+    const res = await api<{ user: UserDTO }>('/me/avatar', { method: 'PUT', body: image });
+    setUser(res.user);
+  }, []);
+
+  const removeAvatar = useCallback(async () => {
+    const res = await api<{ user: UserDTO }>('/me/avatar', { method: 'DELETE' });
+    setUser(res.user);
+  }, []);
+
   const logout = useCallback(async () => {
-    try {
-      await api('/auth/logout', { method: 'POST' });
-    } finally {
-      applySession(null);
-      queryClient.clear();
-    }
-  }, [applySession, queryClient]);
+    const message = user ? `Sampai jumpa, ${user.name}!` : 'Sampai jumpa!';
+    setFarewell({ message, leaving: false });
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // Kegagalan jaringan tetap mengeluarkan pengguna di perangkat ini.
+    await Promise.allSettled([
+      api('/auth/logout', { method: 'POST' }),
+      wait(reduced ? 0 : FAREWELL_MS),
+    ]);
+    setSignedOut(true);
+    endSession();
+    setFarewell({ message, leaving: true });
+    await wait(SPLASH_FADE_MS);
+    setFarewell(null);
+  }, [user, endSession]);
 
   const value = useMemo(
-    () => ({ status, user, login, register, updateProfile, changePassword, logout }),
-    [status, user, login, register, updateProfile, changePassword, logout],
+    () => ({
+      status,
+      user,
+      signedOut,
+      login,
+      register,
+      updateProfile,
+      changePassword,
+      uploadAvatar,
+      removeAvatar,
+      logout,
+    }),
+    [
+      status,
+      user,
+      signedOut,
+      login,
+      register,
+      updateProfile,
+      changePassword,
+      uploadAvatar,
+      removeAvatar,
+      logout,
+    ],
   );
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {farewell && <SplashScreen farewell={farewell.message} leaving={farewell.leaving} />}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextValue {

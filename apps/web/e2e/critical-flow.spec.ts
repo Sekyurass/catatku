@@ -6,6 +6,7 @@ test('daftar → buat dompet → catat → lihat dashboard', async ({ page }) =>
   await page.getByLabel('Nama panggilan').fill('Uji E2E');
   await page.getByLabel('Email').fill(uniqueEmail());
   await page.getByLabel('Kata sandi', { exact: true }).fill(PASSWORD);
+  await page.getByLabel('Ulangi kata sandi').fill(PASSWORD);
   await page.getByRole('button', { name: 'Daftar' }).click();
 
   // Onboarding langkah 1: sambutan.

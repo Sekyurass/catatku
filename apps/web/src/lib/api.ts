@@ -70,18 +70,20 @@ async function toApiError(res: Response): Promise<ApiError> {
   }
 }
 
+/** `body` berupa Blob dikirim apa adanya (mis. foto) dengan Content-Type dari blob itu. */
 export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const blob = opts.body instanceof Blob ? opts.body : null;
   const doFetch = () =>
     fetch(buildUrl(path, opts.query), {
       method: opts.method ?? 'GET',
       credentials: 'include',
       signal: opts.signal,
       headers: {
-        ...(opts.body !== undefined && { 'Content-Type': 'application/json' }),
+        ...(opts.body !== undefined && { 'Content-Type': blob ? blob.type : 'application/json' }),
         ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
         ...opts.headers,
       },
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body: blob ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
     });
 
   let res: Response;
@@ -105,8 +107,8 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
   return (await res.json()) as T;
 }
 
-/** Unduh file yang butuh Authorization (mis. ekspor CSV). */
-export async function downloadFile(path: string, query: Query, filename: string) {
+/** Ambil file yang butuh Authorization sebagai Blob (mis. foto profil). */
+export async function fetchBlob(path: string, query?: Query): Promise<Blob> {
   const fetchFile = () =>
     fetch(buildUrl(path, query), {
       credentials: 'include',
@@ -115,7 +117,12 @@ export async function downloadFile(path: string, query: Query, filename: string)
   let res = await fetchFile();
   if (res.status === 401 && (await refreshSession())) res = await fetchFile();
   if (!res.ok) throw await toApiError(res);
-  const url = URL.createObjectURL(await res.blob());
+  return res.blob();
+}
+
+/** Unduh file yang butuh Authorization (mis. ekspor CSV). */
+export async function downloadFile(path: string, query: Query, filename: string) {
+  const url = URL.createObjectURL(await fetchBlob(path, query));
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
