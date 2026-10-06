@@ -74,11 +74,11 @@ export function HomePage() {
       ) : (
         <>
           <SummaryCards summary={summary} />
-          <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
-            <CategoryCard month={month} className="lg:col-span-2" />
-            <TrendCard className="lg:col-span-3" />
+          <TrendCard />
+          <div className="grid items-start gap-4 lg:grid-cols-2 lg:gap-6">
+            <CategoryCard month={month} />
+            <RecentCard summary={summary} onAdd={() => openNew()} />
           </div>
-          <RecentCard summary={summary} onAdd={() => openNew()} />
         </>
       )}
     </div>
@@ -256,8 +256,8 @@ function CategoryCard({ month, className }: { month: string; className?: string 
             <EmptyState icon={ChartPie} title={`Belum ada ${label} bulan ini`} />
           ) : (
             <div className="@container">
-              <div className="flex flex-col gap-4 @lg:flex-row @lg:items-center">
-                <div className="@lg:w-44 @lg:shrink-0">
+              <div className="flex flex-col gap-4 @md:flex-row @md:items-center">
+                <div className="@md:w-44 @md:shrink-0">
                   <Suspense fallback={<Skeleton className="mx-auto size-40 rounded-full" />}>
                     <CategoryDonut items={report.data.items} total={report.data.total} />
                   </Suspense>
@@ -347,14 +347,14 @@ function TrendCard({ className }: { className?: string }) {
         }
       />
       {trend.isPending ? (
-        <Skeleton className="min-h-60 flex-1 sm:min-h-72" />
+        <Skeleton className="h-60 sm:h-72" />
       ) : trend.isError ? (
         <ErrorState message={trend.error.message} onRetry={() => void trend.refetch()} />
       ) : !hasData ? (
         <EmptyState icon={ChartColumn} title="Belum ada data 6 bulan terakhir" />
       ) : (
         <>
-          <div className="relative min-h-60 flex-1 sm:min-h-72">
+          <div className="relative h-60 sm:h-72">
             <Suspense fallback={<Skeleton className="absolute inset-0" />}>
               <TrendChart points={trend.data.months} />
             </Suspense>
