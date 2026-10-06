@@ -1,0 +1,63 @@
+import { formatRupiah, type TransactionDTO } from '@catatku/shared';
+import { cn } from '../../lib/cn';
+import { categoryIcon, TransferIcon } from '../../lib/icons';
+import { IconBadge } from '../IconBadge';
+
+function describe(tx: TransactionDTO) {
+  if (tx.type === 'TRANSFER') {
+    const other = tx.counterpartWallet?.name ?? 'dompet lain';
+    const route = tx.amount < 0 ? `${tx.wallet.name} → ${other}` : `${other} → ${tx.wallet.name}`;
+    return { title: 'Transfer', subtitle: tx.note ? `${route} · ${tx.note}` : route };
+  }
+  const title = tx.category?.name ?? 'Tanpa kategori';
+  return { title, subtitle: tx.note ? `${tx.wallet.name} · ${tx.note}` : tx.wallet.name };
+}
+
+export function TransactionRow({
+  tx,
+  onSelect,
+  showTransferSign = false,
+}: {
+  tx: TransactionDTO;
+  onSelect: (tx: TransactionDTO) => void;
+  /** Saat difilter per dompet, transfer ditampilkan bertanda sesuai arah uang di dompet itu. */
+  showTransferSign?: boolean;
+}) {
+  const { title, subtitle } = describe(tx);
+  const isTransfer = tx.type === 'TRANSFER';
+  const amountText =
+    isTransfer && !showTransferSign
+      ? formatRupiah(Math.abs(tx.amount))
+      : formatRupiah(tx.amount, { signed: true });
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(tx)}
+      className="flex min-h-14 w-full items-center gap-3 rounded-control px-2 py-2 text-left hover:bg-surface-muted"
+      aria-label={`${title}, ${amountText}, ${subtitle}. Ketuk untuk mengubah.`}
+    >
+      {isTransfer ? (
+        <IconBadge icon={TransferIcon} color="#475569" />
+      ) : (
+        <IconBadge icon={categoryIcon(tx.category?.icon)} color={tx.category?.color ?? '#64748B'} />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium text-fg">{title}</span>
+        <span className="block truncate text-sm text-muted">{subtitle}</span>
+      </span>
+      <span
+        className={cn(
+          'tabular shrink-0 font-semibold',
+          isTransfer && !showTransferSign
+            ? 'text-fg'
+            : tx.amount > 0
+              ? 'text-income-text'
+              : 'text-expense-text',
+        )}
+      >
+        {amountText}
+      </span>
+    </button>
+  );
+}

@@ -3,7 +3,7 @@
 Aplikasi pencatatan keuangan pribadi untuk mahasiswa & pekerja muda di Indonesia.
 Target: catat transaksi < 10 detik, lihat sisa uang, pahami pola belanja bulanan.
 
-Status: **Fase 0 (MVP) — M1 selesai** (setup, auth, skema, seed).
+Status: **Fase 0 (MVP) — M2 selesai** (dompet, kategori, transaksi, transfer).
 
 ## Struktur
 
@@ -92,7 +92,11 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 
 - ✅ `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
 - ✅ `GET /features`, `GET /health` (di root)
-- ⏳ `GET/POST/PATCH/DELETE /wallets`, `/categories` (M2)
-- ⏳ `GET/POST/PATCH/DELETE /transactions`, `POST /transactions/transfer` (M2)
+- ✅ `GET/POST/PATCH/DELETE /wallets` (`?includeArchived=true`; DELETE mengarsipkan dompet yang punya riwayat)
+- ✅ `GET/POST/PATCH/DELETE /categories` (`?type=`; kategori bawaan hanya-baca → 403)
+- ✅ `GET /transactions` (`from,to,categoryId,walletId,type,q,cursor,limit`), `GET/PATCH/DELETE /transactions/:id`,
+  `POST /transactions/:id/restore`, `POST /transactions/transfer`
+  - `POST` mendukung header `Idempotency-Key` (respons sukses disimpan 24 jam; permintaan ulang dikirim ulang apa adanya)
+  - Semua data terisolasi per pengguna: id milik pengguna lain diperlakukan sebagai 404
 - ⏳ `GET /reports/summary|by-category|trend` (M3)
 - ⏳ `GET/PUT /budgets`, `GET /export/transactions.csv` (M4)

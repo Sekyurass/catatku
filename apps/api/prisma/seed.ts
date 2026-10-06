@@ -119,7 +119,7 @@ async function seedDemo() {
       add(bca.id, 'EXPENSE', 'cat_tagihan', between(150_000, 250_000), date, 'Listrik');
     if (day === 7) add(gopay.id, 'EXPENSE', 'cat_tagihan', 100_000, date, 'Pulsa & data');
     if (day === 2 || day === 16) transfer(bca.id, tunai.id, 500_000, date, 'Tarik tunai');
-    if (day === 3 || day === 18) transfer(bca.id, gopay.id, 200_000, date, 'Top up GoPay');
+    if ([3, 10, 18, 26].includes(day)) transfer(bca.id, gopay.id, 250_000, date, 'Top up GoPay');
 
     const meals = rand() < 0.85 ? (rand() < 0.4 ? 2 : 1) : 0;
     for (let i = 0; i < meals; i++) {

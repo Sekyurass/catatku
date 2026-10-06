@@ -2,9 +2,12 @@ import { Route, Routes } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { TransactionsPage } from './pages/TransactionsPage';
+import { WalletsPage } from './pages/WalletsPage';
 import { GuestOnly, RequireAuth } from './routes/guards';
 
 export function App() {
@@ -34,6 +37,9 @@ export function App() {
         }
       >
         <Route index element={<HomePage />} />
+        <Route path="transaksi" element={<TransactionsPage />} />
+        <Route path="dompet" element={<WalletsPage />} />
+        <Route path="kategori" element={<CategoriesPage />} />
         <Route path="profil" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
