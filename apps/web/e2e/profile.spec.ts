@@ -38,6 +38,8 @@ test('foto profil: unggah → tampil → hapus, lalu keluar', async ({ page }) =
   const img = trigger.locator('img');
   await expect(img).toBeVisible();
   expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(384);
+  const navProfile = page.getByRole('link', { name: 'Profil' });
+  await expect(navProfile.locator('img')).toBeVisible();
 
   // Foto tetap ada setelah muat ulang (tersimpan di server).
   await page.reload();
@@ -48,6 +50,7 @@ test('foto profil: unggah → tampil → hapus, lalu keluar', async ({ page }) =
   await page.getByRole('button', { name: 'Hapus foto' }).click();
   await expect(page.getByText('Foto profil dihapus')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ubah foto profil' })).toContainText('UF');
+  await expect(navProfile.locator('img')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Keluar', exact: true }).click();
   await expect(page).toHaveURL(/\/masuk$/);

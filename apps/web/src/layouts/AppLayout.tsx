@@ -181,6 +181,8 @@ function SideLogout() {
 }
 
 function BottomLink({ item: { to, label, icon: Icon, end } }: { item: NavItem }) {
+  const { user } = useAuth();
+  const photoUser = to === '/profil' && user?.avatarUpdatedAt ? user : null;
   return (
     <li>
       <NavLink
@@ -193,8 +195,22 @@ function BottomLink({ item: { to, label, icon: Icon, end } }: { item: NavItem })
           )
         }
       >
-        <Icon className="size-5" aria-hidden />
-        {label}
+        {({ isActive }) => (
+          <>
+            {photoUser ? (
+              <Avatar
+                user={photoUser}
+                className={cn(
+                  '-my-0.5 size-6 ring-offset-1 ring-offset-surface',
+                  isActive ? 'ring-2 ring-primary' : 'ring-1 ring-line',
+                )}
+              />
+            ) : (
+              <Icon className="size-5" aria-hidden />
+            )}
+            {label}
+          </>
+        )}
       </NavLink>
     </li>
   );
