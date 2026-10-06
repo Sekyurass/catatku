@@ -1,0 +1,48 @@
+{
+  "name": "catatku",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm run dev -w @catatku/api\" \"npm run dev -w @catatku/web\"",
+    "build": "npm run build -w @catatku/api && npm run build -w @catatku/web",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @catatku/web",
+    "db:migrate": "npm run db:migrate -w @catatku/api",
+    "db:deploy": "npm run db:deploy -w @catatku/api",
+    "db:seed": "npm run db:seed -w @catatku/api",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "concurrently": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.0",
+    "globals": "^16.0.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^16.0.0",
+    "prettier": "^3.6.0",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.40.0"
+  }
+}

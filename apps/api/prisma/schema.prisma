@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Plan {
+  FREE
+  PREMIUM
+}
+
+enum WalletType {
+  CASH
+  BANK
+  EWALLET
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  plan         Plan     @default(FREE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  wallets         Wallet[]
+  categories      Category[]
+  transactions    Transaction[]
+  budgets         Budget[]
+  refreshTokens   RefreshToken[]
+  idempotencyKeys IdempotencyKey[]
+  events          AnalyticsEvent[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  /// SHA-256 dari token mentah; token mentah hanya ada di cookie klien.
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Wallet {
+  id             String     @id @default(cuid())
+  userId         String
+  name           String
+  type           WalletType
+  /// Rupiah utuh. Saldo berjalan dihitung: initialBalance + SUM(transaksi aktif).
+  initialBalance BigInt     @default(0)
+  color          String     @default("#0F766E")
+  archivedAt     DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+model Category {
+  id         String       @id @default(cuid())
+  /// null = kategori default milik sistem, dipakai bersama semua pengguna.
+  userId     String?
+  name       String
+  type       CategoryType
+  icon       String
+  color      String
+  archivedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@index([userId])
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  userId          String
+  walletId        String
+  categoryId      String?
+  type            TransactionType
+  /// Rupiah utuh, BERTANDA sesuai arah uang terhadap dompet.
+  amount          BigInt
+  date            DateTime        @db.Date
+  note            String?
+  /// Dua baris transfer berbagi nilai yang sama.
+  transferGroupId String?
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet   Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date(sort: Desc), createdAt(sort: Desc)])
+  @@index([userId, walletId])
+  @@index([userId, categoryId])
+  @@index([transferGroupId])
+}
+
+model Budget {
+  id          String @id @default(cuid())
+  userId      String
+  categoryId  String
+  /// Format YYYY-MM.
+  month       String @db.Char(7)
+  limitAmount BigInt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, month])
+  @@index([userId, month])
+}
+
+/// Flag fitur fase berikutnya. plan null = semua paket; userIds = allowlist per pengguna.
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  plan        Plan?
+  userIds     String[] @default([])
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Menyimpan respons operasi tulis agar retry dengan kunci yang sama tidak membuat data ganda.
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  userId       String
+  key          String
+  requestHash  String
+  statusCode   Int
+  responseBody Json
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([createdAt])
+}
+
+/// Event produk ringan tanpa data sensitif (tanpa nominal/catatan) untuk menilai gerbang fase.
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  props     Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
+}

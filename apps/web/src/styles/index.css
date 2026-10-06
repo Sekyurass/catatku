@@ -1,0 +1,101 @@
+@import 'tailwindcss';
+
+/* Design tokens. Komponen hanya memakai token ini, bukan warna mentah. */
+:root {
+  --primary: #0f766e;
+  --primary-hover: #115e59;
+  --primary-soft: #ccfbf1;
+  --accent: #14b8a6;
+  --income: #16a34a;
+  --income-text: #15803d;
+  --expense: #dc2626;
+  --expense-text: #dc2626;
+  --warning: #d97706;
+  --warning-text: #b45309;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --border: #e2e8f0;
+  --focus: #0f766e;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.04);
+  color-scheme: light;
+}
+
+/* Tema gelap disiapkan sejak awal; diaktifkan penuh di Fase 4. */
+[data-theme='dark'] {
+  --primary: #2dd4bf;
+  --primary-hover: #5eead4;
+  --primary-soft: #134e4a;
+  --accent: #14b8a6;
+  --income: #4ade80;
+  --income-text: #4ade80;
+  --expense: #f87171;
+  --expense-text: #f87171;
+  --warning: #fbbf24;
+  --warning-text: #fbbf24;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-muted: #334155;
+  --text: #f8fafc;
+  --text-muted: #cbd5e1;
+  --border: #334155;
+  --focus: #5eead4;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 2.5rem;
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-income: var(--income);
+  --color-income-text: var(--income-text);
+  --color-expense: var(--expense);
+  --color-expense-text: var(--expense-text);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-line: var(--border);
+
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --shadow-card: var(--shadow);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg font-sans text-base text-fg antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
