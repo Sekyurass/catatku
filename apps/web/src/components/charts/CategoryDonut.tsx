@@ -25,6 +25,8 @@ export default function CategoryDonut({
             paddingAngle={items.length > 1 ? 2 : 0}
             stroke="none"
             isAnimationActive={!reduceMotion}
+            animationDuration={600}
+            animationEasing="ease-out"
           >
             {items.map((item) => (
               <Cell key={item.categoryId ?? 'none'} fill={item.color} />
