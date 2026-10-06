@@ -250,45 +250,67 @@ function CategoryCard({ month, className }: { month: string; className?: string 
       ) : report.data.items.length === 0 ? (
         <EmptyState icon={ChartPie} title={`Belum ada ${label} bulan ini`} />
       ) : (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center lg:flex-col lg:items-stretch xl:flex-row xl:items-center">
-          <div className="sm:w-44 sm:shrink-0 lg:w-auto xl:w-44">
-            <Suspense fallback={<Skeleton className="mx-auto size-40 rounded-full" />}>
-              <CategoryDonut items={report.data.items} total={report.data.total} />
-            </Suspense>
-          </div>
-          <ul className="flex min-w-0 flex-1 flex-col" aria-label={`Rincian ${label} per kategori`}>
-            {report.data.items.map((item) => {
-              const content = (
-                <>
-                  <IconBadge icon={categoryIcon(item.icon)} color={item.color} size="sm" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{item.name}</span>
-                    <span className="block text-xs text-muted">
-                      {Math.round(item.ratio * 100)}% · {item.count} transaksi
+        <div className="@container">
+          <div className="flex flex-col gap-4 @lg:flex-row @lg:items-center">
+            <div className="@lg:w-44 @lg:shrink-0">
+              <Suspense fallback={<Skeleton className="mx-auto size-40 rounded-full" />}>
+                <CategoryDonut items={report.data.items} total={report.data.total} />
+              </Suspense>
+            </div>
+            <ul
+              className="flex min-w-0 flex-1 flex-col"
+              aria-label={`Rincian ${label} per kategori`}
+            >
+              {report.data.items.map((item) => {
+                const percent = Math.round(item.ratio * 100);
+                const content = (
+                  <>
+                    <IconBadge icon={categoryIcon(item.icon)} color={item.color} size="sm" />
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-sm font-medium">{item.name}</span>
+                        <span className="tabular shrink-0 text-sm font-semibold whitespace-nowrap">
+                          {formatRupiah(item.total)}
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted"
+                          aria-hidden
+                        >
+                          <span
+                            className="block h-full rounded-full"
+                            style={{
+                              width: `${Math.max(percent, 2)}%`,
+                              backgroundColor: item.color,
+                            }}
+                          />
+                        </span>
+                        <span className="tabular shrink-0 text-xs whitespace-nowrap text-muted">
+                          {percent}% · {item.count} transaksi
+                        </span>
+                      </span>
                     </span>
-                  </span>
-                  <span className="tabular shrink-0 text-sm font-semibold">
-                    {formatRupiah(item.total)}
-                  </span>
-                </>
-              );
-              const rowClass = 'flex min-h-12 items-center gap-3 rounded-control px-2 py-1.5';
-              return (
-                <li key={item.categoryId ?? 'none'}>
-                  {item.categoryId ? (
-                    <Link
-                      to={`/transaksi?categoryId=${item.categoryId}&from=${start}&to=${end}`}
-                      className={cn(rowClass, 'hover:bg-surface-muted')}
-                    >
-                      {content}
-                    </Link>
-                  ) : (
-                    <div className={rowClass}>{content}</div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                  </>
+                );
+                const rowClass = 'flex min-h-14 items-center gap-3 rounded-control px-2 py-2';
+                return (
+                  <li key={item.categoryId ?? 'none'}>
+                    {item.categoryId ? (
+                      <Link
+                        to={`/transaksi?categoryId=${item.categoryId}&from=${start}&to=${end}`}
+                        className={cn(rowClass, 'hover:bg-surface-muted')}
+                      >
+                        {content}
+                      </Link>
+                    ) : (
+                      <div className={rowClass}>{content}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       )}
     </Card>
