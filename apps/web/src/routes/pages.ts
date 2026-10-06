@@ -14,6 +14,12 @@ export const LoginPage = page(() => import('../pages/auth/LoginPage').then((m) =
 export const RegisterPage = page(() =>
   import('../pages/auth/RegisterPage').then((m) => m.RegisterPage),
 );
+export const ForgotPasswordPage = page(() =>
+  import('../pages/auth/ForgotPasswordPage').then((m) => m.ForgotPasswordPage),
+);
+export const ResetPasswordPage = page(() =>
+  import('../pages/auth/ResetPasswordPage').then((m) => m.ResetPasswordPage),
+);
 export const OnboardingPage = page(() =>
   import('../pages/OnboardingPage').then((m) => m.OnboardingPage),
 );

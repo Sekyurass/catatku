@@ -6,6 +6,8 @@ export type EventName =
   | ClientEventName
   | 'user_registered'
   | 'user_logged_in'
+  | 'password_reset_requested'
+  | 'password_reset'
   | 'wallet_created'
   | 'transaction_created'
   | 'budget_saved'

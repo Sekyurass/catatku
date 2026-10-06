@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { RESET_LINK_TTL_MINUTES } from '@catatku/shared';
 import { z } from 'zod';
 
 const envSchema = z
@@ -17,6 +18,18 @@ const envSchema = z
     BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(12),
     AUTH_RATE_LIMIT: z.coerce.number().int().positive().default(20),
     FEATURE_FLAGS_FORCE: z.string().default(''),
+    /** Alamat aplikasi web untuk tautan di email. Default: origin CORS pertama. */
+    APP_URL: z.url().optional(),
+    SMTP_HOST: z.string().default(''),
+    SMTP_PORT: z.coerce.number().int().positive().default(587),
+    SMTP_SECURE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    SMTP_USER: z.string().default(''),
+    SMTP_PASS: z.string().default(''),
+    MAIL_FROM: z.string().default('Catatku <no-reply@catatku.local>'),
+    RESET_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(RESET_LINK_TTL_MINUTES),
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.BCRYPT_COST >= 12, {
     message: 'BCRYPT_COST harus >= 12 di production',
@@ -31,11 +44,14 @@ if (!parsed.success) {
   throw new Error(`Konfigurasi environment tidak valid:\n${details}`);
 }
 
+const corsOrigins = parsed.data.CORS_ORIGINS.split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 export const env = {
   ...parsed.data,
-  corsOrigins: parsed.data.CORS_ORIGINS.split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
+  corsOrigins,
+  appUrl: (parsed.data.APP_URL ?? corsOrigins[0] ?? 'http://localhost:5173').replace(/\/$/, ''),
   isProd: parsed.data.NODE_ENV === 'production',
   isTest: parsed.data.NODE_ENV === 'test',
 };

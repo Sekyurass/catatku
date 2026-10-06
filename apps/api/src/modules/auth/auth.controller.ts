@@ -1,7 +1,9 @@
 import {
   changePasswordSchema,
+  forgotPasswordSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
   updateProfileSchema,
 } from '@catatku/shared';
 import type { CookieOptions, Request, Response } from 'express';
@@ -79,6 +81,16 @@ export async function getAvatar(req: Request, res: Response) {
 
 export async function deleteAvatar(req: Request, res: Response) {
   res.json({ user: await avatarService.removeAvatar(currentUserId(req)) });
+}
+
+export async function forgotPassword(req: Request, res: Response) {
+  await authService.requestPasswordReset(parse(forgotPasswordSchema, req.body));
+  res.status(204).end();
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  const input = parse(resetPasswordSchema, req.body);
+  sendSession(res, await authService.resetPassword(input, meta(req)));
 }
 
 export async function logout(req: Request, res: Response) {

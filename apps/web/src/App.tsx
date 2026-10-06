@@ -1,15 +1,19 @@
+import { Suspense } from 'react';
 import { Outlet, Route, Routes } from 'react-router-dom';
+import { SplashScreen } from './components/SplashScreen';
 import { AppLayout } from './layouts/AppLayout';
 import { GuestOnly, RequireAuth } from './routes/guards';
 import {
   BudgetsPage,
   CategoriesPage,
+  ForgotPasswordPage,
   HomePage,
   LoginPage,
   NotFoundPage,
   OnboardingPage,
   ProfilePage,
   RegisterPage,
+  ResetPasswordPage,
   TransactionsPage,
   WalletsPage,
 } from './routes/pages';
@@ -31,6 +35,23 @@ export function App() {
           <GuestOnly afterAuth="/mulai">
             <RegisterPage />
           </GuestOnly>
+        }
+      />
+      <Route
+        path="/lupa-kata-sandi"
+        element={
+          <GuestOnly>
+            <ForgotPasswordPage />
+          </GuestOnly>
+        }
+      />
+      {/* Bukan GuestOnly: tautan dari email harus tetap bisa dipakai walau perangkat ini sedang masuk. */}
+      <Route
+        path="/atur-ulang-kata-sandi"
+        element={
+          <Suspense fallback={<SplashScreen progress={false} />}>
+            <ResetPasswordPage />
+          </Suspense>
         }
       />
       {/* Satu RequireAuth untuk semua rute privat agar intro logo tidak diputar ulang antar-rute. */}

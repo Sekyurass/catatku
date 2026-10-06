@@ -38,7 +38,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
     test.use({ colorScheme });
 
     test('halaman publik lolos axe (WCAG 2.1 AA)', async ({ page }) => {
-      for (const path of ['/masuk', '/daftar']) {
+      for (const path of [
+        '/masuk',
+        '/daftar',
+        '/lupa-kata-sandi',
+        '/atur-ulang-kata-sandi#token=contoh',
+        '/atur-ulang-kata-sandi',
+      ]) {
         await page.goto(path);
         await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

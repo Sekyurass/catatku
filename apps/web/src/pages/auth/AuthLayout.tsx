@@ -2,16 +2,22 @@ import { type ReactNode, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Logo } from '../../components/Logo';
 import { cn } from '../../lib/cn';
-import { LoginPage, RegisterPage } from '../../routes/pages';
+import { ForgotPasswordPage, LoginPage, RegisterPage } from '../../routes/pages';
 import { AuthShowcase } from './AuthShowcase';
 
 /**
- * Kolom form masuk dan daftar bergeser seperti dua langkah berurutan: Daftar datang dari kanan,
- * Masuk dari kiri. Kunjungan pertama (tanpa navigasi sebelumnya) cukup memudar.
+ * Halaman Masuk adalah titik awal: halaman lain (Daftar, Lupa kata sandi) datang dari kanan,
+ * kembali ke Masuk datang dari kiri. Kunjungan pertama (tanpa navigasi sebelumnya) cukup memudar.
  */
 function enterAnimation(pathname: string, key: string) {
   if (key === 'default') return 'animate-fade-in';
-  return pathname === '/daftar' ? 'animate-auth-from-right' : 'animate-auth-from-left';
+  return pathname === '/masuk' ? 'animate-auth-from-left' : 'animate-auth-from-right';
+}
+
+function showcaseVariant(pathname: string) {
+  if (pathname === '/daftar') return 'register';
+  if (pathname === '/masuk') return 'login';
+  return 'recover';
 }
 
 export function AuthLayout({
@@ -28,10 +34,11 @@ export function AuthLayout({
   const { pathname, key } = useLocation();
   const animation = enterAnimation(pathname, key);
 
-  // Halaman pasangannya dipanaskan agar pindah Masuk ↔ Daftar tidak menampilkan layar memuat.
+  // Halaman tetangga dipanaskan agar berpindah di antaranya tidak menampilkan layar memuat.
   useEffect(() => {
-    void LoginPage.preload().catch(() => undefined);
-    void RegisterPage.preload().catch(() => undefined);
+    for (const p of [LoginPage, RegisterPage, ForgotPasswordPage]) {
+      void p.preload().catch(() => undefined);
+    }
   }, []);
 
   return (
@@ -47,10 +54,7 @@ export function AuthLayout({
         </div>
         <p className={cn('text-center text-sm text-muted', animation)}>{footer}</p>
       </main>
-      <AuthShowcase
-        variant={pathname === '/daftar' ? 'register' : 'login'}
-        animate={key === 'default'}
-      />
+      <AuthShowcase variant={showcaseVariant(pathname)} animate={key === 'default'} />
     </div>
   );
 }

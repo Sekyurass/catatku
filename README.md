@@ -131,6 +131,10 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
   `UserAvatar` agar query `User` biasa tidak ikut memuat gambar; `User.avatarUpdatedAt` menjadi versi cache.
   Server memeriksa jenis file dari _magic bytes_ (bukan header) dan menolak > 300 kB. Bila nanti volume
   foto besar, pindah ke Supabase Storage cukup mengganti `avatar.service.ts`.
+- **Email lewat antarmuka `Mailer`** (`lib/mailer.ts`, Nodemailer): SMTP apa pun bila `SMTP_HOST` diisi
+  (Gmail App Password / Brevo gratis); tanpa SMTP, saat development isi email dicetak di log API, di
+  production dicatat sebagai error tanpa membocorkan isi; saat tes ditampung di `testOutbox`. Pengiriman
+  tidak ditunggu agar waktu respons tidak membedakan email terdaftar atau tidak.
 - **Mode gelap** (disetujui lebih awal dari Fase 4): pilihan Terang/Gelap/Sistem di Profil, disimpan per
   perangkat di `localStorage` (`catatku_theme`), tanpa kolom database. Skrip kecil di `index.html`
   memasang `data-theme` sebelum React dimuat agar tidak berkedip. Komponen hanya memakai token CSS;
@@ -143,6 +147,10 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
 Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 
 - ✅ `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
+- ✅ `POST /auth/forgot-password` `{ email }` → selalu 204 (tidak membocorkan email terdaftar; maks 1 email/menit/akun),
+  `POST /auth/reset-password` `{ token, password }` → sesi baru + cookie refresh; semua sesi lain dicabut.
+  Token sekali pakai, berlaku 30 menit, disimpan sebagai hash; tautan memakai fragmen
+  `/atur-ulang-kata-sandi#token=…` agar token tidak terkirim ke server/log/Referer
 - ✅ `GET/PATCH /me` (ubah nama/email; ganti email wajib `currentPassword`), `PUT /me/password` (mengakhiri semua sesi lain, membalas sesi baru + cookie refresh)
 - ✅ `GET/PUT/DELETE /me/avatar` — PUT berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`,
   maks 300 kB) → `{ user }`; GET mengembalikan gambar (klien memakai `?v=<avatarUpdatedAt>` untuk cache)

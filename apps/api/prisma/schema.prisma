@@ -47,8 +47,23 @@ model User {
   transactions    Transaction[]
   budgets         Budget[]
   refreshTokens   RefreshToken[]
+  resetTokens     PasswordResetToken[]
   idempotencyKeys IdempotencyKey[]
   events          AnalyticsEvent[]
+}
+
+/// Tautan "lupa kata sandi": sekali pakai, umur pendek, hanya hash yang disimpan.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Byte foto profil dipisah dari User agar query User biasa tidak ikut memuat gambar.

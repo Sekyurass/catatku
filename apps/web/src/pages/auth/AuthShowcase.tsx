@@ -13,6 +13,10 @@ const COPY = {
     title: 'Mulai rapikan keuanganmu hari ini.',
     body: 'Gratis dan tanpa iklan. Catat transaksi pertama dalam hitungan detik, langsung dari HP.',
   },
+  recover: {
+    title: 'Tenang, catatanmu tetap aman.',
+    body: 'Atur ulang kata sandi lewat email, lalu lanjutkan mencatat seperti biasa.',
+  },
 } as const;
 
 const TRANSACTIONS = [
@@ -41,7 +45,7 @@ export function AuthShowcase({
   variant,
   animate,
 }: {
-  variant: 'login' | 'register';
+  variant: keyof typeof COPY;
   animate: boolean;
 }) {
   const copy = COPY[variant];

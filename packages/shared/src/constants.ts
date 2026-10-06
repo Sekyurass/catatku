@@ -15,6 +15,11 @@ export const MAX_AMOUNT = 1_000_000_000_000;
 
 export const BUDGET_WARNING_RATIO = 0.8;
 
+/** Umur default tautan lupa kata sandi (bisa diubah server lewat RESET_TOKEN_TTL_MINUTES). */
+export const RESET_LINK_TTL_MINUTES = 30;
+/** Jeda minimal antar-permintaan email reset untuk satu akun. */
+export const RESET_RESEND_COOLDOWN_SECONDS = 60;
+
 /** Foto profil dikompres di browser; server tetap menolak yang lebih besar dari ini. */
 export const AVATAR_MAX_BYTES = 300_000;
 export const AVATAR_MIME_TYPES = ['image/webp', 'image/jpeg', 'image/png'] as const;

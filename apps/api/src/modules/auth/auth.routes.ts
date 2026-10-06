@@ -7,6 +7,8 @@ export function createAuthRouter(opts: { rateLimit?: number } = {}) {
   const limiter = createAuthLimiter(opts.rateLimit);
   router.post('/register', limiter, ctrl.register);
   router.post('/login', limiter, ctrl.login);
+  router.post('/forgot-password', limiter, ctrl.forgotPassword);
+  router.post('/reset-password', limiter, ctrl.resetPassword);
   router.post('/refresh', ctrl.refresh);
   router.post('/logout', ctrl.logout);
   return router;

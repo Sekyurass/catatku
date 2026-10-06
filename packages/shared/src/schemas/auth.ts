@@ -54,3 +54,12 @@ export const changePasswordSchema = z
     error: 'Kata sandi baru harus berbeda dari yang lama',
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const forgotPasswordSchema = z.object({ email: emailSchema });
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, { error: 'Tautan tidak valid' }).max(200),
+  password: newPasswordSchema,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

@@ -20,6 +20,7 @@ export function LoginPage() {
     register,
     handleSubmit,
     setError,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
@@ -76,7 +77,14 @@ export function LoginPage() {
             />
           )}
         </Field>
-        <Button type="submit" size="lg" loading={isSubmitting} className="mt-2 w-full">
+        <Link
+          to="/lupa-kata-sandi"
+          state={{ email: watch('email') }}
+          className="-mt-2 inline-flex min-h-11 items-center self-end text-sm font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          Lupa kata sandi?
+        </Link>
+        <Button type="submit" size="lg" loading={isSubmitting} className="w-full">
           Masuk
         </Button>
       </form>

@@ -1,17 +1,23 @@
-import type {
-  ChangePasswordInput,
-  LoginInput,
-  RegisterInput,
-  UpdateProfileInput,
-  UserDTO,
+import {
+  type ChangePasswordInput,
+  type ForgotPasswordInput,
+  type LoginInput,
+  type RegisterInput,
+  RESET_RESEND_COOLDOWN_SECONDS,
+  type ResetPasswordInput,
+  type UpdateProfileInput,
+  type UserDTO,
 } from '@catatku/shared';
 import { Prisma, type User } from '@prisma/client';
 import { env } from '../../config/env';
 import { track } from '../../lib/analytics';
 import { AppError, notFound, unauthorized, validationError } from '../../lib/errors';
+import { logger } from '../../lib/logger';
+import { mailer } from '../../lib/mailer';
 import { burnPasswordCheck, hashPassword, verifyPassword } from '../../lib/password';
 import { prisma } from '../../lib/prisma';
 import { generateRefreshToken, hashToken, signAccessToken } from '../../lib/tokens';
+import { passwordResetEmail } from './emails';
 
 /** Token yang sudah dirotasi dalam jendela ini dianggap balapan antar-tab, bukan pencurian. */
 const REUSE_GRACE_MS = 30_000;
@@ -176,6 +182,80 @@ export async function changePassword(
     }),
     prisma.refreshToken.deleteMany({ where: { userId } }),
   ]);
+  return issueSession(updated, meta);
+}
+
+/** Agar tombol "kirim ulang" tidak bisa dipakai membanjiri kotak masuk seseorang. */
+const RESET_RESEND_COOLDOWN_MS = RESET_RESEND_COOLDOWN_SECONDS * 1000;
+
+const invalidResetToken = () =>
+  new AppError(
+    400,
+    'INVALID_RESET_TOKEN',
+    'Tautan sudah tidak berlaku. Minta tautan baru dari halaman lupa kata sandi.',
+  );
+
+/**
+ * Selalu selesai tanpa error dan tanpa menunggu pengiriman email, apa pun hasilnya,
+ * supaya respons tidak membocorkan email mana yang terdaftar.
+ */
+export async function requestPasswordReset(input: ForgotPasswordInput): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { email: input.email } });
+  if (!user) return;
+  const recent = await prisma.passwordResetToken.findFirst({
+    where: {
+      userId: user.id,
+      usedAt: null,
+      createdAt: { gt: new Date(Date.now() - RESET_RESEND_COOLDOWN_MS) },
+    },
+    select: { id: true },
+  });
+  if (recent) return;
+
+  const raw = generateRefreshToken();
+  await prisma.$transaction([
+    prisma.passwordResetToken.deleteMany({ where: { userId: user.id } }),
+    prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(raw),
+        expiresAt: new Date(Date.now() + env.RESET_TOKEN_TTL_MINUTES * 60_000),
+      },
+    }),
+  ]);
+  // Fragmen (#) tidak ikut terkirim ke server mana pun, termasuk lewat header Referer.
+  const link = `${env.appUrl}/atur-ulang-kata-sandi#token=${raw}`;
+  track(user.id, 'password_reset_requested');
+  mailer
+    .send(passwordResetEmail(user.email, user.name, link, env.RESET_TOKEN_TTL_MINUTES))
+    .catch((err: unknown) => logger.error({ err }, 'Gagal mengirim email reset kata sandi'));
+}
+
+/** Kata sandi baru berlaku, semua sesi lama berakhir, dan perangkat ini langsung masuk. */
+export async function resetPassword(input: ResetPasswordInput, meta: ClientMeta): Promise<Session> {
+  const stored = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashToken(input.token) },
+  });
+  if (!stored || stored.usedAt || stored.expiresAt.getTime() <= Date.now()) {
+    throw invalidResetToken();
+  }
+  const { count } = await prisma.passwordResetToken.updateMany({
+    where: { id: stored.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+  if (count === 0) throw invalidResetToken();
+
+  const [updated] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: stored.userId },
+      data: { passwordHash: await hashPassword(input.password) },
+    }),
+    prisma.refreshToken.deleteMany({ where: { userId: stored.userId } }),
+    prisma.passwordResetToken.deleteMany({
+      where: { userId: stored.userId, id: { not: stored.id } },
+    }),
+  ]);
+  track(updated.id, 'password_reset');
   return issueSession(updated, meta);
 }
 

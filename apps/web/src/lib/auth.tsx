@@ -3,6 +3,7 @@ import type {
   ChangePasswordInput,
   LoginInput,
   RegisterInput,
+  ResetPasswordInput,
   UpdateProfileInput,
   UserDTO,
 } from '@catatku/shared';
@@ -33,6 +34,8 @@ interface AuthContextValue {
   updateProfile: (input: UpdateProfileInput) => Promise<void>;
   /** Sesi di perangkat lain berakhir; perangkat ini menerima sesi baru. */
   changePassword: (input: ChangePasswordInput) => Promise<void>;
+  /** Kata sandi baru dari tautan email; berhasil berarti langsung masuk. */
+  resetPassword: (input: ResetPasswordInput) => Promise<void>;
   uploadAvatar: (image: Blob) => Promise<void>;
   removeAvatar: () => Promise<void>;
   /** Menampilkan layar "Sampai jumpa" lalu kembali ke halaman masuk. */
@@ -99,6 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   );
 
+  const resetPassword = useCallback(
+    async (input: ResetPasswordInput) => {
+      applySession(
+        await api<AuthResponse>('/auth/reset-password', { method: 'POST', body: input }),
+      );
+    },
+    [applySession],
+  );
+
   const uploadAvatar = useCallback(async (image: Blob) => {
     const res = await api<{ user: UserDTO }>('/me/avatar', { method: 'PUT', body: image });
     setUser(res.user);
@@ -136,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       updateProfile,
       changePassword,
+      resetPassword,
       uploadAvatar,
       removeAvatar,
       logout,
@@ -148,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       updateProfile,
       changePassword,
+      resetPassword,
       uploadAvatar,
       removeAvatar,
       logout,
