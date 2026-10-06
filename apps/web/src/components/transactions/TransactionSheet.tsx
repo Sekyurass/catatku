@@ -1,6 +1,7 @@
 import {
   type CategoryDTO,
   DATE_REGEX,
+  FEATURE_FLAGS,
   formatRupiah,
   MAX_AMOUNT,
   type TransactionDTO,
@@ -16,8 +17,10 @@ import { useBudgetWarning } from '../budgets/useBudgetWarning';
 import { FormAlert } from '../../pages/auth/AuthLayout';
 import { api, ApiError } from '../../lib/api';
 import { cn } from '../../lib/cn';
+import { useFeature } from '../../lib/features';
 import { applyServerErrors } from '../../lib/forms';
 import { today, yesterday } from '../../lib/format';
+import type { ReceiptField, ReceiptScanResult } from '../../lib/receipt';
 import {
   pickDefaultWallet,
   useCategories,
@@ -34,6 +37,7 @@ import { ColorDot, Select, type SelectOption } from '../ui/Select';
 import { EmptyState, ErrorState, Skeleton } from '../ui/States';
 import { useToast } from '../ui/Toast';
 import { CategoryPicker } from './CategoryPicker';
+import { ReceiptScanner } from './ReceiptScanner';
 
 export type TransactionKind = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
@@ -68,6 +72,13 @@ const formSchema = z
     if (!DATE_REGEX.test(v.date)) issue('date', 'Tanggal tidak valid');
   });
 type FormValues = z.infer<typeof formSchema>;
+
+/** Isian yang terakhir diisi dari struk, untuk petunjuk "Dari struk" selama nilainya belum diubah. */
+interface ScannedValues {
+  amount?: ReceiptField<number>;
+  date?: ReceiptField<string>;
+  note?: ReceiptField<string>;
+}
 
 const FIELD_NAMES: Array<keyof FormValues> = [
   'amount',
@@ -205,6 +216,8 @@ function TransactionForm({
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [formError, setFormError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const ocrOn = useFeature(FEATURE_FLAGS.RECEIPT_OCR);
+  const [scanned, setScanned] = useState<ScannedValues>({});
 
   const {
     control,
@@ -213,6 +226,7 @@ function TransactionForm({
     setError,
     setValue,
     setFocus,
+    getValues,
     watch,
     formState: { errors, isSubmitting, dirtyFields },
   } = useForm<FormValues>({
@@ -226,7 +240,34 @@ function TransactionForm({
   const kind = watch('kind');
   const date = watch('date');
   const walletId = watch('walletId');
+  const amount = watch('amount');
+  const note = watch('note');
   const isTransfer = kind === 'TRANSFER';
+
+  // Hanya isi yang masih kosong/bawaan atau yang sebelumnya juga dari struk: ketikan pengguna tidak ditimpa.
+  const applyScan = (result: ReceiptScanResult) => {
+    const current = getValues();
+    const next: ScannedValues = {};
+    const opts = { shouldDirty: true, shouldValidate: true };
+    if (result.total && (current.amount === null || current.amount === scanned.amount?.value)) {
+      setValue('amount', result.total.value, opts);
+      next.amount = result.total;
+    }
+    if (result.date && (current.date === today() || current.date === scanned.date?.value)) {
+      setValue('date', result.date.value, opts);
+      next.date = result.date;
+    }
+    if (result.merchant && (!current.note.trim() || current.note === scanned.note?.value)) {
+      setValue('note', result.merchant.value, opts);
+      next.note = result.merchant;
+    }
+    setScanned(next);
+  };
+
+  const scanHint = (field: ReceiptField<unknown> | undefined, value: unknown) => {
+    if (!field || field.value !== value) return undefined;
+    return field.confidence === 'low' ? 'Dari struk, kurang yakin. Cek lagi.' : 'Dari struk';
+  };
 
   const onSubmit = handleSubmit(async (v) => {
     setFormError(null);
@@ -374,7 +415,11 @@ function TransactionForm({
         }}
       />
 
-      <Field label="Nominal" error={errors.amount?.message}>
+      {ocrOn && !editing && kind === 'EXPENSE' && (
+        <ReceiptScanner today={today()} onScanned={applyScan} onCleared={() => setScanned({})} />
+      )}
+
+      <Field label="Nominal" error={errors.amount?.message} hint={scanHint(scanned.amount, amount)}>
         {(a) => (
           <Controller
             control={control}
@@ -429,7 +474,7 @@ function TransactionForm({
         </>
       )}
 
-      <Field label="Tanggal" error={errors.date?.message}>
+      <Field label="Tanggal" error={errors.date?.message} hint={scanHint(scanned.date, date)}>
         {(a) => (
           <div className="flex flex-wrap gap-2">
             {[
@@ -461,7 +506,11 @@ function TransactionForm({
         )}
       </Field>
 
-      <Field label="Catatan (opsional)" error={errors.note?.message}>
+      <Field
+        label="Catatan (opsional)"
+        error={errors.note?.message}
+        hint={scanHint(scanned.note, note)}
+      >
         {(a) => (
           <Input
             {...a}

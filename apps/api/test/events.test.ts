@@ -42,6 +42,21 @@ describe('event analitik', () => {
     expect(rows[1]).toEqual({ name: 'onboarding_skipped', props: { step: 2 } });
   });
 
+  it('POST /events mencatat hasil pindai struk tanpa isi struknya', async () => {
+    const user = await registerUser();
+    const res = await authed(user)
+      .post('/api/v1/events')
+      .send({ name: 'receipt_scanned', fields: 2 });
+    expect(res.status).toBe(204);
+    const rows = await eventsOf(user.id, 2);
+    expect(rows[1]).toEqual({ name: 'receipt_scanned', props: { fields: 2 } });
+
+    const tooMany = await authed(user)
+      .post('/api/v1/events')
+      .send({ name: 'receipt_scanned', fields: 4 });
+    expect(tooMany.status).toBe(400);
+  });
+
   it('POST /events menolak nama tak dikenal dan tanpa login', async () => {
     const user = await registerUser();
     const unknown = await authed(user).post('/api/v1/events').send({ name: 'wallet_created' });

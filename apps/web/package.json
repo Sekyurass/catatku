@@ -16,6 +16,7 @@
     "@fontsource-variable/inter": "^5.2.0",
     "@hookform/resolvers": "^5.2.0",
     "@tanstack/react-query": "^5.85.0",
+    "@tesseract.js-data/ind": "^1.0.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.540.0",
     "react": "^19.1.0",
@@ -24,6 +25,7 @@
     "react-router-dom": "^7.8.0",
     "recharts": "^3.1.0",
     "tailwind-merge": "^3.7.0",
+    "tesseract.js": "^7.0.0",
     "zod": "^4.1.0"
   },
   "devDependencies": {

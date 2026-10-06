@@ -62,14 +62,16 @@ Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12
 (sudah berisi 3 dompet, transaksi 6 bulan, transfer, anggaran berlanjut, dan 4 transaksi berulang:
 gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini).
 
-Fitur Fase 1 berada di balik feature flag yang **nonaktif** setelah seed. Untuk menyalakannya:
+Fitur Fase 1 dan pindai struk (Fase 3.1) berada di balik feature flag yang **nonaktif** setelah seed.
+Untuk menyalakannya:
 
 ```sql
--- Untuk semua pengguna (SQL editor Supabase / psql)
-UPDATE "FeatureFlag" SET enabled = true WHERE key IN ('recurring_transactions', 'reminders');
+-- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
+UPDATE "FeatureFlag" SET enabled = true
+WHERE key IN ('recurring_transactions', 'reminders', 'receipt_ocr');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,receipt_ocr:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan. Akun baru dari halaman **Daftar**
 langsung diarahkan ke onboarding 3 langkah di `/mulai`: sambutan → dompet pertama → transaksi pertama
 (bisa dilewati kapan saja).
@@ -184,6 +186,35 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
     resmi (Google, Mozilla, Apple, Microsoft; HTTPS) untuk mencegah SSRF; maks. 10 perangkat per akun;
     langganan yang ditolak layanan (404/410) dihapus otomatis; logout melepas langganan perangkat itu.
   - Keterbatasan: di iPhone/iPad push hanya jalan bila Catatku dipasang ke Layar Utama (iOS 16.4+).
+- **Pindai struk** (Fase 3.1, flag `receipt_ocr`): tombol **Pindai struk** di form pengeluaran baru. OCR
+  berjalan **di perangkat** dengan Tesseract.js (WebAssembly), jadi foto tidak pernah dikirim ke server
+  atau pihak ketiga. Hasilnya hanya **mengisi** form (nominal, tanggal, catatan = nama toko); pengguna
+  selalu meninjau lalu menekan Simpan.
+  - **Antarmuka `ReceiptParser`** (`apps/web/src/lib/receipt/index.ts`): `parse(foto, { today, signal,
+onProgress })` → `{ total, date, merchant, text }`, tiap kolom `{ value, confidence: high|low }` atau
+    `null`. Implementasi Tesseract (`tesseract.ts`) dimuat lazy hanya saat tombol dipakai; mengganti ke
+    layanan OCR server cukup menambah implementasi baru (wajib persetujuan pengguna dulu).
+  - **Alur**: validasi (hanya gambar, maks. 15 MB) → diputar sesuai EXIF, diskalakan (sisi panjang ≤ 2000 px),
+    grayscale + kontras → Tesseract bahasa `ind` mode _single block_ (mode otomatis membuang teks di bawah
+    garis putus-putus struk) → `parseReceiptText()` (fungsi murni berbasis aturan).
+  - **Aturan parser** (`parse.ts`): perbaikan salah baca angka (`O→0`, `l→1`, …), total dari kata kunci
+    berbobot (GRAND TOTAL > TOTAL BAYAR > TOTAL > JUMLAH; abaikan SUBTOTAL, TOTAL ITEM, DISKON, PPN, TUNAI,
+    KEMBALI, dll.) dan dicek silang dengan tunai − kembalian; tanggal `dd/mm/yy`, `yyyy-mm-dd`, `7 Okt 2026`
+    (tanggal masa depan atau > 3 tahun diabaikan); toko dari daftar jaringan ritel atau baris pertama yang masuk
+    akal. Kolom yang meragukan ditandai **kurang yakin** di form; kolom yang tidak terbaca dibiarkan kosong.
+  - **Gagal / tidak terbaca**: form manual tetap terbuka dengan foto bisa diperbesar sebagai acuan. Belum ada
+    lampiran (Fase 2.5), jadi foto dibuang dari memori saat form ditutup.
+  - **Aset self-hosted**: worker, core WASM (varian SIMD/non-SIMD), dan data bahasa `ind` (`4.0.0_best_int`)
+    disajikan dari `/tesseract/<versi>/` oleh plugin Vite (dev: middleware, build: `emitFile`), tanpa CDN.
+    Data bahasa disajikan sebagai byte gzip dengan nama `ind.traineddata` (tanpa `.gz`) karena sebagian
+    antivirus/proxy memblokir unduhan `.gz`; Tesseract mengenali gzip dari _magic bytes_. Pemakaian pertama
+    mengunduh ±5 MB, berikutnya data bahasa diambil dari IndexedDB.
+  - **Dataset & metrik** (`lib/receipt/fixtures.ts` + `parse.test.ts`): 12 teks struk (minimarket, SPBU,
+    restoran, kafe, apotek, teks OCR berderau, struk tak terbaca). Tes menghitung akurasi per kolom dan gagal
+    bila total < 90%, tanggal < 90%, atau toko < 80% (saat ini 100% / 100% / 100%). E2E `receipt.spec.ts`
+    menjalankan Tesseract sungguhan pada gambar struk yang dirender.
+  - Keterbatasan: daftar item belum diambil; kategori otomatis menunggu Fase 3.2; akurasi turun pada foto
+    buram, miring, atau kertas kusut.
 
 ## API (Fase 0)
 
@@ -198,7 +229,7 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 - ✅ `GET/PUT/DELETE /me/avatar` — PUT berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`,
   maks 300 kB) → `{ user }`; GET mengembalikan gambar (klien memakai `?v=<avatarUpdatedAt>` untuk cache)
 - ✅ `GET /features`, `GET /health` (di root)
-- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped", step?: 1–3 }` → 204
+- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped" | "receipt_scanned", step?: 1–3, fields?: 0–3 }` → 204
   (hanya event klien yang terdaftar; event lain dicatat server sendiri)
 - ✅ `GET/POST/PATCH/DELETE /wallets` (`?includeArchived=true`; DELETE mengarsipkan dompet yang punya riwayat)
 - ✅ `GET/POST/PATCH/DELETE /categories` (`?type=`; kategori bawaan hanya-baca → 403)
@@ -250,6 +281,7 @@ interval?: 1–99, startDate, endDate?: string|null, autoPost?: boolean }`; `PAT
 | `recurring_rule_created`                     | API                    | `frequency`, `autoPost`          |
 | `reminder_sent`, `push_subscribed`           | API                    | –                                |
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                     |
+| `receipt_scanned`                            | Klien (`POST /events`) | `fields` (0–3 kolom terbaca)     |
 
 Contoh kueri untuk menilai gerbang Fase 0 → Fase 1 (jalankan di SQL editor Supabase):
 

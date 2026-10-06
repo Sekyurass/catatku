@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page, test } from '@playwright/test';
-import { signUpViaApi, waitForApp } from './helpers';
+import { type Browser, expect, type Page, test } from '@playwright/test';
+import { renderReceiptPng, signUpViaApi, waitForApp } from './helpers';
 
 async function expectNoViolations(page: Page) {
   const { violations } = await new AxeBuilder({ page })
@@ -53,14 +53,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
       }
     });
 
-    test('halaman aplikasi lolos axe (WCAG 2.1 AA)', async ({ page }) => {
+    test('halaman aplikasi lolos axe (WCAG 2.1 AA)', async ({ page, browser }) => {
       test.slow();
-      await auditAppPages(page);
+      await auditAppPages(page, browser);
     });
   });
 }
 
-async function auditAppPages(page: Page) {
+async function auditAppPages(page: Page, browser: Browser) {
   const { post, get } = await signUpViaApi(page.request);
   const wallet = await post<{ id: string }>('/wallets', {
     name: 'Tunai',
@@ -148,6 +148,25 @@ async function auditAppPages(page: Page) {
     await expect(page.getByRole('dialog', { name: 'Notifikasi' })).toBeVisible();
     await waitForApp(page);
     await test.step('lonceng notifikasi', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+  }
+
+  if (flags.receipt_ocr) {
+    await page.goto('/');
+    await waitForApp(page);
+    await page.getByRole('button', { name: 'Catat transaksi' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Catat transaksi' });
+    await dialog
+      .getByTestId('receipt-input')
+      .setInputFiles(await renderReceiptPng(browser, new Date()));
+    await expect(dialog.getByText('Diisi dari struk, periksa lagi sebelum menyimpan')).toBeVisible({
+      timeout: 90_000,
+    });
+    await dialog.getByRole('button', { name: 'Perbesar foto struk' }).click();
+    await expect(dialog.getByRole('img', { name: 'Foto struk' })).toBeVisible();
+    await test.step('form pindai struk', async () => {
       await expectNoViolations(page);
       await expectTouchTargets(page);
     });
