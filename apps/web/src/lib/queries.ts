@@ -1,4 +1,5 @@
 import type {
+  BudgetMonthDTO,
   CategoryBreakdownDTO,
   CategoryDTO,
   CategoryType,
@@ -28,7 +29,20 @@ export const queryKeys = {
   byCategory: (month: string, type: CategoryType) =>
     ['reports', 'by-category', month, type] as const,
   trend: (months: number) => ['reports', 'trend', months] as const,
+  budgets: (month: string) => ['budgets', month] as const,
 };
+
+export function fetchBudgets(month: string, signal?: AbortSignal) {
+  return api<BudgetMonthDTO>('/budgets', { query: { month }, signal });
+}
+
+export function useBudgets(month: string) {
+  return useQuery({
+    queryKey: queryKeys.budgets(month),
+    queryFn: ({ signal }) => fetchBudgets(month, signal),
+    placeholderData: keepPreviousData,
+  });
+}
 
 export function useSummary(month: string) {
   return useQuery({

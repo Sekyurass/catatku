@@ -57,12 +57,17 @@ export const listTransactionsQuery = z
   });
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuery>;
 
-export const exportTransactionsQuery = z.object({
-  from: dateSchema.optional(),
-  to: dateSchema.optional(),
-  categoryId: idSchema.optional(),
-  walletId: idSchema.optional(),
-  type: z.enum(TRANSACTION_TYPES).optional(),
-  q: z.string().trim().max(100).optional(),
-});
+export const exportTransactionsQuery = z
+  .object({
+    from: dateSchema.optional(),
+    to: dateSchema.optional(),
+    categoryId: idSchema.optional(),
+    walletId: idSchema.optional(),
+    type: z.enum(TRANSACTION_TYPES).optional(),
+    q: z.string().trim().max(100).optional(),
+  })
+  .refine((v) => !v.from || !v.to || v.from <= v.to, {
+    error: 'Tanggal awal harus sebelum tanggal akhir',
+    path: ['to'],
+  });
 export type ExportTransactionsQuery = z.infer<typeof exportTransactionsQuery>;

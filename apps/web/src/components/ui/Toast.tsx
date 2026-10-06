@@ -1,4 +1,4 @@
-import { CheckCircle2, Info, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Info, TriangleAlert, X, XCircle } from 'lucide-react';
 import {
   createContext,
   type ReactNode,
@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { cn } from '../../lib/cn';
 
-type ToastTone = 'success' | 'error' | 'info';
+type ToastTone = 'success' | 'error' | 'info' | 'warning';
 
 interface ToastInput {
   message: string;
@@ -26,8 +26,13 @@ interface ToastItem extends ToastInput {
 
 const ToastContext = createContext<((t: ToastInput) => void) | null>(null);
 
-const icons = { success: CheckCircle2, error: XCircle, info: Info };
-const iconColor = { success: 'text-income', error: 'text-expense', info: 'text-primary' };
+const icons = { success: CheckCircle2, error: XCircle, info: Info, warning: TriangleAlert };
+const iconColor = {
+  success: 'text-income',
+  error: 'text-expense',
+  info: 'text-primary',
+  warning: 'text-amber-400',
+};
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);

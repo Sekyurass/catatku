@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { createApiLimiter } from '../middleware/rateLimit';
 import { createAuthRouter } from '../modules/auth/auth.routes';
+import { createBudgetsRouter } from '../modules/budgets/budget.routes';
 import { createCategoriesRouter } from '../modules/categories/category.routes';
+import { createExportRouter } from '../modules/export/export.routes';
 import { createFeaturesRouter } from '../modules/features/features.routes';
 import { createReportsRouter } from '../modules/reports/report.routes';
 import { createTransactionsRouter } from '../modules/transactions/transaction.routes';
@@ -23,5 +25,7 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/categories', createCategoriesRouter());
   router.use('/transactions', createTransactionsRouter());
   router.use('/reports', createReportsRouter());
+  router.use('/budgets', createBudgetsRouter());
+  router.use('/export', createExportRouter());
   return router;
 }

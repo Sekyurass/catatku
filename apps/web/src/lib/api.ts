@@ -119,6 +119,9 @@ export async function downloadFile(path: string, query: Query, filename: string)
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  document.body.append(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  // Safari membatalkan unduhan bila URL dicabut di tick yang sama dengan klik.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

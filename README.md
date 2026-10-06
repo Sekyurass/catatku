@@ -3,7 +3,7 @@
 Aplikasi pencatatan keuangan pribadi untuk mahasiswa & pekerja muda di Indonesia.
 Target: catat transaksi < 10 detik, lihat sisa uang, pahami pola belanja bulanan.
 
-Status: **Fase 0 (MVP) — M3 selesai** (dompet, kategori, transaksi, transfer, dashboard).
+Status: **Fase 0 (MVP) — M4 selesai** (dompet, kategori, transaksi, transfer, dashboard, anggaran, ekspor CSV).
 
 ## Dukungan perangkat
 
@@ -116,4 +116,10 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 - ✅ `GET /reports/summary?month=` (total saldo dompet aktif, pemasukan, pengeluaran, selisih, 5 transaksi terakhir),
   `GET /reports/by-category?month=&type=EXPENSE|INCOME`, `GET /reports/trend?months=6` (1–24, bulan kosong diisi 0)
   - Transfer tidak dihitung sebagai pemasukan/pengeluaran; dashboard < 1 detik untuk 10.000 transaksi (diuji)
-- ⏳ `GET/PUT /budgets`, `GET /export/transactions.csv` (M4)
+- ✅ `GET /budgets?month=` (semua kategori pengeluaran aktif + anggaran & realisasinya; tanpa anggaran → `id: null`),
+  `PUT /budgets` body `{ month, items: [{ categoryId, limitAmount }] }` (upsert massal; `limitAmount: 0` menghapus; idempoten)
+  - Status: `ok` < 80%, `warning` 80–99%, `over` ≥ 100%. Hanya kategori pengeluaran yang aktif yang bisa dianggarkan
+- ✅ `GET /export/transactions.csv` (filter sama dengan `GET /transactions`, tanpa `cursor/limit`)
+  - UTF-8 + BOM, pemisah koma, baris `CRLF`; kolom `Tanggal,Jenis,Kategori,Dompet,Dompet lawan,Jumlah,Catatan`
+  - `Jumlah` bilangan bulat Rupiah bertanda; transfer muncul dua baris (keluar/masuk) dengan dompet lawannya
+  - Dikirim bertahap per 500 baris (streaming); teks berawalan `= + - @` diberi awalan `'` (anti CSV injection)

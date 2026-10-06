@@ -48,11 +48,12 @@ const CATEGORIES: CategoryDTO[] = [
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-function setup() {
+function setup(budgets?: unknown) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.includes('/wallets')) return json({ items: WALLETS });
     if (url.includes('/categories')) return json({ items: CATEGORIES });
+    if (url.includes('/budgets') && budgets) return json(budgets);
     if (url.includes('/transactions') && init?.method === 'POST') return json({ id: 't1' }, 201);
     return json({ error: { code: 'NOT_FOUND', message: 'x' } }, 404);
   });
@@ -116,6 +117,36 @@ describe('TransactionSheet (catat cepat)', () => {
       categoryId: 'cat_makan',
     });
     expect((init!.headers as Record<string, string>)['Idempotency-Key']).toMatch(/^[\w-]{8,}$/);
+  });
+
+  it('memperingatkan bila pengeluaran membuat anggaran kategori ≥ 80%', async () => {
+    setup({
+      month: '2026-10',
+      totalLimit: 1_000_000,
+      totalSpent: 875_000,
+      items: [
+        {
+          id: 'b1',
+          categoryId: 'cat_makan',
+          category: CATEGORIES[0],
+          month: '2026-10',
+          limitAmount: 1_000_000,
+          spent: 875_000,
+          remaining: 125_000,
+          ratio: 0.875,
+          status: 'warning',
+        },
+      ],
+    });
+    const amount = await screen.findByLabelText('Nominal');
+    await userEvent.click(
+      within(screen.getByRole('group', { name: 'Kategori' })).getByLabelText('Makan'),
+    );
+    await userEvent.type(amount, '25000{Enter}');
+    expect(
+      await screen.findByText('Anggaran Makan sudah 87%, sisa Rp 125.000.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lihat' })).toBeInTheDocument();
   });
 
   it('mode transfer memakai endpoint transfer dan menolak dompet yang sama', async () => {

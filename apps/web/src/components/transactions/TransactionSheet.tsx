@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
+import { useBudgetWarning } from '../budgets/useBudgetWarning';
 import { FormAlert } from '../../pages/auth/AuthLayout';
 import { api, ApiError } from '../../lib/api';
 import { cn } from '../../lib/cn';
@@ -197,6 +198,7 @@ function TransactionForm({
 }) {
   const toast = useToast();
   const invalidate = useInvalidateMoney();
+  const warnBudget = useBudgetWarning();
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [formError, setFormError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -278,6 +280,7 @@ function TransactionForm({
       }
       void invalidate();
       toast({ message: editing ? 'Perubahan tersimpan' : 'Transaksi tersimpan' });
+      if (!editing && v.kind === 'EXPENSE') void warnBudget(v.categoryId, v.date);
       onDone();
     } catch (err) {
       if (err instanceof ApiError && err.fields?.fromWalletId) {

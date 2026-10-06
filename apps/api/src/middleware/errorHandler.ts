@@ -15,6 +15,13 @@ export function notFoundHandler(_req: Request, res: Response) {
 }
 
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
+  // Respons streaming (mis. ekspor CSV) yang gagal di tengah jalan tidak bisa diganti JSON lagi.
+  if (res.headersSent) {
+    logger.error({ err, path: req.path, method: req.method }, 'Error after response started');
+    res.destroy();
+    return;
+  }
+
   if (err instanceof AppError) {
     return send(res, err.status, {
       error: { code: err.code, message: err.message, ...(err.fields && { fields: err.fields }) },

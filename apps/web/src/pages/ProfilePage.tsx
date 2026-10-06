@@ -1,6 +1,7 @@
 import { ChevronRight, LogOut, Tags, WalletMinimal } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ExportButton } from '../components/ExportButton';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../lib/auth';
@@ -48,6 +49,15 @@ export function ProfilePage() {
             </li>
           ))}
         </ul>
+      </Card>
+      <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <div className="flex-1">
+          <p className="font-medium">Ekspor data</p>
+          <p className="text-sm text-muted">
+            Unduh seluruh riwayat transaksi sebagai CSV untuk Excel atau Google Sheets.
+          </p>
+        </div>
+        <ExportButton label="Unduh CSV" />
       </Card>
       <Button
         variant="secondary"

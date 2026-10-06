@@ -2,6 +2,7 @@ import { formatRupiah, type TransactionDTO, type TransactionType } from '@catatk
 import { ListFilter, Plus, ReceiptText, Search, SearchX, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { ExportButton } from '../components/ExportButton';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { TransactionRow } from '../components/transactions/TransactionRow';
 import { Button } from '../components/ui/Button';
@@ -113,13 +114,16 @@ export function TransactionsPage() {
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Transaksi</h1>
-        <Button
-          className="hidden md:inline-flex"
-          icon={<Plus className="size-4" aria-hidden />}
-          onClick={() => openNew()}
-        >
-          Catat transaksi
-        </Button>
+        <div className="flex gap-2">
+          <ExportButton filters={filters} />
+          <Button
+            className="hidden md:inline-flex"
+            icon={<Plus className="size-4" aria-hidden />}
+            onClick={() => openNew()}
+          >
+            Catat transaksi
+          </Button>
+        </div>
       </header>
 
       <div className="flex gap-2">
