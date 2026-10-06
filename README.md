@@ -131,6 +131,12 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
   `UserAvatar` agar query `User` biasa tidak ikut memuat gambar; `User.avatarUpdatedAt` menjadi versi cache.
   Server memeriksa jenis file dari _magic bytes_ (bukan header) dan menolak > 300 kB. Bila nanti volume
   foto besar, pindah ke Supabase Storage cukup mengganti `avatar.service.ts`.
+- **Mode gelap** (disetujui lebih awal dari Fase 4): pilihan Terang/Gelap/Sistem di Profil, disimpan per
+  perangkat di `localStorage` (`catatku_theme`), tanpa kolom database. Skrip kecil di `index.html`
+  memasang `data-theme` sebelum React dimuat agar tidak berkedip. Komponen hanya memakai token CSS;
+  di tema gelap primer berwarna terang sehingga teks di atasnya memakai `--on-primary`, sedangkan
+  permukaan merek besar memakai `--brand`. Warna kategori dicerahkan otomatis lewat `color-mix`.
+  Audit axe E2E berjalan di kedua tema.
 
 ## API (Fase 0)
 

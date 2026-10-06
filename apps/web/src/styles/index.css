@@ -5,11 +5,17 @@
   --primary: #0f766e;
   --primary-hover: #115e59;
   --primary-soft: #ccfbf1;
+  --on-primary: #ffffff;
+  --brand: #0f766e;
+  --brand-hover: #115e59;
   --accent: #14b8a6;
   --income: #16a34a;
   --income-text: #15803d;
   --expense: #dc2626;
   --expense-text: #dc2626;
+  --expense-soft: #fef2f2;
+  --on-expense: #ffffff;
+  --toast: #0f172a;
   --warning: #d97706;
   --warning-text: #b45309;
   --bg: #f8fafc;
@@ -23,16 +29,25 @@
   color-scheme: light;
 }
 
-/* Tema gelap disiapkan sejak awal; diaktifkan penuh di Fase 4. */
+/*
+ * Primer di tema gelap berwarna terang, jadi teks di atasnya gelap (--on-primary).
+ * Permukaan merek besar (kartu saldo, panel ilustrasi) tetap teal tua dengan teks putih.
+ */
 [data-theme='dark'] {
   --primary: #2dd4bf;
   --primary-hover: #5eead4;
   --primary-soft: #134e4a;
+  --on-primary: #042f2e;
+  --brand: #115e59;
+  --brand-hover: #134e4a;
   --accent: #14b8a6;
   --income: #4ade80;
   --income-text: #4ade80;
   --expense: #f87171;
   --expense-text: #f87171;
+  --expense-soft: rgb(127 29 29 / 0.35);
+  --on-expense: #450a0a;
+  --toast: #334155;
   --warning: #fbbf24;
   --warning-text: #fbbf24;
   --bg: #0f172a;
@@ -54,11 +69,17 @@
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
   --color-accent: var(--accent);
   --color-income: var(--income);
   --color-income-text: var(--income-text);
   --color-expense: var(--expense);
   --color-expense-text: var(--expense-text);
+  --color-expense-soft: var(--expense-soft);
+  --color-on-expense: var(--on-expense);
+  --color-toast: var(--toast);
   --color-warning: var(--warning);
   --color-warning-text: var(--warning-text);
   --color-bg: var(--bg);
@@ -183,6 +204,18 @@
   }
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Warna kategori/dompet dipilih untuk latar terang; di tema gelap dicerahkan agar tetap terlihat. */
+  .icon-badge {
+    color: var(--badge);
+    background-color: color-mix(in srgb, var(--badge) 12%, transparent);
+  }
+  [data-theme='dark'] .icon-badge {
+    color: color-mix(in srgb, var(--badge) 55%, white);
+    background-color: color-mix(in srgb, var(--badge) 28%, transparent);
   }
 }
 

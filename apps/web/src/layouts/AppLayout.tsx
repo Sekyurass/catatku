@@ -44,7 +44,7 @@ function Shell() {
     >
       <a
         href="#konten"
-        className="sr-only z-50 rounded-control bg-primary px-4 py-2 text-white focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        className="sr-only z-50 rounded-control bg-primary px-4 py-2 text-on-primary focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
       >
         Lewati ke konten
       </a>
@@ -106,7 +106,7 @@ function Shell() {
             <button
               type="button"
               onClick={() => openNew()}
-              className="-mt-5 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg ring-4 ring-bg hover:bg-primary-hover active:scale-95"
+              className="-mt-5 flex size-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-lg ring-4 ring-bg hover:bg-primary-hover active:scale-95"
               aria-label="Catat transaksi"
             >
               <Plus className="size-7" aria-hidden />
@@ -166,7 +166,7 @@ function SideLogout() {
         className={cn(
           'flex min-h-11 flex-col items-center justify-center gap-1 rounded-control px-1 py-2 text-[11px] font-semibold text-expense-text transition-colors',
           'lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-0 lg:text-sm',
-          'hover:bg-expense hover:text-white disabled:opacity-60',
+          'hover:bg-expense hover:text-on-expense disabled:opacity-60',
         )}
       >
         {busy ? (

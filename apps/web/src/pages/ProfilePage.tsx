@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { Avatar } from '../components/Avatar';
 import { ExportButton } from '../components/ExportButton';
+import { ThemePicker } from '../components/ThemePicker';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
@@ -64,7 +65,7 @@ export function ProfilePage() {
             className="relative shrink-0 rounded-full"
           >
             <Avatar user={user} className="size-16 text-xl" />
-            <span className="absolute -right-0.5 -bottom-0.5 flex size-7 items-center justify-center rounded-full border-2 border-surface bg-primary text-white">
+            <span className="absolute -right-0.5 -bottom-0.5 flex size-7 items-center justify-center rounded-full border-2 border-surface bg-primary text-on-primary">
               <Camera className="size-3.5" aria-hidden />
             </span>
           </button>
@@ -108,6 +109,9 @@ export function ProfilePage() {
             </button>
           </li>
         </ul>
+      </Card>
+      <Card>
+        <ThemePicker />
       </Card>
       <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
         <div className="flex-1">

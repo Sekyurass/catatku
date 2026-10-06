@@ -33,16 +33,27 @@ async function expectTouchTargets(page: Page) {
   expect.soft(small, small.join('\n')).toEqual([]);
 }
 
-test('halaman publik lolos axe (WCAG 2.1 AA)', async ({ page }) => {
-  for (const path of ['/masuk', '/daftar']) {
-    await page.goto(path);
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expectNoViolations(page);
-    await expectTouchTargets(page);
-  }
-});
+for (const colorScheme of ['light', 'dark'] as const) {
+  test.describe(`tema ${colorScheme === 'light' ? 'terang' : 'gelap'}`, () => {
+    test.use({ colorScheme });
 
-test('halaman aplikasi lolos axe (WCAG 2.1 AA)', async ({ page }) => {
+    test('halaman publik lolos axe (WCAG 2.1 AA)', async ({ page }) => {
+      for (const path of ['/masuk', '/daftar']) {
+        await page.goto(path);
+        await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expectNoViolations(page);
+        await expectTouchTargets(page);
+      }
+    });
+
+    test('halaman aplikasi lolos axe (WCAG 2.1 AA)', async ({ page }) => {
+      await auditAppPages(page);
+    });
+  });
+}
+
+async function auditAppPages(page: Page) {
   const { post } = await signUpViaApi(page.request);
   const wallet = await post<{ id: string }>('/wallets', {
     name: 'Tunai',
@@ -83,4 +94,4 @@ test('halaman aplikasi lolos axe (WCAG 2.1 AA)', async ({ page }) => {
       await expectTouchTargets(page);
     });
   }
-});
+}

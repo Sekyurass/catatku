@@ -9,6 +9,19 @@
     <meta name="theme-color" content="#0F766E" />
     <meta name="description" content="Catatku — catat keuangan pribadi dalam hitungan detik." />
     <title>Catatku</title>
+    <!-- Tema diterapkan sebelum aplikasi dimuat agar tidak berkedip putih. Lihat src/lib/theme.ts. -->
+    <script>
+      try {
+        var t = localStorage.getItem('catatku_theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = t;
+        if (t === 'dark') {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0F172A');
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -31,7 +31,7 @@ export function SplashScreen({
       )}
     >
       <span className="inline-flex items-center gap-3 font-bold text-fg">
-        <span className="flex size-14 animate-splash-pop items-center justify-center rounded-card bg-primary text-white shadow-lg shadow-primary/30">
+        <span className="flex size-14 animate-splash-pop items-center justify-center rounded-card bg-primary text-on-primary shadow-lg shadow-primary/30">
           <WalletMinimal className="size-8" aria-hidden />
         </span>
         <span className="animate-splash-text text-3xl">Catatku</span>

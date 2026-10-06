@@ -141,7 +141,9 @@ export function TransactionsPage() {
         >
           Filter
           {activeCount > 0 && (
-            <span className="rounded-full bg-primary px-1.5 text-xs text-white">{activeCount}</span>
+            <span className="rounded-full bg-primary px-1.5 text-xs text-on-primary">
+              {activeCount}
+            </span>
           )}
         </Button>
       </div>

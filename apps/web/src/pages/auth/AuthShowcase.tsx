@@ -52,7 +52,7 @@ export function AuthShowcase({
   return (
     <aside
       aria-hidden
-      className="relative hidden overflow-hidden rounded-[28px] bg-linear-to-br from-primary to-primary-hover text-white lg:flex lg:flex-col"
+      className="relative hidden overflow-hidden rounded-[28px] bg-linear-to-br from-brand to-brand-hover text-white lg:flex lg:flex-col"
     >
       <div className="pointer-events-none absolute -top-24 -right-16 size-80 rounded-full bg-accent/40 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -left-20 size-96 rounded-full bg-accent/25 blur-3xl" />
@@ -138,7 +138,7 @@ export function AuthShowcase({
             )}
             style={chip.style}
           >
-            <span className="flex size-8 items-center justify-center rounded-full bg-primary text-white">
+            <span className="flex size-8 items-center justify-center rounded-full bg-primary text-on-primary">
               <Plus className="size-4" />
             </span>
             Catat dalam 5 detik

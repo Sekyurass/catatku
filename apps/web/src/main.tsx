@@ -9,6 +9,9 @@ import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { SessionToasts } from './components/SessionToasts';
 import { ApiError } from './lib/api';
 import { AuthProvider } from './lib/auth';
+import { initTheme } from './lib/theme';
+
+initTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

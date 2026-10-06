@@ -73,7 +73,7 @@ export function ToastProvider({ children, resetKey }: { children: ReactNode; res
           return (
             <div
               key={t.id}
-              className="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-control bg-slate-900 px-4 py-3 text-sm text-white shadow-lg"
+              className="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-control bg-toast px-4 py-3 text-sm text-white shadow-lg ring-1 ring-white/10"
             >
               <Icon className={cn('size-5 shrink-0', iconColor[tone])} aria-hidden />
               <span className="flex-1">{t.message}</span>

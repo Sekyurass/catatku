@@ -290,7 +290,7 @@ export function DatePicker({
                             isToday &&
                               !isSelected &&
                               'font-bold text-primary ring-1 ring-primary/40',
-                            isSelected && 'bg-primary font-semibold text-white',
+                            isSelected && 'bg-primary font-semibold text-on-primary',
                           )}
                         >
                           {Number(date.slice(8))}
@@ -323,7 +323,7 @@ export function DatePicker({
               type="button"
               disabled={!draft}
               onClick={() => commit(draft)}
-              className="min-h-11 rounded-control bg-primary px-5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
+              className="min-h-11 rounded-control bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-hover disabled:opacity-50"
             >
               Pilih
             </button>

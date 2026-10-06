@@ -58,7 +58,7 @@ export function AuthLayout({
 export function FormAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p className="rounded-control bg-red-50 px-3 py-2 text-sm text-expense-text" role="alert">
+    <p className="rounded-control bg-expense-soft px-3 py-2 text-sm text-expense-text" role="alert">
       {message}
     </p>
   );

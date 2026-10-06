@@ -65,7 +65,7 @@ export function HomePage() {
             action={
               <Link
                 to="/mulai?langkah=2"
-                className="inline-flex min-h-11 items-center rounded-control bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover"
+                className="inline-flex min-h-11 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary hover:bg-primary-hover"
               >
                 Buat dompet
               </Link>
@@ -145,7 +145,7 @@ function SummaryCards({ summary }: { summary: ReturnType<typeof useSummary> }) {
       aria-label="Ringkasan bulan ini"
       className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6"
     >
-      <Card className="col-span-2 flex flex-col justify-between gap-3 border-none bg-primary text-white">
+      <Card className="col-span-2 flex flex-col justify-between gap-3 border-none bg-brand text-white">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-sm text-white/90">Total saldo</p>
