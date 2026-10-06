@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { createApiLimiter } from '../middleware/rateLimit';
 import { createAuthRouter } from '../modules/auth/auth.routes';
+import { createProfileRouter } from '../modules/auth/profile.routes';
 import { createBudgetsRouter } from '../modules/budgets/budget.routes';
 import { createCategoriesRouter } from '../modules/categories/category.routes';
 import { createExportRouter } from '../modules/export/export.routes';
@@ -20,6 +21,7 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/auth', createAuthRouter({ rateLimit: opts.authRateLimit }));
 
   router.use(requireAuth);
+  router.use('/me', createProfileRouter({ rateLimit: opts.authRateLimit }));
   router.use('/features', createFeaturesRouter());
   router.use('/wallets', createWalletsRouter());
   router.use('/categories', createCategoriesRouter());

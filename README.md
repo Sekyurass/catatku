@@ -106,6 +106,7 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
 Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 
 - ✅ `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
+- ✅ `GET/PATCH /me` (ubah nama/email; ganti email wajib `currentPassword`), `PUT /me/password` (mengakhiri semua sesi lain, membalas sesi baru + cookie refresh)
 - ✅ `GET /features`, `GET /health` (di root)
 - ✅ `GET/POST/PATCH/DELETE /wallets` (`?includeArchived=true`; DELETE mengarsipkan dompet yang punya riwayat)
 - ✅ `GET/POST/PATCH/DELETE /categories` (`?type=`; kategori bawaan hanya-baca → 403)

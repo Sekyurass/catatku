@@ -1,4 +1,11 @@
-import type { AuthResponse, LoginInput, RegisterInput, UserDTO } from '@catatku/shared';
+import type {
+  AuthResponse,
+  ChangePasswordInput,
+  LoginInput,
+  RegisterInput,
+  UpdateProfileInput,
+  UserDTO,
+} from '@catatku/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   createContext,
@@ -18,6 +25,9 @@ interface AuthContextValue {
   user: UserDTO | null;
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
+  updateProfile: (input: UpdateProfileInput) => Promise<void>;
+  /** Sesi di perangkat lain berakhir; perangkat ini menerima sesi baru. */
+  changePassword: (input: ChangePasswordInput) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -61,6 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   );
 
+  const updateProfile = useCallback(async (input: UpdateProfileInput) => {
+    const res = await api<{ user: UserDTO }>('/me', { method: 'PATCH', body: input });
+    setUser(res.user);
+  }, []);
+
+  const changePassword = useCallback(
+    async (input: ChangePasswordInput) => {
+      applySession(await api<AuthResponse>('/me/password', { method: 'PUT', body: input }));
+    },
+    [applySession],
+  );
+
   const logout = useCallback(async () => {
     try {
       await api('/auth/logout', { method: 'POST' });
@@ -71,8 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession, queryClient]);
 
   const value = useMemo(
-    () => ({ status, user, login, register, logout }),
-    [status, user, login, register, logout],
+    () => ({ status, user, login, register, updateProfile, changePassword, logout }),
+    [status, user, login, register, updateProfile, changePassword, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

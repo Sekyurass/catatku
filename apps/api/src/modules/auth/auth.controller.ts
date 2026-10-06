@@ -1,7 +1,13 @@
-import { loginSchema, registerSchema } from '@catatku/shared';
+import {
+  changePasswordSchema,
+  loginSchema,
+  registerSchema,
+  updateProfileSchema,
+} from '@catatku/shared';
 import type { CookieOptions, Request, Response } from 'express';
 import { env } from '../../config/env';
 import { parse } from '../../lib/validate';
+import { currentUserId } from '../../middleware/auth';
 import * as authService from './auth.service';
 
 export const REFRESH_COOKIE = 'catatku_rt';
@@ -40,6 +46,20 @@ export async function refresh(req: Request, res: Response) {
     res.clearCookie(REFRESH_COOKIE, cookieOptions());
     throw err;
   }
+}
+
+export async function me(req: Request, res: Response) {
+  res.json({ user: await authService.getProfile(currentUserId(req)) });
+}
+
+export async function updateProfile(req: Request, res: Response) {
+  const input = parse(updateProfileSchema, req.body);
+  res.json({ user: await authService.updateProfile(currentUserId(req), input) });
+}
+
+export async function changePassword(req: Request, res: Response) {
+  const input = parse(changePasswordSchema, req.body);
+  sendSession(res, await authService.changePassword(currentUserId(req), input, meta(req)));
 }
 
 export async function logout(req: Request, res: Response) {

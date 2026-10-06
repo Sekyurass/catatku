@@ -121,6 +121,12 @@
 }
 
 @layer base {
+  /* Edge punya tombol "lihat sandi" bawaan; PasswordInput sudah menyediakan sendiri. */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
