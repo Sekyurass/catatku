@@ -3,7 +3,21 @@
 Aplikasi pencatatan keuangan pribadi untuk mahasiswa & pekerja muda di Indonesia.
 Target: catat transaksi < 10 detik, lihat sisa uang, pahami pola belanja bulanan.
 
-Status: **Fase 0 (MVP) — M2 selesai** (dompet, kategori, transaksi, transfer).
+Status: **Fase 0 (MVP) — M3 selesai** (dompet, kategori, transaksi, transfer, dashboard).
+
+## Dukungan perangkat
+
+Mobile-first mulai lebar 360px; satu basis kode responsif dengan Tailwind CSS 4:
+
+| Lebar             | Perangkat                        | Navigasi                                  |
+| ----------------- | -------------------------------- | ----------------------------------------- |
+| < 768px           | HP Android / iPhone (portrait)   | Bottom nav 5 slot, tombol **+** di tengah |
+| 768–1023px (`md`) | Tablet, iPad, HP landscape       | Rail ikon 80px di kiri                    |
+| ≥ 1024px (`lg`)   | Desktop / laptop, iPad landscape | Sidebar penuh 240px, konten maks 1100px   |
+
+- Safe area iPhone (notch, home indicator) dihormati lewat `env(safe-area-inset-*)` + `viewport-fit=cover`.
+- Input memakai font 16px (tanpa auto-zoom iOS), target sentuh ≥ 44px, `<select>` & input tanggal diseragamkan lintas browser.
+- Browser minimum (baseline Tailwind 4): Safari/iOS 16.4+, Chrome/Android 111+, Firefox 128+.
 
 ## Struktur
 
@@ -21,7 +35,8 @@ apps/
   web/       React 19 + Vite 7 + Tailwind 4 + TanStack Query
     src/
       components/ui/  Button, Field, Card, Toast, Skeleton, EmptyState, ...
-      layouts/        AppLayout (sidebar desktop, bottom nav mobile)
+      components/charts/  donut kategori & tren (Recharts, di-lazy-load)
+      layouts/        AppLayout (bottom nav HP, rail tablet, sidebar desktop)
       lib/            api client (auto refresh token), auth context
       pages/          halaman per rute
 packages/
@@ -98,5 +113,7 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
   `POST /transactions/:id/restore`, `POST /transactions/transfer`
   - `POST` mendukung header `Idempotency-Key` (respons sukses disimpan 24 jam; permintaan ulang dikirim ulang apa adanya)
   - Semua data terisolasi per pengguna: id milik pengguna lain diperlakukan sebagai 404
-- ⏳ `GET /reports/summary|by-category|trend` (M3)
+- ✅ `GET /reports/summary?month=` (total saldo dompet aktif, pemasukan, pengeluaran, selisih, 5 transaksi terakhir),
+  `GET /reports/by-category?month=&type=EXPENSE|INCOME`, `GET /reports/trend?months=6` (1–24, bulan kosong diisi 0)
+  - Transfer tidak dihitung sebagai pemasukan/pengeluaran; dashboard < 1 detik untuk 10.000 transaksi (diuji)
 - ⏳ `GET/PUT /budgets`, `GET /export/transactions.csv` (M4)

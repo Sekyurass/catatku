@@ -1,11 +1,15 @@
 import type {
+  CategoryBreakdownDTO,
   CategoryDTO,
   CategoryType,
   ListTransactionsQuery,
+  SummaryDTO,
   TransactionPage,
+  TrendDTO,
   WalletDTO,
 } from '@catatku/shared';
 import {
+  keepPreviousData,
   type QueryClient,
   useInfiniteQuery,
   useQuery,
@@ -20,7 +24,34 @@ export const queryKeys = {
   wallets: (includeArchived = false) => ['wallets', { includeArchived }] as const,
   categories: ['categories'] as const,
   transactions: (filters: TransactionFilters) => ['transactions', filters] as const,
+  summary: (month: string) => ['reports', 'summary', month] as const,
+  byCategory: (month: string, type: CategoryType) =>
+    ['reports', 'by-category', month, type] as const,
+  trend: (months: number) => ['reports', 'trend', months] as const,
 };
+
+export function useSummary(month: string) {
+  return useQuery({
+    queryKey: queryKeys.summary(month),
+    queryFn: ({ signal }) => api<SummaryDTO>('/reports/summary', { query: { month }, signal }),
+  });
+}
+
+export function useByCategory(month: string, type: CategoryType) {
+  return useQuery({
+    queryKey: queryKeys.byCategory(month, type),
+    queryFn: ({ signal }) =>
+      api<CategoryBreakdownDTO>('/reports/by-category', { query: { month, type }, signal }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useTrend(months = 6) {
+  return useQuery({
+    queryKey: queryKeys.trend(months),
+    queryFn: ({ signal }) => api<TrendDTO>('/reports/trend', { query: { months }, signal }),
+  });
+}
 
 export function useWallets(includeArchived = false) {
   return useQuery({

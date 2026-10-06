@@ -34,3 +34,27 @@ export function formatDayLabel(date: string): string {
 export function formatShortDate(date: string): string {
   return shortDate.format(parse(date));
 }
+
+const monthLong = new Intl.DateTimeFormat('id-ID', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+const monthShort = new Intl.DateTimeFormat('id-ID', { month: 'short', timeZone: 'UTC' });
+
+/** "2026-10" -> "Oktober 2026". */
+export function formatMonthLabel(month: string): string {
+  return monthLong.format(parse(`${month}-01`));
+}
+
+/** "2026-10" -> "Okt". */
+export function formatMonthShort(month: string): string {
+  return monthShort.format(parse(`${month}-01`));
+}
+
+const compact = new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 });
+
+/** Angka ringkas untuk sumbu grafik: 1.250.000 -> "1,3 jt". */
+export function formatCompact(amount: number): string {
+  return compact.format(amount);
+}

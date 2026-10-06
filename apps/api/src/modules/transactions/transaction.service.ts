@@ -172,6 +172,17 @@ export async function listTransactions(
   };
 }
 
+/** N transaksi terbaru; transfer cukup diwakili sisi keluarnya. */
+export async function recentTransactions(userId: string, limit: number): Promise<TransactionDTO[]> {
+  const rows = await prisma.transaction.findMany({
+    where: { userId, deletedAt: null, NOT: { type: 'TRANSFER', amount: { gt: 0 } } },
+    include,
+    orderBy: transactionOrder,
+    take: limit,
+  });
+  return toDTOs(userId, rows);
+}
+
 // ---------- Pemasukan / pengeluaran ----------
 
 export async function createTransaction(

@@ -12,6 +12,8 @@ export const NAV_ITEMS = [
   { to: '/profil', label: 'Profil', icon: UserRound, end: false },
 ] as const;
 
+type NavItem = (typeof NAV_ITEMS)[number];
+
 export function AppLayout() {
   return (
     <QuickAddProvider>
@@ -20,10 +22,20 @@ export function AppLayout() {
   );
 }
 
+/**
+ * < md (HP): bottom nav 5 kolom dengan tombol "+" di tengah.
+ * md–lg (tablet / HP landscape): rail ikon 80px.
+ * ≥ lg (desktop): sidebar penuh 240px. Konten maks 1100px.
+ */
 function Shell() {
   const { openNew } = useQuickAdd();
   return (
-    <div className="min-h-dvh md:pl-60">
+    <div
+      className={cn(
+        'min-h-dvh pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]',
+        'md:pl-[calc(5rem+env(safe-area-inset-left))] lg:pl-[calc(15rem+env(safe-area-inset-left))]',
+      )}
+    >
       <a
         href="#konten"
         className="sr-only z-50 rounded-control bg-primary px-4 py-2 text-white focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -31,73 +43,112 @@ function Shell() {
         Lewati ke konten
       </a>
 
-      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col gap-6 border-r border-line bg-surface p-4 md:flex">
-        <Logo className="px-2 pt-2" />
-        <Button size="lg" icon={<Plus className="size-5" aria-hidden />} onClick={() => openNew()}>
-          Catat transaksi
-        </Button>
-        <nav aria-label="Navigasi utama" className="flex flex-col gap-1">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-h-11 items-center gap-3 rounded-control px-3 text-sm font-medium',
-                  isActive
-                    ? 'bg-primary-soft text-primary'
-                    : 'text-muted hover:bg-surface-muted hover:text-fg',
-                )
-              }
-            >
-              <Icon className="size-5" aria-hidden />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-30 hidden border-r border-line bg-surface pl-[env(safe-area-inset-left)] md:block',
+          'md:w-[calc(5rem+env(safe-area-inset-left))] lg:w-[calc(15rem+env(safe-area-inset-left))]',
+        )}
+      >
+        <div className="flex h-full flex-col gap-6 overflow-y-auto px-3 pt-[calc(1rem+env(safe-area-inset-top))] pb-4 lg:px-4">
+          <Logo
+            className="justify-center lg:justify-start lg:px-2"
+            textClassName="max-lg:sr-only"
+          />
+          <Button
+            size="lg"
+            icon={<Plus className="size-5" aria-hidden />}
+            onClick={() => openNew()}
+            title="Catat transaksi"
+            className="max-lg:mx-auto max-lg:size-12 max-lg:px-0"
+          >
+            <span className="max-lg:sr-only">Catat transaksi</span>
+          </Button>
+          <nav aria-label="Navigasi utama" className="flex flex-col gap-1">
+            {NAV_ITEMS.map((item) => (
+              <SideLink key={item.to} item={item} />
+            ))}
+          </nav>
+        </div>
       </aside>
 
       <main
         id="konten"
-        className="mx-auto w-full max-w-[1100px] px-4 pt-4 pb-28 md:px-8 md:pt-8 md:pb-10"
+        className={cn(
+          'mx-auto w-full max-w-[1100px] px-4 sm:px-6 md:px-8',
+          'pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))]',
+          'md:pt-[calc(2rem+env(safe-area-inset-top))] md:pb-10',
+        )}
       >
         <Outlet />
       </main>
 
-      <button
-        type="button"
-        onClick={() => openNew()}
-        className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:bg-primary-hover md:hidden"
-        aria-label="Catat transaksi"
-      >
-        <Plus className="size-7" aria-hidden />
-      </button>
-
       <nav
         aria-label="Navigasi utama"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur md:hidden',
+          'pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]',
+        )}
       >
-        <ul className="grid grid-cols-4">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
-            <li key={to}>
-              <NavLink
-                to={to}
-                end={end}
-                className={({ isActive }) =>
-                  cn(
-                    'flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium',
-                    isActive ? 'text-primary' : 'text-muted',
-                  )
-                }
-              >
-                <Icon className="size-5" aria-hidden />
-                {label}
-              </NavLink>
-            </li>
+        <ul className="mx-auto grid max-w-lg grid-cols-5">
+          {NAV_ITEMS.slice(0, 2).map((item) => (
+            <BottomLink key={item.to} item={item} />
+          ))}
+          <li className="flex items-start justify-center">
+            <button
+              type="button"
+              onClick={() => openNew()}
+              className="-mt-5 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg ring-4 ring-bg hover:bg-primary-hover active:scale-95"
+              aria-label="Catat transaksi"
+            >
+              <Plus className="size-7" aria-hidden />
+            </button>
+          </li>
+          {NAV_ITEMS.slice(2).map((item) => (
+            <BottomLink key={item.to} item={item} />
           ))}
         </ul>
       </nav>
     </div>
+  );
+}
+
+function SideLink({ item: { to, label, icon: Icon, end } }: { item: NavItem }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        cn(
+          'flex min-h-11 flex-col items-center justify-center gap-1 rounded-control px-1 py-2 text-[11px] font-medium',
+          'lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-0 lg:text-sm',
+          isActive
+            ? 'bg-primary-soft text-primary'
+            : 'text-muted hover:bg-surface-muted hover:text-fg',
+        )
+      }
+    >
+      <Icon className="size-5 shrink-0" aria-hidden />
+      {label}
+    </NavLink>
+  );
+}
+
+function BottomLink({ item: { to, label, icon: Icon, end } }: { item: NavItem }) {
+  return (
+    <li>
+      <NavLink
+        to={to}
+        end={end}
+        className={({ isActive }) =>
+          cn(
+            'flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium',
+            isActive ? 'text-primary' : 'text-muted',
+          )
+        }
+      >
+        <Icon className="size-5" aria-hidden />
+        {label}
+      </NavLink>
+    </li>
   );
 }

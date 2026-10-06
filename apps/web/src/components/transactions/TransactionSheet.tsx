@@ -25,7 +25,7 @@ import {
 } from '../../lib/queries';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
-import { Field, Input, inputClass } from '../ui/Field';
+import { Field, Input, selectClass } from '../ui/Field';
 import { RupiahInput } from '../ui/RupiahInput';
 import { Segmented } from '../ui/Segmented';
 import { EmptyState, ErrorState, Skeleton } from '../ui/States';
@@ -376,14 +376,14 @@ function TransactionForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Dari dompet" error={errors.walletId?.message}>
             {(a) => (
-              <select {...a} className={inputClass} {...register('walletId')}>
+              <select {...a} className={selectClass} {...register('walletId')}>
                 {walletOptions()}
               </select>
             )}
           </Field>
           <Field label="Ke dompet" error={errors.toWalletId?.message}>
             {(a) => (
-              <select {...a} className={inputClass} {...register('toWalletId')}>
+              <select {...a} className={selectClass} {...register('toWalletId')}>
                 <option value="">Pilih dompet tujuan</option>
                 {walletOptions(walletId)}
               </select>
@@ -406,7 +406,7 @@ function TransactionForm({
           />
           <Field label="Dompet" error={errors.walletId?.message}>
             {(a) => (
-              <select {...a} className={inputClass} {...register('walletId')}>
+              <select {...a} className={selectClass} {...register('walletId')}>
                 {walletOptions()}
               </select>
             )}

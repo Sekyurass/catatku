@@ -169,6 +169,7 @@ function CategoryFormBody({
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: queryKeys.categories });
     void qc.invalidateQueries({ queryKey: ['transactions'] });
+    void qc.invalidateQueries({ queryKey: ['reports'] });
   };
 
   const onSubmit = handleSubmit(async (v) => {

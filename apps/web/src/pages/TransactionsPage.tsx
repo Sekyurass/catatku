@@ -6,7 +6,7 @@ import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { TransactionRow } from '../components/transactions/TransactionRow';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { Field, Input, inputClass } from '../components/ui/Field';
+import { Field, Input, selectClass } from '../components/ui/Field';
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
 import { cn } from '../lib/cn';
 import { formatDayLabel } from '../lib/format';
@@ -144,7 +144,7 @@ export function TransactionsPage() {
             {(a) => (
               <select
                 {...a}
-                className={inputClass}
+                className={selectClass}
                 value={filters.type ?? ''}
                 onChange={(e) => update({ type: e.target.value })}
               >
@@ -161,7 +161,7 @@ export function TransactionsPage() {
             {(a) => (
               <select
                 {...a}
-                className={inputClass}
+                className={selectClass}
                 value={filters.walletId ?? ''}
                 onChange={(e) => update({ walletId: e.target.value })}
               >
@@ -179,7 +179,7 @@ export function TransactionsPage() {
             {(a) => (
               <select
                 {...a}
-                className={inputClass}
+                className={selectClass}
                 value={filters.categoryId ?? ''}
                 onChange={(e) => update({ categoryId: e.target.value })}
               >

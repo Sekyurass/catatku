@@ -4,6 +4,7 @@ import { createApiLimiter } from '../middleware/rateLimit';
 import { createAuthRouter } from '../modules/auth/auth.routes';
 import { createCategoriesRouter } from '../modules/categories/category.routes';
 import { createFeaturesRouter } from '../modules/features/features.routes';
+import { createReportsRouter } from '../modules/reports/report.routes';
 import { createTransactionsRouter } from '../modules/transactions/transaction.routes';
 import { createWalletsRouter } from '../modules/wallets/wallet.routes';
 
@@ -21,5 +22,6 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/wallets', createWalletsRouter());
   router.use('/categories', createCategoriesRouter());
   router.use('/transactions', createTransactionsRouter());
+  router.use('/reports', createReportsRouter());
   return router;
 }
