@@ -74,6 +74,8 @@ export interface BudgetDTO {
   month: string;
   /** Bulan pengaturan yang berlaku dibuat; anggaran berlanjut ke bulan berikutnya sampai diubah. */
   since: string | null;
+  /** true bila bulan berikutnya sudah punya pengaturan sendiri (mis. hasil "ubah hanya bulan ini"). */
+  endsThisMonth: boolean;
   limitAmount: number;
   spent: number;
   remaining: number;

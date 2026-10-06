@@ -1,5 +1,5 @@
 import type { BudgetDTO, BudgetMonthDTO, PutBudgetsInput } from '@catatku/shared';
-import { budgetStatus, currentMonth, monthRange } from '@catatku/shared';
+import { budgetStatus, currentMonth, monthRange, shiftMonth } from '@catatku/shared';
 import type { Budget } from '@prisma/client';
 import { validationError } from '../../lib/errors';
 import { toDbDate, toNumber } from '../../lib/money';
@@ -37,7 +37,7 @@ async function effectiveBudgets(
  */
 export async function getBudgets(userId: string, month = currentMonth()): Promise<BudgetMonthDTO> {
   const { start, end } = monthRange(month);
-  const [categories, effective, spending] = await Promise.all([
+  const [categories, effective, spending, nextRows] = await Promise.all([
     prisma.category.findMany({
       where: { type: 'EXPENSE', ...visibleTo(userId) },
       select: { id: true, name: true, icon: true, color: true, archivedAt: true },
@@ -53,6 +53,10 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
         date: { gte: toDbDate(start), lte: toDbDate(end) },
       },
       _sum: { amount: true },
+    }),
+    prisma.budget.findMany({
+      where: { userId, month: shiftMonth(month, 1) },
+      select: { categoryId: true },
     }),
   ]);
 
@@ -74,6 +78,7 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
         category: { id: c.id, name: c.name, icon: c.icon, color: c.color },
         month,
         since: budget?.month ?? null,
+        endsThisMonth: Boolean(budget && nextRows.some((r) => r.categoryId === c.id)),
         limitAmount,
         spent,
         remaining: limitAmount - spent,
@@ -96,12 +101,16 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
 }
 
 /**
- * Atur banyak anggaran sekaligus, berlaku mulai `month` dan seterusnya; bulan sebelumnya tidak berubah.
- * limitAmount 0 = hentikan anggaran kategori itu mulai `month`.
+ * Atur banyak anggaran sekaligus mulai `month`; bulan sebelumnya tidak pernah berubah.
+ * limitAmount 0 = hentikan anggaran kategori itu. scope "month" = hanya `month`:
+ * pengaturan yang tadinya berlaku di bulan berikutnya dikunci dengan baris baru di bulan itu.
  */
 export async function putBudgets(userId: string, input: PutBudgetsInput): Promise<BudgetMonthDTO> {
   const { month } = input;
-  const limits = new Map(input.items.map((i) => [i.categoryId, i.limitAmount]));
+  const nextMonth = shiftMonth(month, 1);
+  const byCategory = new Map(input.items.map((i) => [i.categoryId, i]));
+  const limits = new Map([...byCategory].map(([id, i]) => [id, i.limitAmount]));
+  const monthOnly = [...byCategory.values()].filter((i) => i.scope === 'month');
   const toSet = [...limits].filter(([, limit]) => limit > 0);
   const toClear = [...limits].filter(([, limit]) => limit === 0).map(([id]) => id);
 
@@ -129,14 +138,26 @@ export async function putBudgets(userId: string, input: PutBudgetsInput): Promis
   const needsStop = toClear.filter((id) => (inherited.get(id)?.limitAmount ?? 0n) > 0n);
   const toDelete = toClear.filter((id) => !needsStop.includes(id));
 
-  const upsert = (categoryId: string, limit: number) =>
+  // Nilai yang berlaku di bulan berikutnya SEBELUM perubahan; bila belum punya baris sendiri, dikunci.
+  const nextEffective = monthOnly.length
+    ? await effectiveBudgets(userId, nextMonth, { categoryIds: monthOnly.map((i) => i.categoryId) })
+    : new Map<string, Budget>();
+  const toPin = monthOnly.flatMap((i) => {
+    const current = nextEffective.get(i.categoryId);
+    if (current?.month === nextMonth) return [];
+    const keep = current?.limitAmount ?? 0n;
+    return keep === BigInt(i.limitAmount) ? [] : [{ categoryId: i.categoryId, limit: keep }];
+  });
+
+  const upsert = (categoryId: string, limit: bigint | number, at = month) =>
     prisma.budget.upsert({
-      where: { userId_categoryId_month: { userId, categoryId, month } },
-      create: { userId, categoryId, month, limitAmount: BigInt(limit) },
+      where: { userId_categoryId_month: { userId, categoryId, month: at } },
+      create: { userId, categoryId, month: at, limitAmount: BigInt(limit) },
       update: { limitAmount: BigInt(limit) },
     });
 
   await prisma.$transaction([
+    ...toPin.map((p) => upsert(p.categoryId, p.limit, nextMonth)),
     prisma.budget.deleteMany({ where: { userId, month, categoryId: { in: toDelete } } }),
     ...needsStop.map((categoryId) => upsert(categoryId, 0)),
     ...toSet.map(([categoryId, limit]) => upsert(categoryId, limit)),

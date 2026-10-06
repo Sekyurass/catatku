@@ -122,6 +122,8 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
   - **Anggaran berlanjut**: baris `Budget(month)` berlaku mulai bulan itu sampai ada baris yang lebih baru
     (`since` di respons = bulan asalnya). Mengubah bulan X tidak mengubah bulan sebelum X; menghentikan
     anggaran warisan disimpan sebagai baris `limitAmount = 0` (tanpa migrasi skema)
+  - `scope: "month"` per item = ubah/kosongkan **hanya bulan itu**: nilai yang tadinya berlaku di bulan
+    berikutnya dikunci dengan baris baru di bulan berikutnya (`endsThisMonth: true` di respons). Default `"onward"`
 - ✅ `GET /export/transactions.csv` (filter sama dengan `GET /transactions`, tanpa `cursor/limit`)
   - UTF-8 + BOM, pemisah koma, baris `CRLF`; kolom `Tanggal,Jenis,Kategori,Dompet,Dompet lawan,Jumlah,Catatan`
   - `Jumlah` bilangan bulat Rupiah bertanda; transfer muncul dua baris (keluar/masuk) dengan dompet lawannya

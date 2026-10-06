@@ -1,6 +1,7 @@
 import {
   type BudgetDTO,
   type BudgetMonthDTO,
+  type BudgetScope,
   budgetStatus,
   currentMonth,
   formatRupiah,
@@ -18,6 +19,7 @@ import { Dialog } from '../components/ui/Dialog';
 import { Field } from '../components/ui/Field';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { RupiahInput } from '../components/ui/RupiahInput';
+import { Segmented } from '../components/ui/Segmented';
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
 import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
@@ -252,10 +254,15 @@ function BudgetCard({ item, onEdit }: { item: BudgetDTO; onEdit: () => void }) {
         <IconBadge icon={categoryIcon(item.category.icon)} color={item.category.color} size="sm" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{item.category.name}</span>
-          {item.since && item.since !== item.month && (
-            <span className="block truncate text-xs text-muted">
-              Berlanjut sejak {formatMonthLabel(item.since)}
-            </span>
+          {item.since === item.month && item.endsThisMonth ? (
+            <span className="block truncate text-xs text-muted">Khusus bulan ini</span>
+          ) : (
+            item.since &&
+            item.since !== item.month && (
+              <span className="block truncate text-xs text-muted">
+                Berlanjut sejak {formatMonthLabel(item.since)}
+              </span>
+            )
           )}
         </span>
         <StatusBadge status={item.status} />
@@ -289,9 +296,14 @@ function BudgetForm({
   const qc = useQueryClient();
   const toast = useToast();
   const [limit, setLimit] = useState<number | null>(item.id ? item.limitAmount : null);
+  const [scope, setScope] = useState<BudgetScope>(
+    item.since === month && item.endsThisMonth ? 'month' : 'onward',
+  );
   const [error, setError] = useState<string>();
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
+  const monthLabel = formatMonthLabel(month);
+  const name = item.category.name;
 
   const save = async (limitAmount: number, kind: 'save' | 'delete') => {
     setBusy(kind);
@@ -299,15 +311,20 @@ function BudgetForm({
     try {
       const data = await api<BudgetMonthDTO>('/budgets', {
         method: 'PUT',
-        body: { month, items: [{ categoryId: item.categoryId, limitAmount }] },
+        body: { month, items: [{ categoryId: item.categoryId, limitAmount, scope }] },
       });
       qc.setQueryData(queryKeys.budgets(month), data);
-      toast({
-        message:
-          kind === 'delete'
-            ? `Anggaran ${item.category.name} dihentikan mulai ${formatMonthLabel(month)}`
-            : `Anggaran ${item.category.name} berlaku mulai ${formatMonthLabel(month)}`,
-      });
+      const messages = {
+        save: {
+          onward: `Anggaran ${name} berlaku mulai ${monthLabel}`,
+          month: `Anggaran ${name} khusus ${monthLabel} disimpan`,
+        },
+        delete: {
+          onward: `Anggaran ${name} dihentikan mulai ${monthLabel}`,
+          month: `Anggaran ${name} dikosongkan untuk ${monthLabel} saja`,
+        },
+      };
+      toast({ message: messages[kind][scope] });
       // Bulan lain bisa ikut berubah karena anggaran berlanjut.
       void qc.invalidateQueries({ queryKey: ['budgets'] });
       onDone();
@@ -338,7 +355,7 @@ function BudgetForm({
       <Field
         label="Batas per bulan"
         error={error}
-        hint={`Berlaku mulai ${formatMonthLabel(month)} dan bulan-bulan berikutnya sampai kamu ubah. Kamu akan diingatkan saat pemakaian mencapai 80% dan 100%.`}
+        hint="Kamu akan diingatkan saat pemakaian mencapai 80% dan 100%."
       >
         {(a) => (
           <RupiahInput
@@ -354,6 +371,25 @@ function BudgetForm({
           />
         )}
       </Field>
+      <div className="flex flex-col gap-1.5">
+        <p className="text-sm font-medium" aria-hidden>
+          Berlaku untuk
+        </p>
+        <Segmented<BudgetScope>
+          label="Berlaku untuk"
+          value={scope}
+          onChange={setScope}
+          options={[
+            { value: 'onward', label: 'Mulai bulan ini' },
+            { value: 'month', label: 'Hanya bulan ini' },
+          ]}
+        />
+        <p className="text-sm text-muted">
+          {scope === 'onward'
+            ? `Berlaku untuk ${monthLabel} dan bulan-bulan berikutnya sampai kamu ubah.`
+            : `Hanya untuk ${monthLabel}. Bulan berikutnya tetap memakai pengaturan sebelumnya.`}
+        </p>
+      </div>
       <div className="flex flex-wrap items-center gap-2 pt-1">
         {item.id && (
           <Button
@@ -364,7 +400,7 @@ function BudgetForm({
             onClick={() => void save(0, 'delete')}
             icon={<Trash2 className="size-4" aria-hidden />}
           >
-            Hentikan mulai bulan ini
+            {scope === 'onward' ? 'Hentikan mulai bulan ini' : 'Kosongkan bulan ini saja'}
           </Button>
         )}
         <Button

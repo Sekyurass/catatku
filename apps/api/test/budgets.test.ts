@@ -131,6 +131,42 @@ describe('PUT/GET /budgets', () => {
     }
   });
 
+  it('"hanya bulan ini": bulan berikutnya kembali ke pengaturan sebelumnya', async () => {
+    const u = await registerUser();
+    const get = async (m: string, categoryId: string) =>
+      byCategory(
+        (await authed(u).get('/api/v1/budgets').query({ month: m })).body.items,
+        categoryId,
+      );
+    const put = (m: string, categoryId: string, limitAmount: number, scope?: string) =>
+      authed(u)
+        .put('/api/v1/budgets')
+        .send({ month: m, items: [{ categoryId, limitAmount, ...(scope && { scope }) }] })
+        .expect(200);
+
+    await put(month, 'cat_makan', 1_000_000);
+    await put(nextMonth, 'cat_makan', 2_000_000, 'month');
+    expect(await get(month, 'cat_makan')).toMatchObject({ limitAmount: 1_000_000 });
+    expect(await get(nextMonth, 'cat_makan')).toMatchObject({
+      limitAmount: 2_000_000,
+      since: nextMonth,
+      endsThisMonth: true,
+    });
+    expect(await get(shiftMonth(month, 5), 'cat_makan')).toMatchObject({ limitAmount: 1_000_000 });
+
+    // Tanpa pengaturan sebelumnya: hanya bulan itu yang beranggaran.
+    await put(month, 'cat_belanja', 500_000, 'month');
+    expect(await get(month, 'cat_belanja')).toMatchObject({ limitAmount: 500_000 });
+    expect(await get(nextMonth, 'cat_belanja')).toMatchObject({ id: null });
+    expect(await get(prevMonth, 'cat_belanja')).toMatchObject({ id: null });
+
+    // Hapus hanya satu bulan, bulan sesudahnya tetap beranggaran.
+    const gap = shiftMonth(month, 3);
+    await put(gap, 'cat_makan', 0, 'month');
+    expect(await get(gap, 'cat_makan')).toMatchObject({ id: null });
+    expect(await get(shiftMonth(month, 4), 'cat_makan')).toMatchObject({ limitAmount: 1_000_000 });
+  });
+
   it('menolak kategori pemasukan, nominal negatif, dan bulan tidak valid', async () => {
     const income = await authed(user)
       .put('/api/v1/budgets')

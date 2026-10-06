@@ -21,6 +21,7 @@ const item = (
   category: { id: categoryId, name, icon: 'utensils', color: '#EA580C' },
   month,
   since: limitAmount > 0 ? shiftMonth(month, -1) : null,
+  endsThisMonth: false,
   limitAmount,
   spent,
   remaining: limitAmount - spent,
@@ -123,7 +124,7 @@ describe('BudgetsPage', () => {
       const put = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
       expect(JSON.parse(String(put![1]!.body))).toEqual({
         month,
-        items: [{ categoryId: 'cat_belanja', limitAmount: 300_000 }],
+        items: [{ categoryId: 'cat_belanja', limitAmount: 300_000, scope: 'onward' }],
       });
     });
     expect(
@@ -131,6 +132,34 @@ describe('BudgetsPage', () => {
     ).toBeInTheDocument();
     expect(
       await screen.findByRole('button', { name: 'Ubah anggaran Belanja' }),
+    ).toBeInTheDocument();
+  });
+
+  it('"Hanya bulan ini" dikirim sebagai scope month', async () => {
+    const fetchMock = setup();
+    await userEvent.click(await screen.findByRole('button', { name: 'Ubah anggaran Makan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Anggaran Makan' });
+    await userEvent.click(within(dialog).getByLabelText('Hanya bulan ini'));
+    expect(
+      within(dialog).getByText((t) => t.includes('Bulan berikutnya tetap memakai')),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: 'Kosongkan bulan ini saja' }),
+    ).toBeInTheDocument();
+
+    const input = within(dialog).getByLabelText('Batas per bulan');
+    await userEvent.clear(input);
+    await userEvent.type(input, '1500000');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Simpan' }));
+
+    await waitFor(() => {
+      const put = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
+      expect(JSON.parse(String(put![1]!.body)).items).toEqual([
+        { categoryId: 'cat_makan', limitAmount: 1_500_000, scope: 'month' },
+      ]);
+    });
+    expect(
+      await screen.findByText((t) => t.startsWith('Anggaran Makan khusus')),
     ).toBeInTheDocument();
   });
 
