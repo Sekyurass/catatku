@@ -3,6 +3,7 @@ import {
   currentMonth,
   formatRupiah,
   monthRange,
+  type NotificationDTO,
   type PendingOccurrenceDTO,
   type SummaryDTO,
   type TransactionDTO,
@@ -12,8 +13,9 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NotificationCenterProvider } from '../components/notifications/NotificationCenter';
 import { QuickAddProvider } from '../components/transactions/QuickAdd';
 import { ToastProvider } from '../components/ui/Toast';
 import { HomePage } from './HomePage';
@@ -133,15 +135,52 @@ const PENDING: PendingOccurrenceDTO = {
   category: { id: 'cat_tagihan', name: 'Tagihan', icon: 'receipt', color: '#7C3AED' },
 };
 
+const NOTIFICATIONS: NotificationDTO[] = [
+  {
+    id: 'n1',
+    type: 'RECURRING_PENDING',
+    title: 'Listrik menunggu konfirmasi',
+    body: 'Rp350.000 jatuh tempo hari ini.',
+    link: '/berulang',
+    readAt: null,
+    createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+  },
+  {
+    id: 'n2',
+    type: 'REMINDER',
+    title: 'Sudah catat hari ini?',
+    body: 'Belum ada transaksi hari ini.',
+    link: '/?catat=1',
+    readAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 26 * 3_600_000).toISOString(),
+  },
+];
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname + location.search}</output>;
+}
+
 function setup({
   wallets = [WALLET],
   recurring = false,
+  reminders = false,
   pending = [PENDING],
-}: { wallets?: WalletDTO[]; recurring?: boolean; pending?: PendingOccurrenceDTO[] } = {}) {
+}: {
+  wallets?: WalletDTO[];
+  recurring?: boolean;
+  reminders?: boolean;
+  pending?: PendingOccurrenceDTO[];
+} = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     if (url.pathname.endsWith('/features'))
-      return json({ flags: { recurring_transactions: recurring } });
+      return json({ flags: { recurring_transactions: recurring, reminders } });
+    if (url.pathname.endsWith('/notifications/unread-count')) return json({ count: 1 });
+    if (url.pathname.endsWith('/notifications'))
+      return json({ items: NOTIFICATIONS, nextCursor: null, unreadCount: 1 });
+    if (init?.method === 'POST' && url.pathname.includes('/notifications/'))
+      return new Response(null, { status: 204 });
     if (url.pathname.endsWith('/recurring/pending')) return json({ items: pending });
     if (init?.method === 'POST' && url.pathname.includes('/recurring/pending/')) {
       return url.pathname.endsWith('/confirm')
@@ -164,7 +203,10 @@ function setup({
       <MemoryRouter>
         <ToastProvider>
           <QuickAddProvider>
-            <HomePage />
+            <NotificationCenterProvider>
+              <HomePage />
+              <LocationProbe />
+            </NotificationCenterProvider>
           </QuickAddProvider>
         </ToastProvider>
       </MemoryRouter>
@@ -249,6 +291,56 @@ describe('HomePage (dashboard)', () => {
       const call = fetchMock.mock.calls.find(([u]) => String(u).includes('/occ1/confirm'));
       expect(call?.[1]?.body).toBe(JSON.stringify({ amount: 412_500 }));
     });
+  });
+
+  it('tidak menampilkan lonceng bila fitur pengingat mati', async () => {
+    const { fetchMock } = setup();
+    await screen.findByRole('region', { name: 'Ringkasan bulan ini' });
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/features'))).toBe(true),
+    );
+    expect(screen.queryByRole('button', { name: /^Notifikasi/ })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/notifications'))).toBe(false);
+  });
+
+  it('lonceng menampilkan jumlah belum dibaca, membuka daftar, dan menandai dibaca', async () => {
+    const { fetchMock } = setup({ reminders: true });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Notifikasi, 1 belum dibaca' }),
+    );
+
+    const dialog = within(await screen.findByRole('dialog', { name: 'Notifikasi' }));
+    const list = within(await dialog.findByRole('list', { name: 'Daftar notifikasi' }));
+    expect(list.getAllByRole('listitem')).toHaveLength(2);
+    expect(list.getByText('5 menit yang lalu')).toBeInTheDocument();
+    expect(list.getAllByText('Belum dibaca')).toHaveLength(1);
+    expect(dialog.getByRole('link', { name: 'Atur pengingat & notifikasi' })).toHaveAttribute(
+      'href',
+      '/pengingat',
+    );
+
+    await userEvent.click(list.getByRole('button', { name: /Listrik menunggu konfirmasi/ }));
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([u, init]) => String(u).includes('/notifications/n1/read') && init?.method === 'POST',
+        ),
+      ).toBe(true),
+    );
+    expect(screen.getByTestId('location')).toHaveTextContent('/berulang');
+    expect(screen.queryByRole('dialog', { name: 'Notifikasi' })).not.toBeInTheDocument();
+  });
+
+  it('menandai semua notifikasi dibaca', async () => {
+    const { fetchMock } = setup({ reminders: true });
+    await userEvent.click(await screen.findByRole('button', { name: /^Notifikasi/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Notifikasi' }));
+    await userEvent.click(await dialog.findByRole('button', { name: 'Tandai semua dibaca' }));
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([u]) => String(u).includes('/notifications/read-all')),
+      ).toBe(true),
+    );
   });
 
   it('melewati kejadian berulang', async () => {

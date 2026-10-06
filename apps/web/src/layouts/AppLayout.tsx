@@ -1,8 +1,13 @@
 import { House, ListOrdered, Loader2, LogOut, PiggyBank, Plus, UserRound } from 'lucide-react';
 import { Suspense, useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useSearchParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { Logo } from '../components/Logo';
+import {
+  NotificationCenterProvider,
+  SideBell,
+  useNotificationCenter,
+} from '../components/notifications/NotificationCenter';
 import { QuickAddProvider, useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
 import { PageSkeleton } from '../components/ui/States';
@@ -22,9 +27,24 @@ type NavItem = (typeof NAV_ITEMS)[number];
 export function AppLayout() {
   return (
     <QuickAddProvider>
-      <Shell />
+      <NotificationCenterProvider>
+        <Shell />
+      </NotificationCenterProvider>
     </QuickAddProvider>
   );
+}
+
+/** `?catat=1` (mis. dari notifikasi pengingat) langsung membuka form catat transaksi. */
+function useQuickAddDeepLink() {
+  const { openNew } = useQuickAdd();
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('catat') !== '1') return;
+    openNew();
+    const next = new URLSearchParams(params);
+    next.delete('catat');
+    setParams(next, { replace: true });
+  }, [params, setParams, openNew]);
 }
 
 /**
@@ -35,6 +55,7 @@ export function AppLayout() {
 function Shell() {
   const { openNew } = useQuickAdd();
   useEffect(preloadAppPages, []);
+  useQuickAddDeepLink();
   return (
     <div
       className={cn(
@@ -74,6 +95,7 @@ function Shell() {
               <SideLink key={item.to} item={item} />
             ))}
           </nav>
+          <SideBell />
           <SideLogout />
         </div>
       </aside>
@@ -182,7 +204,10 @@ function SideLogout() {
 
 function BottomLink({ item: { to, label, icon: Icon, end } }: { item: NavItem }) {
   const { user } = useAuth();
+  const { unread } = useNotificationCenter();
   const photoUser = to === '/profil' && user?.avatarUpdatedAt ? user : null;
+  // Lonceng ada di Beranda; titik di tab ini memberi tahu ada notifikasi baru dari halaman lain.
+  const showDot = to === '/' && unread > 0;
   return (
     <li>
       <NavLink
@@ -206,9 +231,15 @@ function BottomLink({ item: { to, label, icon: Icon, end } }: { item: NavItem })
                 )}
               />
             ) : (
-              <Icon className="size-5" aria-hidden />
+              <span className="relative">
+                <Icon className="size-5" aria-hidden />
+                {showDot && (
+                  <span className="absolute -top-0.5 -right-1 size-2.5 rounded-full bg-expense ring-2 ring-surface" />
+                )}
+              </span>
             )}
             {label}
+            {showDot && <span className="sr-only">, ada notifikasi baru</span>}
           </>
         )}
       </NavLink>

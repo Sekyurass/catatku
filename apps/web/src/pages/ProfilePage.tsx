@@ -1,6 +1,7 @@
 import { registerSchema, type UserDTO } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  BellRing,
   Camera,
   ChevronRight,
   ImageUp,
@@ -53,6 +54,13 @@ const RECURRING_LINK = {
   icon: Repeat,
 };
 
+const REMINDER_LINK = {
+  to: '/pengingat',
+  label: 'Pengingat & notifikasi',
+  description: 'Jam pengingat harian dan notifikasi di HP',
+  icon: BellRing,
+};
+
 const rowClass =
   'flex min-h-14 w-full items-center gap-3 rounded-control px-3 py-2 text-left hover:bg-surface-muted';
 
@@ -62,6 +70,7 @@ export function ProfilePage() {
   const [dialog, setDialog] = useState<'profile' | 'password' | 'photo' | null>(null);
   const close = () => setDialog(null);
   const recurringOn = useFeature('recurring_transactions');
+  const remindersOn = useFeature('reminders');
 
   return (
     <div className="flex flex-col gap-4">
@@ -94,20 +103,22 @@ export function ProfilePage() {
       </Card>
       <Card className="p-1">
         <ul>
-          {[...LINKS, ...(recurringOn ? [RECURRING_LINK] : [])].map(
-            ({ to, label, description, icon: Icon }) => (
-              <li key={to}>
-                <Link to={to} className={rowClass}>
-                  <Icon className="size-5 text-primary" aria-hidden />
-                  <span className="flex-1">
-                    <span className="block font-medium">{label}</span>
-                    <span className="block text-sm text-muted">{description}</span>
-                  </span>
-                  <ChevronRight className="size-5 text-muted" aria-hidden />
-                </Link>
-              </li>
-            ),
-          )}
+          {[
+            ...LINKS,
+            ...(recurringOn ? [RECURRING_LINK] : []),
+            ...(remindersOn ? [REMINDER_LINK] : []),
+          ].map(({ to, label, description, icon: Icon }) => (
+            <li key={to}>
+              <Link to={to} className={rowClass}>
+                <Icon className="size-5 text-primary" aria-hidden />
+                <span className="flex-1">
+                  <span className="block font-medium">{label}</span>
+                  <span className="block text-sm text-muted">{description}</span>
+                </span>
+                <ChevronRight className="size-5 text-muted" aria-hidden />
+              </Link>
+            </li>
+          ))}
           <li>
             <button type="button" onClick={() => setDialog('password')} className={rowClass}>
               <KeyRound className="size-5 text-primary" aria-hidden />

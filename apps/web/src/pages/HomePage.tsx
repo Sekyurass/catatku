@@ -23,6 +23,7 @@ import {
 import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IconBadge } from '../components/IconBadge';
+import { BellButton } from '../components/notifications/NotificationCenter';
 import { PendingRecurringCard } from '../components/recurring/PendingRecurringCard';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { TransactionRow } from '../components/transactions/TransactionRow';
@@ -118,6 +119,7 @@ function WelcomeCard({ name, month }: { name: string; month: string }) {
       <p className="hidden shrink-0 rounded-full bg-surface px-3 py-1 text-sm font-medium text-muted sm:block">
         {formatMonthLabel(month)}
       </p>
+      <BellButton className="self-start md:hidden" />
     </Card>
   );
 }

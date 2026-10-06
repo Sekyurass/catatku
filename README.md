@@ -66,10 +66,11 @@ Fitur Fase 1 berada di balik feature flag yang **nonaktif** setelah seed. Untuk 
 
 ```sql
 -- Untuk semua pengguna (SQL editor Supabase / psql)
-UPDATE "FeatureFlag" SET enabled = true WHERE key = 'recurring_transactions';
+UPDATE "FeatureFlag" SET enabled = true WHERE key IN ('recurring_transactions', 'reminders');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on` di `apps/api/.env` (restart API). Akun baru dari halaman **Daftar**
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on` di `apps/api/.env` (restart API).
+Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan. Akun baru dari halaman **Daftar**
 langsung diarahkan ke onboarding 3 langkah di `/mulai`: sambutan → dompet pertama → transaksi pertama
 (bisa dilewati kapan saja).
 
@@ -168,6 +169,21 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
     **Catat** (nominal boleh disesuaikan, mis. tagihan listrik) atau **Lewati**.
   - Dompet/kategori yang diarsipkan otomatis menjeda aturannya; menghapus aturan tidak menghapus transaksi
     yang sudah tercatat (tanda "Berulang" hilang). Transaksi hasil aturan diberi lencana **Berulang**.
+- **Notifikasi & pengingat** (Fase 1.2, flag `reminders`): satu tabel `Notification` untuk lonceng,
+  dengan `dedupeKey` unik per pengguna sehingga notifikasi yang sama tidak pernah tercatat dua kali
+  (aman untuk cron ganda/restart). `notify()` = simpan ke lonceng lalu kirim push ke semua perangkat.
+  - **Pengingat harian**: pengguna memilih jam (05.00–23.00 WIB) dan hari. Cron tiap jam tepat mengirim
+    pengingat hanya bila hari itu belum ada transaksi yang dicatat manual (transaksi otomatis dari aturan
+    berulang tidak dihitung). Maksimal sekali sehari, diklaim lewat `lastReminderDate` (optimistic lock);
+    bila server sempat mati, pengingat masih dikirim sampai 2 jam setelah jam pilihan. Saat ini semua jam
+    memakai WIB (zona per pengguna belum ada).
+  - Transaksi berulang memberi kabar: "menunggu konfirmasi" (lonceng + push) dan "tercatat otomatis"
+    (lonceng saja, agar tidak berisik). Notifikasi lebih tua dari 90 hari dihapus otomatis.
+  - **Web Push** (`web-push` + VAPID, tanpa layanan pihak ketiga): service worker `public/sw.js` hanya
+    menangani `push` dan klik notifikasi (bukan cache offline). Endpoint langganan dibatasi ke layanan push
+    resmi (Google, Mozilla, Apple, Microsoft; HTTPS) untuk mencegah SSRF; maks. 10 perangkat per akun;
+    langganan yang ditolak layanan (404/410) dihapus otomatis; logout melepas langganan perangkat itu.
+  - Keterbatasan: di iPhone/iPad push hanya jalan bila Catatku dipasang ke Layar Utama (iOS 16.4+).
 
 ## API (Fase 0)
 
@@ -213,6 +229,13 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 interval?: 1–99, startDate, endDate?: string|null, autoPost?: boolean }`; `PATCH` juga menerima `paused`
   - `GET /recurring/pending` → kejadian menunggu konfirmasi; `POST /recurring/pending/:id/confirm`
     `{ amount? }` → `{ transactionId }` (409 bila sudah diproses), `POST /recurring/pending/:id/skip` → 204
+- ✅ `reminders`: `GET /notifications?cursor=&limit=` → `{ items, nextCursor, unreadCount }`,
+  `GET /notifications/unread-count` → `{ count }`, `POST /notifications/:id/read` → 204,
+  `POST /notifications/read-all` → 204
+  - `GET/PUT /notifications/settings` `{ reminderEnabled, reminderHour: 5–23, reminderDays: [0–6] }`
+    (0 = Minggu; minimal satu hari bila aktif); respons juga berisi `push: { available, publicKey }`
+  - `POST /notifications/push-subscriptions` (body = `PushSubscription.toJSON()`) → 204,
+    `DELETE /notifications/push-subscriptions` `{ endpoint }` → 204, `POST /notifications/push-test` → `{ sent }`
 
 ## Event analitik & gerbang fase
 
@@ -225,6 +248,7 @@ interval?: 1–99, startDate, endDate?: string|null, autoPost?: boolean }`; `PAT
 | `export_csv`                                 | API                    | –                                |
 | `password_reset_requested`, `password_reset` | API auth               | –                                |
 | `recurring_rule_created`                     | API                    | `frequency`, `autoPost`          |
+| `reminder_sent`, `push_subscribed`           | API                    | –                                |
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                     |
 
 Contoh kueri untuk menilai gerbang Fase 0 → Fase 1 (jalankan di SQL editor Supabase):

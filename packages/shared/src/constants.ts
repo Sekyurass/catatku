@@ -10,6 +10,14 @@ export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
 export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
 
+export const NOTIFICATION_TYPES = ['REMINDER', 'RECURRING_PENDING', 'RECURRING_POSTED'] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+/** Rentang jam pengingat yang bisa dipilih (WIB). */
+export const REMINDER_HOUR_MIN = 5;
+export const REMINDER_HOUR_MAX = 23;
+export const DEFAULT_REMINDER_HOUR = 20;
+
 export const PLANS = ['FREE', 'PREMIUM'] as const;
 export type Plan = (typeof PLANS)[number];
 

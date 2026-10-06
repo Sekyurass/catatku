@@ -54,6 +54,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     });
 
     test('halaman aplikasi lolos axe (WCAG 2.1 AA)', async ({ page }) => {
+      test.slow();
       await auditAppPages(page);
     });
   });
@@ -81,7 +82,7 @@ async function auditAppPages(page: Page) {
     categoryId: 'cat_gaji',
     date: today,
   });
-  // Beranda (kartu konfirmasi), riwayat (lencana Berulang), dan /berulang ikut diaudit bila flag menyala.
+  // Beranda (kartu konfirmasi), riwayat (lencana Berulang), /berulang, dan lonceng ikut diaudit bila flag menyala.
   const { flags } = await get<{ flags: Record<string, boolean> }>('/features');
   const recurring = flags.recurring_transactions === true;
   if (recurring) {
@@ -110,6 +111,7 @@ async function auditAppPages(page: Page) {
     '/dompet',
     '/kategori',
     '/berulang',
+    '/pengingat',
     '/profil',
     '/mulai',
     '/tidak-ada',
@@ -130,6 +132,22 @@ async function auditAppPages(page: Page) {
     await expect(page.getByRole('dialog', { name: 'Transaksi berulang baru' })).toBeVisible();
     await waitForApp(page);
     await test.step('/berulang (form)', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+  }
+
+  if (flags.reminders) {
+    await page.goto('/');
+    await waitForApp(page);
+    await page
+      .getByRole('button', { name: /^Notifikasi/ })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await expect(page.getByRole('dialog', { name: 'Notifikasi' })).toBeVisible();
+    await waitForApp(page);
+    await test.step('lonceng notifikasi', async () => {
       await expectNoViolations(page);
       await expectTouchTargets(page);
     });

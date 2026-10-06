@@ -21,6 +21,7 @@ import { FAREWELL_MS, SPLASH_FADE_MS, SplashScreen } from '../components/SplashS
 import { LoginPage } from '../routes/pages';
 import { api, refreshSession, setAccessToken, setSessionLostHandler } from './api';
 import { clearAvatarCache } from './avatar';
+import { disablePush } from './push';
 
 type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 
@@ -128,7 +129,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Kegagalan jaringan tetap mengeluarkan pengguna di perangkat ini. Halaman masuk diunduh
     // selama animasi supaya tidak ada layar memuat sesudah layar perpisahan memudar.
     await Promise.allSettled([
-      api('/auth/logout', { method: 'POST' }),
+      Promise.race([disablePush(), wait(3000)])
+        .catch(() => undefined)
+        .then(() => api('/auth/logout', { method: 'POST' })),
       wait(reduced ? 0 : FAREWELL_MS),
       LoginPage.preload(),
     ]);

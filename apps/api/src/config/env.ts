@@ -34,10 +34,21 @@ const envSchema = z
       .default('true')
       .transform((v) => v === 'true'),
     RESET_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(RESET_LINK_TTL_MINUTES),
+    /** Kunci Web Push (`npx web-push generate-vapid-keys`). Kosong = push nonaktif, lonceng tetap jalan. */
+    VAPID_PUBLIC_KEY: z.string().default(''),
+    VAPID_PRIVATE_KEY: z.string().default(''),
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT harus diawali mailto: atau https://')
+      .default('mailto:admin@catatku.local'),
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.BCRYPT_COST >= 12, {
     message: 'BCRYPT_COST harus >= 12 di production',
     path: ['BCRYPT_COST'],
+  })
+  .refine((env) => !env.VAPID_PUBLIC_KEY === !env.VAPID_PRIVATE_KEY, {
+    message: 'VAPID_PUBLIC_KEY dan VAPID_PRIVATE_KEY harus diisi berpasangan',
+    path: ['VAPID_PRIVATE_KEY'],
   });
 
 const parsed = envSchema.safeParse(process.env);

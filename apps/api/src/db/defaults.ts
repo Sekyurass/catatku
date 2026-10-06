@@ -49,7 +49,7 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
 
 const FLAG_DESCRIPTIONS: Record<string, string> = {
   [FEATURE_FLAGS.RECURRING_TRANSACTIONS]: 'Fase 1.1 — transaksi berulang',
-  [FEATURE_FLAGS.REMINDERS]: 'Fase 1.2 — pengingat catat',
+  [FEATURE_FLAGS.REMINDERS]: 'Fase 1.2 — notifikasi (lonceng), pengingat harian, Web Push',
   [FEATURE_FLAGS.TEMPLATES]: 'Fase 1.3 — template / favorit',
   [FEATURE_FLAGS.CSV_IMPORT]: 'Fase 1.4 — impor CSV',
   [FEATURE_FLAGS.PWA_OFFLINE]: 'Fase 1.5 — PWA + offline',

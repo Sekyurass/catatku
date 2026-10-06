@@ -1,5 +1,6 @@
 import type {
   CategoryType,
+  NotificationType,
   Plan,
   RecurrenceFrequency,
   TransactionType,
@@ -95,6 +96,34 @@ export interface RecurringRuleDTO {
 }
 
 /** Kejadian aturan "minta konfirmasi dulu" yang sudah jatuh tempo. */
+export interface NotificationDTO {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  /** Rute di aplikasi yang dibuka saat notifikasi diketuk. */
+  link: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationPageDTO {
+  items: NotificationDTO[];
+  nextCursor: string | null;
+  unreadCount: number;
+}
+
+export interface NotificationSettingsDTO {
+  reminderEnabled: boolean;
+  reminderHour: number;
+  reminderDays: number[];
+  push: {
+    /** false bila server belum punya kunci VAPID. */
+    available: boolean;
+    publicKey: string | null;
+  };
+}
+
 export interface PendingOccurrenceDTO {
   id: string;
   ruleId: string;

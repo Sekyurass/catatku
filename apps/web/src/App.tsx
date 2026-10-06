@@ -10,6 +10,7 @@ import {
   HomePage,
   LoginPage,
   NotFoundPage,
+  NotificationSettingsPage,
   OnboardingPage,
   ProfilePage,
   RecurringPage,
@@ -71,6 +72,7 @@ export function App() {
           <Route path="dompet" element={<WalletsPage />} />
           <Route path="kategori" element={<CategoriesPage />} />
           <Route path="berulang" element={<RecurringPage />} />
+          <Route path="pengingat" element={<NotificationSettingsPage />} />
           <Route path="profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

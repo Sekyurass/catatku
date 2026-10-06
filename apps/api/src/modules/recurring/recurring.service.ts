@@ -20,6 +20,7 @@ import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
 import { findUsableCategory } from '../categories/category.service';
 import { isFeatureEnabled } from '../features/featureFlag.service';
+import { notify } from '../notifications/notification.service';
 import { findActiveWallet } from '../wallets/wallet.service';
 
 /** Batas kejadian yang disusul per aturan per putaran; sisanya diproses putaran berikutnya. */
@@ -274,6 +275,38 @@ export async function processRule(rule: RecurringRule, today = toDateString()): 
   });
 }
 
+/**
+ * Kabari pengguna setelah scheduler memproses aturannya. Yang perlu tindakan (konfirmasi) dikirim
+ * sebagai push; yang tercatat otomatis cukup masuk lonceng agar aturan harian tidak berisik.
+ */
+async function notifyProcessed(rule: RecurringRule, count: number) {
+  const full = await prisma.recurringRule.findUnique({ where: { id: rule.id }, include: refs });
+  if (!full || !rule.nextRunAt) return;
+  const name = full.note || full.category.name;
+  const dedupeKey = `recurring:${rule.id}:${fromDbDate(rule.nextRunAt)}`;
+  if (rule.autoPost) {
+    await notify(rule.userId, {
+      type: 'RECURRING_POSTED',
+      title: `${name} tercatat otomatis`,
+      body:
+        count > 1
+          ? `${count} transaksi dari jadwal berulang masuk ke ${full.wallet.name}.`
+          : `Transaksi dari jadwal berulang masuk ke ${full.wallet.name}.`,
+      link: '/transaksi',
+      dedupeKey,
+      push: false,
+    });
+  } else {
+    await notify(rule.userId, {
+      type: 'RECURRING_PENDING',
+      title: `${name} menunggu konfirmasi`,
+      body: 'Catat dengan nominal yang sesuai atau lewati dari Beranda.',
+      link: '/',
+      dedupeKey,
+    });
+  }
+}
+
 /** Satu putaran scheduler untuk semua pengguna. Dipanggil saat server menyala dan tiap jam. */
 export async function runDueRules(today = toDateString()): Promise<number> {
   let created = 0;
@@ -287,7 +320,13 @@ export async function runDueRules(today = toDateString()): Promise<number> {
     });
     for (const rule of batch) {
       try {
-        created += await processRule(rule, today);
+        const count = await processRule(rule, today);
+        if (count > 0) {
+          created += count;
+          await notifyProcessed(rule, count).catch((err: unknown) =>
+            logger.warn({ err, ruleId: rule.id }, 'Gagal membuat notifikasi transaksi berulang'),
+          );
+        }
       } catch (err) {
         logger.error({ err, ruleId: rule.id }, 'Gagal memproses transaksi berulang');
       }
