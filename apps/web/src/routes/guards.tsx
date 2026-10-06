@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, Suspense, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { SPLASH_FADE_MS, SplashScreen } from '../components/SplashScreen';
 import { useAuth } from '../lib/auth';
@@ -39,19 +39,27 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   // Splash tetap di posisi yang sama dari 'loading' sampai selesai memudar, jadi animasinya tidak restart.
   return (
     <>
-      {status === 'authenticated' && children}
+      {status === 'authenticated' && <Suspense fallback={null}>{children}</Suspense>}
       {intro !== 'done' && <SplashScreen leaving={intro === 'leaving'} />}
     </>
   );
 }
 
-export function GuestOnly({ children }: { children: ReactNode }) {
+/**
+ * `afterAuth`: tujuan bila pengguna baru saja masuk/daftar di halaman ini. Guard inilah yang
+ * mengarahkan (bukan halaman), karena redirect guard selalu menang atas navigate() halaman.
+ */
+export function GuestOnly({ children, afterAuth }: { children: ReactNode; afterAuth?: string }) {
   const { status } = useAuth();
   const location = useLocation();
-  if (status === 'loading') return <SplashScreen progress={false} />;
+  const [sawAnonymous, setSawAnonymous] = useState(false);
+  if (status === 'anonymous' && !sawAnonymous) setSawAnonymous(true);
+
+  const splash = <SplashScreen progress={false} />;
+  if (status === 'loading') return splash;
   if (status === 'authenticated') {
     const from = (location.state as { from?: string } | null)?.from ?? '/';
-    return <Navigate to={from} replace />;
+    return <Navigate to={sawAnonymous && afterAuth ? afterAuth : from} replace />;
   }
-  return children;
+  return <Suspense fallback={splash}>{children}</Suspense>;
 }

@@ -1,11 +1,13 @@
 import { House, ListOrdered, Loader2, LogOut, PiggyBank, Plus, UserRound } from 'lucide-react';
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 import { QuickAddProvider, useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
+import { PageSkeleton } from '../components/ui/States';
 import { useAuth } from '../lib/auth';
 import { cn } from '../lib/cn';
+import { preloadAppPages } from '../routes/pages';
 
 export const NAV_ITEMS = [
   { to: '/', label: 'Beranda', icon: House, end: true },
@@ -31,6 +33,7 @@ export function AppLayout() {
  */
 function Shell() {
   const { openNew } = useQuickAdd();
+  useEffect(preloadAppPages, []);
   return (
     <div
       className={cn(
@@ -82,7 +85,9 @@ function Shell() {
           'md:pt-[calc(2rem+env(safe-area-inset-top))] md:pb-10',
         )}
       >
-        <Outlet />
+        <Suspense fallback={<PageSkeleton />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <nav

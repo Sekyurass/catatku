@@ -7,6 +7,7 @@ import type {
 } from '@catatku/shared';
 import { Prisma, type User } from '@prisma/client';
 import { env } from '../../config/env';
+import { track } from '../../lib/analytics';
 import { AppError, notFound, unauthorized, validationError } from '../../lib/errors';
 import { burnPasswordCheck, hashPassword, verifyPassword } from '../../lib/password';
 import { prisma } from '../../lib/prisma';
@@ -71,6 +72,7 @@ export async function register(input: RegisterInput, meta: ClientMeta): Promise<
       passwordHash: await hashPassword(input.password),
     },
   });
+  track(user.id, 'user_registered');
   return issueSession(user, meta);
 }
 
@@ -83,6 +85,7 @@ export async function login(input: LoginInput, meta: ClientMeta): Promise<Sessio
   if (!(await verifyPassword(input.password, user.passwordHash))) {
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Email atau kata sandi tidak cocok');
   }
+  track(user.id, 'user_logged_in');
   return issueSession(user, meta);
 }
 

@@ -6,6 +6,13 @@ interface State {
   error: Error | null;
 }
 
+/** Chunk rute (React.lazy) gagal diunduh: biasanya offline atau file lama sudah diganti rilis baru. */
+function isChunkLoadError(error: Error) {
+  return /dynamically imported module|Importing a module script failed|error loading dynamically/i.test(
+    error.message,
+  );
+}
+
 /** Jaring terakhir: tanpa ini, satu error render mengosongkan seluruh halaman. */
 export class AppErrorBoundary extends Component<{ children: ReactNode }, State> {
   override state: State = { error: null };
@@ -19,7 +26,9 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, State> 
   }
 
   override render() {
-    if (!this.state.error) return this.props.children;
+    const { error } = this.state;
+    if (!error) return this.props.children;
+    const chunkFailed = isChunkLoadError(error);
     return (
       <div
         className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center"
@@ -27,10 +36,13 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, State> 
       >
         <Logo />
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold">Ada yang tidak beres</h1>
+          <h1 className="text-lg font-semibold">
+            {chunkFailed ? 'Halaman belum termuat' : 'Ada yang tidak beres'}
+          </h1>
           <p className="max-w-sm text-sm text-muted">
-            Halaman gagal ditampilkan. Muat ulang untuk melanjutkan. Kalau terus terjadi, matikan
-            fitur terjemahan otomatis browser untuk Catatku.
+            {chunkFailed
+              ? 'Koneksi terputus atau Catatku baru saja diperbarui. Muat ulang untuk melanjutkan.'
+              : 'Halaman gagal ditampilkan. Muat ulang untuk melanjutkan. Kalau terus terjadi, matikan fitur terjemahan otomatis browser untuk Catatku.'}
           </p>
         </div>
         <Button onClick={() => window.location.reload()}>Muat ulang</Button>

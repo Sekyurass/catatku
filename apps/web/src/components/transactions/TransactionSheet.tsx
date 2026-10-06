@@ -89,12 +89,13 @@ export function TransactionSheet({
 }) {
   return (
     <Dialog open={open} onClose={onClose} title={editing ? 'Ubah transaksi' : 'Catat transaksi'}>
-      <SheetBody onDone={onClose} editing={editing} initialKind={initialKind} />
+      <TransactionFormPanel onDone={onClose} editing={editing} initialKind={initialKind} />
     </Dialog>
   );
 }
 
-function SheetBody({
+/** Isi form transaksi tanpa dialog (dipakai juga di onboarding). `onDone` dipanggil setelah tersimpan. */
+export function TransactionFormPanel({
   onDone,
   editing,
   initialKind,

@@ -64,7 +64,7 @@ export function HomePage() {
             description="Tambahkan uang tunai, rekening bank, atau dompet digital. Setelah itu kamu bisa mencatat transaksi pertamamu."
             action={
               <Link
-                to="/dompet"
+                to="/mulai?langkah=2"
                 className="inline-flex min-h-11 items-center rounded-control bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover"
               >
                 Buat dompet
@@ -148,18 +148,18 @@ function SummaryCards({ summary }: { summary: ReturnType<typeof useSummary> }) {
       <Card className="col-span-2 flex flex-col justify-between gap-3 border-none bg-primary text-white">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm text-white/80">Total saldo</p>
+            <p className="text-sm text-white/90">Total saldo</p>
             <p className="tabular truncate text-3xl font-bold">{formatRupiah(totalBalance)}</p>
           </div>
           <Link
             to="/dompet"
-            className="-mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-control px-2 text-sm font-semibold text-white hover:bg-white/10"
+            className="-mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-control px-2 text-sm font-semibold text-white hover:bg-white/10 focus-visible:outline-white"
           >
             Dompet
             <ChevronRight className="size-4" aria-hidden />
           </Link>
         </div>
-        <p className="text-sm text-white/80">
+        <p className="text-sm text-white/90">
           Selisih bulan ini{' '}
           <span className="tabular font-semibold text-white">
             {formatRupiah(net, { signed: true })}

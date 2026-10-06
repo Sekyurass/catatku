@@ -1,8 +1,8 @@
 import { act, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SPLASH_FADE_MS } from '../components/SplashScreen';
-import { INTRO_MS, RequireAuth } from './guards';
+import { GuestOnly, INTRO_MS, RequireAuth } from './guards';
 
 const auth = vi.hoisted(() => ({ status: 'authenticated' as string }));
 vi.mock('../lib/auth', () => ({ useAuth: () => auth }));
@@ -53,5 +53,39 @@ describe('RequireAuth intro', () => {
     );
     act(() => vi.advanceTimersByTime(INTRO_MS - 1500));
     expect(screen.queryByRole('status', { name: 'Memuat Catatku' })).not.toBeInTheDocument();
+  });
+});
+
+describe('GuestOnly', () => {
+  const tree = () => (
+    <MemoryRouter initialEntries={['/daftar']}>
+      <Routes>
+        <Route
+          path="/daftar"
+          element={
+            <GuestOnly afterAuth="/mulai">
+              <p>Form daftar</p>
+            </GuestOnly>
+          }
+        />
+        <Route path="/mulai" element={<p>Onboarding</p>} />
+        <Route path="/" element={<p>Beranda</p>} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+  it('baru daftar di halaman ini → ke afterAuth', () => {
+    auth.status = 'anonymous';
+    const { rerender } = render(tree());
+    expect(screen.getByText('Form daftar')).toBeInTheDocument();
+    auth.status = 'authenticated';
+    rerender(tree());
+    expect(screen.getByText('Onboarding')).toBeInTheDocument();
+  });
+
+  it('sudah masuk sejak awal → ke beranda, bukan onboarding', () => {
+    auth.status = 'authenticated';
+    render(tree());
+    expect(screen.getByText('Beranda')).toBeInTheDocument();
   });
 });

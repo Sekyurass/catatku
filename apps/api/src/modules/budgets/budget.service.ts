@@ -1,6 +1,7 @@
 import type { BudgetDTO, BudgetMonthDTO, PutBudgetsInput } from '@catatku/shared';
 import { budgetStatus, currentMonth, monthRange, shiftMonth } from '@catatku/shared';
 import type { Budget } from '@prisma/client';
+import { track } from '../../lib/analytics';
 import { validationError } from '../../lib/errors';
 import { toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
@@ -162,5 +163,6 @@ export async function putBudgets(userId: string, input: PutBudgetsInput): Promis
     ...needsStop.map((categoryId) => upsert(categoryId, 0)),
     ...toSet.map(([categoryId, limit]) => upsert(categoryId, limit)),
   ]);
+  track(userId, 'budget_saved', { items: input.items.length, monthOnly: monthOnly.length });
   return getBudgets(userId, month);
 }

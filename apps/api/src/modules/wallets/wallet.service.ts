@@ -1,6 +1,7 @@
 import type { createWalletSchema, UpdateWalletInput, WalletDTO } from '@catatku/shared';
 import type { Wallet } from '@prisma/client';
 import type { z } from 'zod';
+import { track } from '../../lib/analytics';
 import { notFound, validationError } from '../../lib/errors';
 import { toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
@@ -78,6 +79,7 @@ export async function createWallet(
   const wallet = await prisma.wallet.create({
     data: { ...data, initialBalance: BigInt(data.initialBalance), userId },
   });
+  track(userId, 'wallet_created', { type: data.type });
   return toDTO(wallet);
 }
 

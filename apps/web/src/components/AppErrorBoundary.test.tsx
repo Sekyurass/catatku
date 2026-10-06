@@ -18,6 +18,19 @@ describe('AppErrorBoundary', () => {
     expect(screen.getByRole('button', { name: 'Muat ulang' })).toBeInTheDocument();
   });
 
+  it('menjelaskan chunk rute yang gagal diunduh', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    function ChunkBoom(): never {
+      throw new TypeError('Failed to fetch dynamically imported module: /assets/HomePage-x.js');
+    }
+    render(
+      <AppErrorBoundary>
+        <ChunkBoom />
+      </AppErrorBoundary>,
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Halaman belum termuat');
+  });
+
   it('merender children seperti biasa saat tidak ada error', () => {
     render(
       <AppErrorBoundary>

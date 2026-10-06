@@ -20,7 +20,12 @@ export default function TrendChart({ points }: { points: TrendPoint[] }) {
   return (
     <div className="absolute inset-0" aria-hidden>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }} barGap={2}>
+        <BarChart
+          data={data}
+          margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+          barGap={2}
+          accessibilityLayer={false}
+        >
           <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis
             dataKey="label"

@@ -82,9 +82,9 @@ export function WalletsPage() {
       ) : (
         <>
           <Card className="bg-primary text-white">
-            <p className="text-sm text-white/80">Total saldo</p>
+            <p className="text-sm text-white/90">Total saldo</p>
             <p className="tabular text-3xl font-bold">{formatRupiah(total)}</p>
-            <p className="mt-1 text-sm text-white/80">dari {active.length} dompet aktif</p>
+            <p className="mt-1 text-sm text-white/90">dari {active.length} dompet aktif</p>
           </Card>
 
           <Card className="p-1">

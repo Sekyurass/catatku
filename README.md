@@ -3,7 +3,8 @@
 Aplikasi pencatatan keuangan pribadi untuk mahasiswa & pekerja muda di Indonesia.
 Target: catat transaksi < 10 detik, lihat sisa uang, pahami pola belanja bulanan.
 
-Status: **Fase 0 (MVP) — M4 selesai** (dompet, kategori, transaksi, transfer, dashboard, anggaran, ekspor CSV).
+Status: **Fase 0 (MVP) selesai** — onboarding, dompet, kategori, transaksi, transfer, dashboard, anggaran,
+ekspor CSV, profil, event analitik ringan, E2E + audit aksesibilitas.
 
 ## Dukungan perangkat
 
@@ -38,7 +39,9 @@ apps/
       components/charts/  donut kategori & tren (Recharts, di-lazy-load)
       layouts/        AppLayout (bottom nav HP, rail tablet, sidebar desktop)
       lib/            api client (auto refresh token), auth context
-      pages/          halaman per rute
+      pages/          halaman per rute (di-lazy-load lewat routes/pages.ts)
+      routes/         guard auth + daftar rute lazy
+    e2e/            Playwright: alur kritis, hapus+urungkan, axe + target sentuh
 packages/
   shared/    Skema Zod, tipe DTO, util Rupiah & bulan (dipakai api + web)
 ```
@@ -55,7 +58,21 @@ npm run db:seed                          # kategori default, feature flag, akun 
 npm run dev                              # API :4000 + web :5173
 ```
 
-Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12345**.
+Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12345**
+(sudah berisi 3 dompet, transaksi 6 bulan, transfer, dan anggaran berlanjut). Akun baru dari halaman **Daftar**
+langsung diarahkan ke onboarding 3 langkah di `/mulai`: sambutan → dompet pertama → transaksi pertama
+(bisa dilewati kapan saja).
+
+### Tes E2E
+
+```bash
+npx playwright install chromium      # sekali saja; atau pakai browser terpasang:
+PW_CHANNEL=msedge npm run test:e2e   # PowerShell: $env:PW_CHANNEL='msedge'; npm run test:e2e
+```
+
+Playwright memakai dev server yang sedang berjalan (atau menyalakan `npm run dev` sendiri) dan database
+dari `apps/api/.env`. Setiap tes membuat akun baru `e2e-…@contoh.id`. Rate limit daftar/masuk default 20 per
+15 menit per IP — naikkan `AUTH_RATE_LIMIT` di `.env` bila menjalankan E2E berulang kali.
 
 ### Supabase
 
@@ -82,6 +99,7 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
 | `npm run typecheck`  | `tsc` di semua workspace                                     |
 | `npm run lint`       | ESLint seluruh repo                                          |
 | `npm test`           | Tes unit/API semua workspace (API butuh `TEST_DATABASE_URL`) |
+| `npm run test:e2e`   | Playwright (HP + desktop) terhadap API & web sungguhan       |
 | `npm run db:migrate` | Buat migrasi baru saat skema berubah (dev)                   |
 | `npm run db:deploy`  | Terapkan migrasi (CI/produksi)                               |
 | `npm run db:seed`    | Seed idempoten; `SEED_DEMO=false` untuk lewati akun demo     |
@@ -100,6 +118,14 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
 - **Idempotensi**: tabel `IdempotencyKey` disiapkan untuk operasi tulis (dipakai mulai M2, penting untuk sinkron offline Fase 1).
 - **Monorepo npm workspaces**; `packages/shared` dikonsumsi sebagai sumber TypeScript (tanpa build), dibundel ke API oleh tsup.
 - **Versi dikunci** ke mayor yang stabil (Prisma 6, Vite 7, TS 5.9, ESLint 9).
+- **Code splitting per rute**: setiap halaman `React.lazy`, dimuat lebih dulu saat browser idle setelah
+  masuk (`preloadAppPages`) agar pindah halaman tetap instan. React/router dan pustaka data dipisah ke chunk
+  vendor tersendiri (cache awet antar-rilis); Recharts hanya diunduh saat grafik tampil. Chunk aplikasi
+  awal ±82 kB (sebelumnya satu bundel 553 kB). Chunk yang gagal diunduh (offline/rilis baru) ditangkap
+  error boundary dengan tombol muat ulang.
+- **Analitik ringan tanpa pihak ketiga**: tabel `AnalyticsEvent { userId, name, props }`, ditulis
+  _fire-and-forget_ (gagal mencatat tidak pernah menggagalkan request). `props` hanya berisi enum/angka
+  kecil — tidak ada nominal, nama dompet, catatan, atau email.
 
 ## API (Fase 0)
 
@@ -108,6 +134,8 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 - ✅ `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
 - ✅ `GET/PATCH /me` (ubah nama/email; ganti email wajib `currentPassword`), `PUT /me/password` (mengakhiri semua sesi lain, membalas sesi baru + cookie refresh)
 - ✅ `GET /features`, `GET /health` (di root)
+- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped", step?: 1–3 }` → 204
+  (hanya event klien yang terdaftar; event lain dicatat server sendiri)
 - ✅ `GET/POST/PATCH/DELETE /wallets` (`?includeArchived=true`; DELETE mengarsipkan dompet yang punya riwayat)
 - ✅ `GET/POST/PATCH/DELETE /categories` (`?type=`; kategori bawaan hanya-baca → 403)
 - ✅ `GET /transactions` (`from,to,categoryId,walletId,type,q,cursor,limit`), `GET/PATCH/DELETE /transactions/:id`,
@@ -129,3 +157,57 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
   - UTF-8 + BOM, pemisah koma, baris `CRLF`; kolom `Tanggal,Jenis,Kategori,Dompet,Dompet lawan,Jumlah,Catatan`
   - `Jumlah` bilangan bulat Rupiah bertanda; transfer muncul dua baris (keluar/masuk) dengan dompet lawannya
   - Dikirim bertahap per 500 baris (streaming); teks berawalan `= + - @` diberi awalan `'` (anti CSV injection)
+
+## Event analitik & gerbang fase
+
+| Event                                        | Dicatat oleh           | `props`                          |
+| -------------------------------------------- | ---------------------- | -------------------------------- |
+| `user_registered`, `user_logged_in`          | API auth               | –                                |
+| `wallet_created`                             | API                    | `type` (CASH/BANK/EWALLET)       |
+| `transaction_created`                        | API                    | `type` (EXPENSE/INCOME/TRANSFER) |
+| `budget_saved`                               | API                    | `items`, `monthOnly` (jumlah)    |
+| `export_csv`                                 | API                    | –                                |
+| `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                     |
+
+Contoh kueri untuk menilai gerbang Fase 0 → Fase 1 (jalankan di SQL editor Supabase):
+
+```sql
+-- Aktivasi: pendaftar 30 hari terakhir yang mencatat transaksi ≤ 24 jam setelah daftar
+SELECT COUNT(*) AS daftar,
+       COUNT(*) FILTER (WHERE EXISTS (
+         SELECT 1 FROM "AnalyticsEvent" t
+         WHERE t."userId" = r."userId" AND t.name = 'transaction_created'
+           AND t."createdAt" <= r."createdAt" + interval '24 hours')) AS aktif_24_jam
+FROM "AnalyticsEvent" r
+WHERE r.name = 'user_registered' AND r."createdAt" >= now() - interval '30 days';
+
+-- Retensi minggu ke-2: pendaftar yang masih mencatat di hari ke-7 s.d. ke-13
+SELECT COUNT(DISTINCT r."userId") AS kohort,
+       COUNT(DISTINCT t."userId") AS kembali_minggu_2
+FROM "AnalyticsEvent" r
+LEFT JOIN "AnalyticsEvent" t
+  ON t."userId" = r."userId" AND t.name = 'transaction_created'
+ AND t."createdAt" BETWEEN r."createdAt" + interval '7 days' AND r."createdAt" + interval '14 days'
+WHERE r.name = 'user_registered'
+  AND r."createdAt" BETWEEN now() - interval '44 days' AND now() - interval '14 days';
+
+-- Onboarding: selesai vs dilewati, per langkah
+SELECT name, props->>'step' AS langkah, COUNT(*)
+FROM "AnalyticsEvent"
+WHERE name IN ('onboarding_completed', 'onboarding_skipped')
+GROUP BY 1, 2 ORDER BY 1, 2;
+```
+
+## Definition of Done — Fase 0
+
+- [x] Alur kritis **daftar → buat dompet → catat → lihat dashboard** lolos E2E (`e2e/critical-flow.spec.ts`)
+- [x] Hapus transaksi + **Urungkan** lolos E2E
+- [x] Tanpa error TypeScript & ESLint (`npm run typecheck`, `npm run lint`)
+- [x] Tes unit web, tes API (termasuk isolasi antar-pengguna), dan E2E hijau
+- [x] Setiap layar punya state memuat (skeleton), kosong (ilustrasi + CTA), error (pesan + **Coba lagi**), sukses (toast)
+- [x] Aksesibilitas: axe WCAG 2.1 AA bersih di semua halaman (HP & desktop), target sentuh ≥ 44px diuji otomatis,
+      label di setiap input, fokus keyboard terlihat, status tidak hanya lewat warna (tanda +/−, ikon, teks),
+      `prefers-reduced-motion` dihormati, format `6 Okt 2026` & `Rp 1.250.000`
+- [x] README: setup, env, skrip, struktur, keputusan arsitektur
+- [x] Seed demo mencakup semua fitur Fase 0
+- [x] Event analitik ringan untuk gerbang fase, tanpa data sensitif

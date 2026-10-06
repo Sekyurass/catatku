@@ -2,7 +2,7 @@ import { type RegisterInput, registerSchema } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Field, Input, PasswordInput } from '../../components/ui/Field';
 import { useAuth } from '../../lib/auth';
@@ -11,7 +11,6 @@ import { AuthLayout, FormAlert } from './AuthLayout';
 
 export function RegisterPage() {
   const { register: signUp } = useAuth();
-  const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -23,8 +22,8 @@ export function RegisterPage() {
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
     try {
+      // Setelah status jadi 'authenticated', GuestOnly yang mengarahkan ke onboarding.
       await signUp(values);
-      navigate('/', { replace: true });
     } catch (err) {
       setFormError(applyServerErrors(err, setError, ['name', 'email', 'password']));
     }

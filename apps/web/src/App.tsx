@@ -1,15 +1,18 @@
-import { Route, Routes } from 'react-router-dom';
+import { Outlet, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
-import { LoginPage } from './pages/auth/LoginPage';
-import { RegisterPage } from './pages/auth/RegisterPage';
-import { BudgetsPage } from './pages/BudgetsPage';
-import { CategoriesPage } from './pages/CategoriesPage';
-import { HomePage } from './pages/HomePage';
-import { NotFoundPage } from './pages/NotFoundPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { TransactionsPage } from './pages/TransactionsPage';
-import { WalletsPage } from './pages/WalletsPage';
 import { GuestOnly, RequireAuth } from './routes/guards';
+import {
+  BudgetsPage,
+  CategoriesPage,
+  HomePage,
+  LoginPage,
+  NotFoundPage,
+  OnboardingPage,
+  ProfilePage,
+  RegisterPage,
+  TransactionsPage,
+  WalletsPage,
+} from './routes/pages';
 
 export function App() {
   return (
@@ -25,25 +28,29 @@ export function App() {
       <Route
         path="/daftar"
         element={
-          <GuestOnly>
+          <GuestOnly afterAuth="/mulai">
             <RegisterPage />
           </GuestOnly>
         }
       />
+      {/* Satu RequireAuth untuk semua rute privat agar intro logo tidak diputar ulang antar-rute. */}
       <Route
         element={
           <RequireAuth>
-            <AppLayout />
+            <Outlet />
           </RequireAuth>
         }
       >
-        <Route index element={<HomePage />} />
-        <Route path="transaksi" element={<TransactionsPage />} />
-        <Route path="anggaran" element={<BudgetsPage />} />
-        <Route path="dompet" element={<WalletsPage />} />
-        <Route path="kategori" element={<CategoriesPage />} />
-        <Route path="profil" element={<ProfilePage />} />
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="/mulai" element={<OnboardingPage />} />
+        <Route element={<AppLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="transaksi" element={<TransactionsPage />} />
+          <Route path="anggaran" element={<BudgetsPage />} />
+          <Route path="dompet" element={<WalletsPage />} />
+          <Route path="kategori" element={<CategoriesPage />} />
+          <Route path="profil" element={<ProfilePage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
       </Route>
     </Routes>
   );

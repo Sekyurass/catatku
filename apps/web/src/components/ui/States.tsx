@@ -9,14 +9,29 @@ export function Skeleton({ className }: { className?: string }) {
   );
 }
 
+/** Placeholder halaman selama chunk rute diunduh. */
+export function PageSkeleton() {
+  return (
+    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat halaman">
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-28" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
+    </div>
+  );
+}
+
 export function EmptyState({
   icon: Icon,
   title,
+  titleAs: Title = 'p',
   description,
   action,
 }: {
   icon: LucideIcon;
   title: string;
+  /** Pakai 'h1' bila state ini satu-satunya isi halaman. */
+  titleAs?: 'p' | 'h1' | 'h2';
   description?: string;
   action?: ReactNode;
 }) {
@@ -26,7 +41,7 @@ export function EmptyState({
         <Icon className="size-8" aria-hidden />
       </div>
       <div>
-        <p className="font-semibold text-fg">{title}</p>
+        <Title className="font-semibold text-fg">{title}</Title>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
       {action}

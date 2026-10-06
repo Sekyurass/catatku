@@ -10,4 +10,5 @@ export * from './schemas/category';
 export * from './schemas/transaction';
 export * from './schemas/budget';
 export * from './schemas/report';
+export * from './schemas/event';
 export * from './dto';

@@ -10,6 +10,7 @@ import type {
 import { DATE_REGEX, updateTransactionSchema, updateTransferSchema } from '@catatku/shared';
 import type { Prisma } from '@prisma/client';
 import type { z } from 'zod';
+import { track } from '../../lib/analytics';
 import { notFound, validationError } from '../../lib/errors';
 import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
@@ -203,6 +204,7 @@ export async function createTransaction(
     },
     include,
   });
+  track(userId, 'transaction_created', { type: data.type });
   return toDTO(row);
 }
 
@@ -282,6 +284,7 @@ export async function createTransfer(
       data: { ...base, walletId: data.toWalletId, amount: BigInt(data.amount) },
     }),
   ]);
+  track(userId, 'transaction_created', { type: 'TRANSFER' });
   const legs = await getTransferLegs(userId, transferGroupId);
   return {
     transferGroupId,

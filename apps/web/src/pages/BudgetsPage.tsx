@@ -153,7 +153,7 @@ function MonthSwitcher({ month, onChange }: { month: string; onChange: (m: strin
       <button
         type="button"
         onClick={() => onChange(shiftMonth(month, -1))}
-        className="flex size-10 items-center justify-center rounded-control text-muted hover:bg-surface-muted hover:text-fg"
+        className="flex size-11 items-center justify-center rounded-control text-muted hover:bg-surface-muted hover:text-fg"
         aria-label="Bulan sebelumnya"
       >
         <ChevronLeft className="size-5" aria-hidden />
@@ -162,7 +162,7 @@ function MonthSwitcher({ month, onChange }: { month: string; onChange: (m: strin
         type="button"
         onClick={() => onChange(currentMonth())}
         disabled={isCurrent}
-        className="min-h-10 min-w-36 rounded-control px-2 text-sm font-semibold enabled:hover:bg-surface-muted"
+        className="min-h-11 min-w-36 rounded-control px-2 text-sm font-semibold enabled:hover:bg-surface-muted"
         title={isCurrent ? undefined : 'Kembali ke bulan ini'}
         aria-live="polite"
       >
@@ -171,7 +171,7 @@ function MonthSwitcher({ month, onChange }: { month: string; onChange: (m: strin
       <button
         type="button"
         onClick={() => onChange(shiftMonth(month, 1))}
-        className="flex size-10 items-center justify-center rounded-control text-muted hover:bg-surface-muted hover:text-fg"
+        className="flex size-11 items-center justify-center rounded-control text-muted hover:bg-surface-muted hover:text-fg"
         aria-label="Bulan berikutnya"
       >
         <ChevronRight className="size-5" aria-hidden />

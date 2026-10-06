@@ -193,6 +193,9 @@ describe('HomePage (dashboard)', () => {
   it('mengarahkan pengguna baru untuk membuat dompet', async () => {
     setup({ wallets: [] });
     expect(await screen.findByText('Mulai dengan membuat dompet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Buat dompet' })).toHaveAttribute('href', '/dompet');
+    expect(screen.getByRole('link', { name: 'Buat dompet' })).toHaveAttribute(
+      'href',
+      '/mulai?langkah=2',
+    );
   });
 });

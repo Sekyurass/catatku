@@ -5,6 +5,7 @@ import { createAuthRouter } from '../modules/auth/auth.routes';
 import { createProfileRouter } from '../modules/auth/profile.routes';
 import { createBudgetsRouter } from '../modules/budgets/budget.routes';
 import { createCategoriesRouter } from '../modules/categories/category.routes';
+import { createEventsRouter } from '../modules/events/events.routes';
 import { createExportRouter } from '../modules/export/export.routes';
 import { createFeaturesRouter } from '../modules/features/features.routes';
 import { createReportsRouter } from '../modules/reports/report.routes';
@@ -29,5 +30,6 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/reports', createReportsRouter());
   router.use('/budgets', createBudgetsRouter());
   router.use('/export', createExportRouter());
+  router.use('/events', createEventsRouter());
   return router;
 }

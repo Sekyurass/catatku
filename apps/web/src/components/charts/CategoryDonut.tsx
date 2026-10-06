@@ -15,7 +15,7 @@ export default function CategoryDonut({
   return (
     <div className="relative mx-auto aspect-square w-full max-w-[200px]" aria-hidden>
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+        <PieChart accessibilityLayer={false}>
           <Pie
             data={items}
             dataKey="total"
@@ -24,6 +24,7 @@ export default function CategoryDonut({
             outerRadius="100%"
             paddingAngle={items.length > 1 ? 2 : 0}
             stroke="none"
+            rootTabIndex={-1}
             isAnimationActive={!reduceMotion}
             animationDuration={600}
             animationEasing="ease-out"

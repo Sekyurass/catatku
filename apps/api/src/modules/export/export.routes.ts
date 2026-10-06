@@ -1,5 +1,6 @@
 import { exportTransactionsQuery, toDateString } from '@catatku/shared';
 import { Router } from 'express';
+import { track } from '../../lib/analytics';
 import { parse } from '../../lib/validate';
 import { currentUserId } from '../../middleware/auth';
 import { CSV_HEADER, transactionCsvChunks } from './export.service';
@@ -20,6 +21,7 @@ export function createExportRouter() {
       if (chunk) res.write(chunk);
     }
     res.end();
+    track(userId, 'export_csv');
   });
 
   return router;

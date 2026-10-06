@@ -45,7 +45,7 @@ export function Segmented<T extends string>({
           <label
             key={opt.value}
             className={cn(
-              'relative flex min-h-10 cursor-pointer items-center justify-center rounded-[10px] px-2 text-sm font-semibold text-muted transition-colors duration-300',
+              'relative flex min-h-11 cursor-pointer items-center justify-center rounded-[10px] px-2 text-sm font-semibold text-muted transition-colors duration-300',
               'has-checked:text-fg',
               'has-focus-visible:outline-2 has-focus-visible:outline-primary',
               'has-disabled:cursor-not-allowed has-disabled:opacity-50',
