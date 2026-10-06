@@ -46,3 +46,20 @@ export function authed(user: TestUser) {
     delete: (url: string) => auth(request(app).delete(url)),
   };
 }
+
+export async function createWallet(
+  user: TestUser,
+  body: { name?: string; type?: string; initialBalance?: number } = {},
+): Promise<{ id: string; balance: number }> {
+  const res = await authed(user)
+    .post('/api/v1/wallets')
+    .send({ name: 'Tunai', type: 'CASH', initialBalance: 0, ...body });
+  if (res.status !== 201)
+    throw new Error(`Gagal buat dompet: ${res.status} ${JSON.stringify(res.body)}`);
+  return res.body;
+}
+
+export async function walletBalance(user: TestUser, walletId: string): Promise<number> {
+  const res = await authed(user).get(`/api/v1/wallets/${walletId}`);
+  return res.body.balance;
+}

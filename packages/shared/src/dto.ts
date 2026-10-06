@@ -22,6 +22,8 @@ export interface WalletDTO {
   color: string;
   archivedAt: string | null;
   createdAt: string;
+  /** Waktu transaksi terakhir dicatat di dompet ini (untuk default "terakhir dipakai"). */
+  lastUsedAt: string | null;
 }
 
 export interface CategoryDTO {

@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { createApiLimiter } from '../middleware/rateLimit';
 import { createAuthRouter } from '../modules/auth/auth.routes';
+import { createCategoriesRouter } from '../modules/categories/category.routes';
 import { createFeaturesRouter } from '../modules/features/features.routes';
+import { createTransactionsRouter } from '../modules/transactions/transaction.routes';
+import { createWalletsRouter } from '../modules/wallets/wallet.routes';
 
 export interface V1Options {
   authRateLimit?: number;
@@ -15,5 +18,8 @@ export function createV1Router(opts: V1Options = {}) {
 
   router.use(requireAuth);
   router.use('/features', createFeaturesRouter());
+  router.use('/wallets', createWalletsRouter());
+  router.use('/categories', createCategoriesRouter());
+  router.use('/transactions', createTransactionsRouter());
   return router;
 }

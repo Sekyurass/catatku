@@ -21,5 +21,7 @@ export const validationError = (message: string, fields?: Record<string, string>
 export const unauthorized = (message = 'Sesi berakhir, silakan masuk lagi') =>
   new AppError(401, 'UNAUTHORIZED', message);
 
+export const forbidden = (message: string) => new AppError(403, 'FORBIDDEN', message);
+
 export const conflict = (message: string, fields?: Record<string, string>) =>
   new AppError(409, 'CONFLICT', message, fields);
