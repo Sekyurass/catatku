@@ -11,8 +11,13 @@ import {
   ChartColumn,
   ChartPie,
   ChevronRight,
+  type LucideIcon,
+  Moon,
   Plus,
   ReceiptText,
+  Sun,
+  Sunrise,
+  Sunset,
   WalletMinimal,
 } from 'lucide-react';
 import { lazy, type ReactNode, Suspense, useState } from 'react';
@@ -47,15 +52,7 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-6">
-      <header className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm text-muted">Halo,</p>
-          <h1 className="truncate text-2xl font-bold">{user?.name}</h1>
-        </div>
-        <p className="shrink-0 rounded-full bg-surface-muted px-3 py-1 text-sm font-medium text-muted">
-          {formatMonthLabel(month)}
-        </p>
-      </header>
+      <WelcomeCard name={user?.name ?? ''} month={month} />
 
       {noWallets ? (
         <Card>
@@ -84,6 +81,38 @@ export function HomePage() {
         </>
       )}
     </div>
+  );
+}
+
+function greetingFor(hour: number): { text: string; icon: LucideIcon } {
+  if (hour >= 4 && hour < 11) return { text: 'Selamat pagi', icon: Sunrise };
+  if (hour >= 11 && hour < 15) return { text: 'Selamat siang', icon: Sun };
+  if (hour >= 15 && hour < 18) return { text: 'Selamat sore', icon: Sunset };
+  return { text: 'Selamat malam', icon: Moon };
+}
+
+function WelcomeCard({ name, month }: { name: string; month: string }) {
+  const { text, icon: Icon } = greetingFor(new Date().getHours());
+  return (
+    <Card className="flex items-center gap-4 bg-linear-to-r from-primary-soft/70 to-surface">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface text-primary shadow-card">
+        <Icon className="size-6" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-xl font-bold sm:text-2xl">
+          {text}, {name}!
+        </h1>
+        <p className="text-sm text-muted">
+          Selamat datang kembali. Yuk catat transaksi hari ini dan pantau sisa uangmu.
+        </p>
+        <p className="mt-1 text-xs font-semibold text-primary sm:hidden">
+          {formatMonthLabel(month)}
+        </p>
+      </div>
+      <p className="hidden shrink-0 rounded-full bg-surface px-3 py-1 text-sm font-medium text-muted sm:block">
+        {formatMonthLabel(month)}
+      </p>
+    </Card>
   );
 }
 
@@ -289,16 +318,18 @@ function TrendCard({ className }: { className?: string }) {
         }
       />
       {trend.isPending ? (
-        <Skeleton className="h-56 sm:h-64" />
+        <Skeleton className="min-h-56 flex-1 sm:min-h-64" />
       ) : trend.isError ? (
         <ErrorState message={trend.error.message} onRetry={() => void trend.refetch()} />
       ) : !hasData ? (
         <EmptyState icon={ChartColumn} title="Belum ada data 6 bulan terakhir" />
       ) : (
         <>
-          <Suspense fallback={<Skeleton className="h-56 sm:h-64" />}>
-            <TrendChart points={trend.data.months} />
-          </Suspense>
+          <div className="relative min-h-56 flex-1 sm:min-h-64">
+            <Suspense fallback={<Skeleton className="absolute inset-0" />}>
+              <TrendChart points={trend.data.months} />
+            </Suspense>
+          </div>
           <table className="sr-only">
             <caption>Pemasukan dan pengeluaran 6 bulan terakhir</caption>
             <thead>

@@ -8,12 +8,15 @@ const SERIES = [
   { key: 'expense', name: 'Pengeluaran', color: 'var(--expense)' },
 ] as const;
 
-/** Grafik batang dekoratif; data yang sama tersedia sebagai tabel untuk pembaca layar. */
+/**
+ * Grafik batang dekoratif; data yang sama tersedia sebagai tabel untuk pembaca layar.
+ * Mengisi penuh induknya, jadi induk harus `relative` dan punya tinggi.
+ */
 export default function TrendChart({ points }: { points: TrendPoint[] }) {
   const reduceMotion = usePrefersReducedMotion();
   const data = points.map((p) => ({ ...p, label: formatMonthShort(p.month) }));
   return (
-    <div className="h-56 w-full sm:h-64" aria-hidden>
+    <div className="absolute inset-0" aria-hidden>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }} barGap={2}>
           <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -51,7 +54,7 @@ export default function TrendChart({ points }: { points: TrendPoint[] }) {
               name={s.name}
               fill={s.color}
               radius={[4, 4, 0, 0]}
-              maxBarSize={28}
+              maxBarSize={32}
               isAnimationActive={!reduceMotion}
             />
           ))}
