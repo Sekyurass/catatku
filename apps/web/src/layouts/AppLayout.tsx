@@ -1,8 +1,10 @@
-import { House, ListOrdered, PiggyBank, Plus, UserRound } from 'lucide-react';
+import { House, ListOrdered, Loader2, LogOut, PiggyBank, Plus, UserRound } from 'lucide-react';
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 import { QuickAddProvider, useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
+import { useAuth } from '../lib/auth';
 import { cn } from '../lib/cn';
 
 export const NAV_ITEMS = [
@@ -68,6 +70,7 @@ function Shell() {
               <SideLink key={item.to} item={item} />
             ))}
           </nav>
+          <SideLogout />
         </div>
       </aside>
 
@@ -130,6 +133,41 @@ function SideLink({ item: { to, label, icon: Icon, end } }: { item: NavItem }) {
       <Icon className="size-5 shrink-0" aria-hidden />
       {label}
     </NavLink>
+  );
+}
+
+function SideLogout() {
+  const { user, logout } = useAuth();
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="mt-auto flex flex-col gap-2 border-t border-line pt-4">
+      {user && (
+        <div className="hidden min-w-0 px-3 lg:block">
+          <p className="truncate text-sm font-semibold">{user.name}</p>
+          <p className="truncate text-xs text-muted">{user.email}</p>
+        </div>
+      )}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await logout();
+        }}
+        className={cn(
+          'flex min-h-11 flex-col items-center justify-center gap-1 rounded-control px-1 py-2 text-[11px] font-medium text-muted',
+          'lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-0 lg:text-sm',
+          'hover:bg-expense/10 hover:text-expense-text disabled:opacity-60',
+        )}
+      >
+        {busy ? (
+          <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
+        ) : (
+          <LogOut className="size-5 shrink-0" aria-hidden />
+        )}
+        Keluar
+      </button>
+    </div>
   );
 }
 
