@@ -45,6 +45,9 @@ export const NotificationSettingsPage = page(() =>
   import('../pages/NotificationSettingsPage').then((m) => m.NotificationSettingsPage),
 );
 export const ProfilePage = page(() => import('../pages/ProfilePage').then((m) => m.ProfilePage));
+export const PrivacyPolicyPage = page(() =>
+  import('../pages/privacy/PrivacyPolicyPage').then((m) => m.PrivacyPolicyPage),
+);
 export const NotFoundPage = page(() => import('../pages/NotFoundPage').then((m) => m.NotFoundPage));
 
 const APP_PAGES = [

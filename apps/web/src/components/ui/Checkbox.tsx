@@ -8,12 +8,16 @@ export function Checkbox({
   label,
   description,
   className,
+  invalid,
+  describedBy,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: ReactNode;
   description?: ReactNode;
   className?: string;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   return (
     <label
@@ -27,11 +31,16 @@ export function Checkbox({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         className="sr-only"
       />
       <span
         aria-hidden
-        className="flex size-5 shrink-0 items-center justify-center rounded-md border-2 border-line text-on-primary transition-colors group-has-checked:border-primary group-has-checked:bg-primary"
+        className={cn(
+          'flex size-5 shrink-0 items-center justify-center rounded-md border-2 border-line text-on-primary transition-colors group-has-checked:border-primary group-has-checked:bg-primary',
+          invalid && 'border-expense',
+        )}
       >
         <Check className="size-3.5 opacity-0 group-has-checked:opacity-100" strokeWidth={3} />
       </span>

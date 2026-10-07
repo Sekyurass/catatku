@@ -68,6 +68,9 @@ model User {
   avatarUpdatedAt DateTime?
   /// Opt-in: kalimat ketik cepat yang dikoreksi boleh disimpan (tanpa identitas) sebagai dataset.
   shareQuickText  Boolean   @default(false)
+  /// Persetujuan Kebijakan Privasi terakhir (PRIVACY_POLICY_VERSION); null = belum pernah.
+  privacyVersion  String?
+  privacyAgreedAt DateTime?
 
   avatar              UserAvatar?
   wallets             Wallet[]

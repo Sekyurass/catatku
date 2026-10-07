@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { SplashScreen } from './components/SplashScreen';
 import { AppLayout } from './layouts/AppLayout';
+import { PrivacyGate } from './pages/privacy/PrivacyGate';
 import { GuestOnly, RequireAuth } from './routes/guards';
 import {
   AuthPage,
@@ -14,6 +15,7 @@ import {
   NotFoundPage,
   NotificationSettingsPage,
   OnboardingPage,
+  PrivacyPolicyPage,
   ProfilePage,
   RecurringPage,
   ReportsPage,
@@ -58,11 +60,21 @@ export function App() {
           </Suspense>
         }
       />
+      <Route
+        path="/privasi"
+        element={
+          <Suspense fallback={<SplashScreen progress={false} />}>
+            <PrivacyPolicyPage />
+          </Suspense>
+        }
+      />
       {/* Satu RequireAuth untuk semua rute privat agar intro logo tidak diputar ulang antar-rute. */}
       <Route
         element={
           <RequireAuth>
-            <Outlet />
+            <PrivacyGate>
+              <Outlet />
+            </PrivacyGate>
           </RequireAuth>
         }
       >

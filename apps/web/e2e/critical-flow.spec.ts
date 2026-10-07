@@ -8,6 +8,9 @@ test('daftar → buat dompet → catat → lihat dashboard', async ({ page }) =>
   await page.getByLabel('Kata sandi', { exact: true }).fill(PASSWORD);
   await page.getByLabel('Ulangi kata sandi').fill(PASSWORD);
   await page.getByRole('button', { name: 'Daftar' }).click();
+  await expect(page.getByText('Setujui Kebijakan Privasi untuk mendaftar')).toBeVisible();
+  await page.getByRole('checkbox', { name: /menyetujui/ }).check({ force: true });
+  await page.getByRole('button', { name: 'Daftar' }).click();
 
   // Onboarding langkah 1: sambutan.
   await expect(page).toHaveURL(/\/mulai/);

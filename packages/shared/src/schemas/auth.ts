@@ -21,12 +21,28 @@ const currentPasswordSchema = z
   .string({ error: 'Kata sandi saat ini wajib diisi' })
   .min(1, { error: 'Kata sandi saat ini wajib diisi' });
 
+/** Naikkan saat isi Kebijakan Privasi berubah; pengguna diminta menyetujui ulang. */
+export const PRIVACY_POLICY_VERSION = '2026-10-08';
+
+const acceptPrivacySchema = z.literal(true, {
+  error: 'Setujui Kebijakan Privasi untuk melanjutkan',
+});
+
 export const registerSchema = z.object({
   name: nameSchema,
   email: emailSchema,
   password: newPasswordSchema,
+  acceptPrivacy: acceptPrivacySchema,
+  /** Opt-in dataset ketik cepat; bawaan tidak ikut. */
+  shareQuickText: z.boolean().optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const privacyConsentSchema = z.object({
+  acceptPrivacy: acceptPrivacySchema,
+  shareQuickText: z.boolean().optional(),
+});
+export type PrivacyConsentInput = z.infer<typeof privacyConsentSchema>;
 
 export const loginSchema = z.object({
   email: emailSchema,

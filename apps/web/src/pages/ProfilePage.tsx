@@ -12,6 +12,7 @@ import {
   LogOut,
   Pencil,
   Repeat,
+  ShieldCheck,
   Tags,
   Trash2,
   WalletMinimal,
@@ -35,6 +36,7 @@ import { useAuth } from '../lib/auth';
 import { AvatarImageError, compressAvatar } from '../lib/avatar';
 import { useFeature } from '../lib/features';
 import { applyServerErrors } from '../lib/forms';
+import { formatLongDate } from '../lib/format';
 import { FormAlert } from './auth/AuthLayout';
 
 const LINKS = [
@@ -178,16 +180,35 @@ export function ProfilePage() {
       <Card>
         <ThemePicker />
       </Card>
-      {quickTextOn && <QuickTextSharingCard />}
-      <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <p className="font-medium">Ekspor data</p>
-          <p className="text-sm text-muted">
-            Unduh seluruh riwayat transaksi sebagai CSV untuk Excel atau Google Sheets.
-          </p>
-        </div>
-        <ExportButton label="Unduh CSV" />
-      </Card>
+      <section aria-labelledby="privasi-data" className="flex flex-col gap-3">
+        <h2 id="privasi-data" className="pt-2 text-lg font-semibold">
+          Privasi & data
+        </h2>
+        <Card className="p-1">
+          <Link to="/privasi" className={rowClass}>
+            <ShieldCheck className="size-5 text-primary" aria-hidden />
+            <span className="flex-1">
+              <span className="block font-medium">Kebijakan Privasi</span>
+              {user?.privacyVersion && (
+                <span className="block text-sm text-muted">
+                  Kamu setujui versi {formatLongDate(user.privacyVersion)}
+                </span>
+              )}
+            </span>
+            <ChevronRight className="size-5 text-muted" aria-hidden />
+          </Link>
+        </Card>
+        {quickTextOn && <QuickTextSharingCard />}
+        <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <p className="font-medium">Ekspor data</p>
+            <p className="text-sm text-muted">
+              Unduh seluruh riwayat transaksi sebagai CSV untuk Excel atau Google Sheets.
+            </p>
+          </div>
+          <ExportButton label="Unduh CSV" />
+        </Card>
+      </section>
       {/* Di tablet & desktop tombol Keluar ada di sidebar; HP tidak punya sidebar. */}
       <Button
         variant="danger"

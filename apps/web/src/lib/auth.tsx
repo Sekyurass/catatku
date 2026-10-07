@@ -2,6 +2,7 @@ import type {
   AuthResponse,
   ChangePasswordInput,
   LoginInput,
+  PrivacyConsentInput,
   RegisterInput,
   ResetPasswordInput,
   UpdateProfileInput,
@@ -33,6 +34,8 @@ interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   updateProfile: (input: UpdateProfileInput) => Promise<void>;
+  /** Menyetujui Kebijakan Privasi versi terbaru. */
+  agreePrivacy: (input: PrivacyConsentInput) => Promise<void>;
   /** Sesi di perangkat lain berakhir; perangkat ini menerima sesi baru. */
   changePassword: (input: ChangePasswordInput) => Promise<void>;
   /** Kata sandi baru dari tautan email; berhasil berarti langsung masuk. */
@@ -96,6 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }, []);
 
+  const agreePrivacy = useCallback(async (input: PrivacyConsentInput) => {
+    const res = await api<{ user: UserDTO }>('/me/privacy', { method: 'PUT', body: input });
+    setUser(res.user);
+  }, []);
+
   const changePassword = useCallback(
     async (input: ChangePasswordInput) => {
       applySession(await api<AuthResponse>('/me/password', { method: 'PUT', body: input }));
@@ -150,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       updateProfile,
+      agreePrivacy,
       changePassword,
       resetPassword,
       uploadAvatar,
@@ -163,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       updateProfile,
+      agreePrivacy,
       changePassword,
       resetPassword,
       uploadAvatar,

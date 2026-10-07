@@ -2,6 +2,7 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
+  privacyConsentSchema,
   registerSchema,
   resetPasswordSchema,
   updateProfileSchema,
@@ -58,6 +59,11 @@ export async function me(req: Request, res: Response) {
 export async function updateProfile(req: Request, res: Response) {
   const input = parse(updateProfileSchema, req.body);
   res.json({ user: await authService.updateProfile(currentUserId(req), input) });
+}
+
+export async function agreePrivacy(req: Request, res: Response) {
+  const input = parse(privacyConsentSchema, req.body);
+  res.json({ user: await authService.agreePrivacy(currentUserId(req), input) });
 }
 
 export async function changePassword(req: Request, res: Response) {

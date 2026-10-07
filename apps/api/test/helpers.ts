@@ -24,7 +24,9 @@ export interface TestUser {
 export async function registerUser(name = 'Penguji'): Promise<TestUser> {
   const email = uniqueEmail();
   const password = 'rahasia123';
-  const res = await request(app).post('/api/v1/auth/register').send({ name, email, password });
+  const res = await request(app)
+    .post('/api/v1/auth/register')
+    .send({ name, email, password, acceptPrivacy: true });
   if (res.status !== 201)
     throw new Error(`Gagal daftar: ${res.status} ${JSON.stringify(res.body)}`);
   return {

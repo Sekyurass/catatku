@@ -56,6 +56,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         '/lupa-kata-sandi',
         '/atur-ulang-kata-sandi#token=contoh',
         '/atur-ulang-kata-sandi',
+        '/privasi',
       ]) {
         await page.goto(path);
         await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);

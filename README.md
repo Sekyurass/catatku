@@ -351,6 +351,13 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     (`maskSensitive`, dijalankan lagi di server), `corrected` = daftar isian yang diubah. Kalimat yang
     disimpan tanpa diubah tidak dikirim. Masa simpan 90 hari (`expiresAt`), dihapus oleh job terjadwal
     tiap jam. Ekspor untuk evaluasi parser: `npm run dataset:export -w @catatku/api > sampel.jsonl`.
+- **Kebijakan Privasi & persetujuan**: halaman publik `/privasi` (`PrivacyPolicyPage`). Saat daftar ada dua
+  centang: persetujuan Kebijakan Privasi (wajib, `acceptPrivacy: true`) dan ikut dataset Ketik cepat
+  (opsional, mati secara bawaan → `User.shareQuickText`). Server menyimpan `User.privacyVersion` +
+  `privacyAgreedAt`. Bila `privacyVersion` ≠ `PRIVACY_POLICY_VERSION` (pengguna lama, atau kebijakan
+  diperbarui), `PrivacyGate` menahan semua halaman privat sampai pengguna setuju (`PUT /me/privacy`).
+  Mengubah isi kebijakan = naikkan `PRIVACY_POLICY_VERSION` di `packages/shared/src/schemas/auth.ts`.
+  Di Profil, bagian **Privasi & data** berisi tautan kebijakan, sakelar Ketik cepat, dan ekspor data.
 - **Perkiraan akhir bulan** (Fase 2.4, flag `forecast`): kartu di Beranda di bawah ringkasan. Perkiraan
   saldo akhir bulan = saldo sekarang − rata-rata pengeluaran harian × sisa hari − tagihan berulang yang
   akan datang + pemasukan terjadwal, ditampilkan sebagai **rentang pesimis–optimis**, plus rincian dan
@@ -446,7 +453,10 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
 
 Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 
-- ✅ `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
+- ✅ `POST /auth/register` `{ name, email, password, acceptPrivacy: true, shareQuickText? }`, `/auth/login`,
+  `/auth/refresh`, `/auth/logout`
+- ✅ `PUT /me/privacy` `{ acceptPrivacy: true, shareQuickText? }` → `{ user }`: mencatat persetujuan versi
+  Kebijakan Privasi terbaru (`shareQuickText` hanya diubah bila dikirim)
 - ✅ `POST /auth/forgot-password` `{ email }` → selalu 204 (tidak membocorkan email terdaftar; maks 1 email/menit/akun),
   `POST /auth/reset-password` `{ token, password }` → sesi baru + cookie refresh; semua sesi lain dicabut.
   Token sekali pakai, berlaku 30 menit, disimpan sebagai hash; tautan memakai fragmen

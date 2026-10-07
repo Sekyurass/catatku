@@ -2,6 +2,8 @@ import {
   type ChangePasswordInput,
   type ForgotPasswordInput,
   type LoginInput,
+  PRIVACY_POLICY_VERSION,
+  type PrivacyConsentInput,
   type RegisterInput,
   RESET_RESEND_COOLDOWN_SECONDS,
   type ResetPasswordInput,
@@ -41,6 +43,7 @@ export function toUserDTO(user: User): UserDTO {
     plan: user.plan,
     createdAt: user.createdAt.toISOString(),
     avatarUpdatedAt: user.avatarUpdatedAt?.toISOString() ?? null,
+    privacyVersion: user.privacyVersion,
   };
 }
 
@@ -77,6 +80,9 @@ export async function register(input: RegisterInput, meta: ClientMeta): Promise<
       email: input.email,
       name: input.name,
       passwordHash: await hashPassword(input.password),
+      privacyVersion: PRIVACY_POLICY_VERSION,
+      privacyAgreedAt: new Date(),
+      shareQuickText: input.shareQuickText ?? false,
     },
   });
   track(user.id, 'user_registered');
@@ -133,6 +139,20 @@ async function findUser(userId: string): Promise<User> {
 
 export async function getProfile(userId: string): Promise<UserDTO> {
   return toUserDTO(await findUser(userId));
+}
+
+/** Menyetujui Kebijakan Privasi versi terbaru (pengguna lama, atau setelah kebijakan diperbarui). */
+export async function agreePrivacy(userId: string, input: PrivacyConsentInput): Promise<UserDTO> {
+  await findUser(userId);
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      privacyVersion: PRIVACY_POLICY_VERSION,
+      privacyAgreedAt: new Date(),
+      ...(input.shareQuickText !== undefined && { shareQuickText: input.shareQuickText }),
+    },
+  });
+  return toUserDTO(user);
 }
 
 export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<UserDTO> {

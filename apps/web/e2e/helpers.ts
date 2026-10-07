@@ -14,7 +14,7 @@ export function uniqueEmail() {
 export async function signUpViaApi(request: APIRequestContext, name = 'Penguji E2E') {
   const email = uniqueEmail();
   const res = await request.post('/api/v1/auth/register', {
-    data: { name, email, password: PASSWORD },
+    data: { name, email, password: PASSWORD, acceptPrivacy: true },
   });
   expect(res.status(), await res.text()).toBe(201);
   const { accessToken } = (await res.json()) as { accessToken: string };

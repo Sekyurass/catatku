@@ -18,6 +18,8 @@ export interface UserDTO {
   createdAt: string;
   /** null = belum ada foto profil. Berubah setiap foto diganti. */
   avatarUpdatedAt: string | null;
+  /** Versi Kebijakan Privasi yang terakhir disetujui; null = belum pernah. */
+  privacyVersion: string | null;
 }
 
 export interface AuthResponse {
