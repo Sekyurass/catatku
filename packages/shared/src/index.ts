@@ -3,6 +3,7 @@ export * from './categorize';
 export * from './constants';
 export * from './csvImport';
 export * from './errors';
+export * from './forecast';
 export * from './goal';
 export * from './insights';
 export * from './money';

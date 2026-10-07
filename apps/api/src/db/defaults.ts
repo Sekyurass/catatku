@@ -61,6 +61,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   [FEATURE_FLAGS.INSIGHTS]: 'Fase 2.3 — insight otomatis berbasis aturan di Beranda',
   [FEATURE_FLAGS.ADVANCED_REPORTS]: 'Fase 2.2 — halaman Laporan (bulanan/tahunan) + ekspor PDF',
   [FEATURE_FLAGS.NATURAL_INPUT]: 'Fase 3.3 — ketik cepat bahasa natural di form catat',
+  [FEATURE_FLAGS.FORECAST]: 'Fase 2.4 — perkiraan saldo akhir bulan (rentang) di Beranda',
 };
 
 /** Kategori default + baris feature flag (nonaktif). Aman dijalankan berulang. */

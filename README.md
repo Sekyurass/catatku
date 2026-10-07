@@ -71,10 +71,11 @@ menyalakannya:
 -- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
 UPDATE "FeatureFlag" SET enabled = true
 WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category',
-              'tags', 'attachments', 'savings_goals', 'insights', 'advanced_reports', 'natural_input');
+              'tags', 'attachments', 'savings_goals', 'insights', 'advanced_reports', 'natural_input',
+              'forecast');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on,advanced_reports:on,natural_input:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on,advanced_reports:on,natural_input:on,forecast:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan.
 Lampiran foto butuh `STORAGE_S3_*` (lihat [Lampiran foto](#lampiran-foto-supabase-storage)); tanpa itu flag
 `attachments` selalu dianggap mati. Akun baru dari halaman **Daftar**
@@ -342,6 +343,19 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
   - **Metrik**: set uji 62 kalimat di `quickText.test.ts` (gagal bila nominal < 100% atau kalimat benar
     seluruhnya < 95%; saat ini 62/62). Di produksi event `quick_text_used` `{ fields, accepted }` saat
     menyimpan: `accepted` = hasil bacaan disimpan tanpa diubah (ukuran akurasi nyata).
+- **Perkiraan akhir bulan** (Fase 2.4, flag `forecast`): kartu di Beranda di bawah ringkasan. Perkiraan
+  saldo akhir bulan = saldo sekarang − rata-rata pengeluaran harian × sisa hari − tagihan berulang yang
+  akan datang + pemasukan terjadwal, ditampilkan sebagai **rentang pesimis–optimis**, plus rincian dan
+  "Cara menghitung" (daftar transaksi terjadwal).
+  - **Rumus** (`computeForecast` di `packages/shared/src/forecast.ts`, murni dan diuji): rata-rata harian dari
+    maks. 30 hari sebelum hari ini (hari tanpa catatan = 0; sejak transaksi pertama bila lebih baru).
+    Transfer dan transaksi yang dibuat aturan berulang tidak ikut supaya tagihan tidak terhitung dua kali.
+    Sisa hari = hari setelah hari ini sampai akhir bulan (hari ini sudah masuk saldo).
+  - **Rentang**: data ≥ 14 hari → minggu paling boros (pesimis) dan paling hemat (optimis) dari maks. 4
+    minggu penuh terakhir; 7–13 hari → ±25% dari rata-rata; < 7 hari → perkiraan belum ditampilkan.
+  - **Terjadwal**: kejadian aturan berulang aktif (tidak dijeda, dompet tidak diarsipkan) dari `nextIndex`
+    sampai akhir bulan dengan menghormati `endDate`, ditambah kejadian berstatus menunggu konfirmasi.
+  - **Status**: aman (pesimis ≥ 0), menipis (pesimis < 0 ≤ tengah), kurang (tengah < 0).
 - **Tag** (Fase 2.5, flag `tags`): tabel `Tag (userId, name, key)` unik per `(userId, key)`, dengan `key` =
   nama huruf kecil dan spasi dirapikan, jadi "Liburan Bali", "#liburan bali" dan "LIBURAN BALI" adalah tag
   yang sama. Relasi banyak-ke-banyak `TransactionTag`; maks. 10 tag per transaksi, nama maks. 30 karakter,
@@ -526,6 +540,10 @@ categoryId, name, icon, color, from, to, diff, change: number|null }] }` (urut |
   - `GET /reports/yearly?year=2000–2100` → `{ year, income, expense, net, months: [12 × totals],
 averageMonthlyExpense, monthsCounted, topCategories }`
   - `GET /export/report.pdf?month=` → `application/pdf` (`catatku-laporan-YYYY-MM.pdf`)
+  - `GET /reports/forecast` (flag `forecast`) → `{ month, today, monthEnd, daysLeft, balance, historyDays,
+enoughData, daily: {low, average, high}, spending: {low, average, high}, upcoming: { items: [{ date, type,
+amount, note, category, status: pending|scheduled }], income, expense }, projected: {low, mid, high}, status:
+safe|tight|short }`
 
 ### Fase 3 (di balik feature flag; flag mati → 404)
 

@@ -23,6 +23,7 @@ import {
 import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BalanceCard } from '../components/dashboard/BalanceCard';
+import { ForecastCard } from '../components/dashboard/ForecastCard';
 import { IconBadge } from '../components/IconBadge';
 import { InsightsSection } from '../components/insights/InsightsSection';
 import { BellButton } from '../components/notifications/NotificationCenter';
@@ -58,6 +59,7 @@ export function HomePage() {
   const recurringOn = useFeature('recurring_transactions');
   const templatesOn = useFeature('templates');
   const insightsOn = useFeature('insights');
+  const forecastOn = useFeature('forecast');
 
   const noWallets = wallets.isSuccess && wallets.data.length === 0;
 
@@ -84,6 +86,7 @@ export function HomePage() {
       ) : (
         <>
           <SummaryCards summary={summary} />
+          {forecastOn && <ForecastCard />}
           {templatesOn && <QuickRecordCard />}
           {recurringOn && <PendingRecurringCard />}
           {insightsOn && <InsightsSection />}

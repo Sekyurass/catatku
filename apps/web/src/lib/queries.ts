@@ -6,6 +6,7 @@ import type {
   CategoryMapDTO,
   CategoryType,
   CompareDTO,
+  ForecastDTO,
   GoalContributionDTO,
   GoalDTO,
   ImportBatchDTO,
@@ -62,7 +63,15 @@ export const queryKeys = {
   monthlyReport: (month: string) => ['reports', 'monthly', month] as const,
   compare: (from: string, to: string) => ['reports', 'compare', from, to] as const,
   yearlyReport: (year: number) => ['reports', 'yearly', year] as const,
+  forecast: ['reports', 'forecast'] as const,
 };
+
+export function useForecast() {
+  return useQuery({
+    queryKey: queryKeys.forecast,
+    queryFn: ({ signal }) => api<ForecastDTO>('/reports/forecast', { signal }),
+  });
+}
 
 export function useMonthlyReport(month: string) {
   return useQuery({

@@ -11,6 +11,7 @@ import { parse } from '../../lib/validate';
 import { currentUserId } from '../../middleware/auth';
 import { requireFeature } from '../features/features.routes';
 import { getByTag } from '../tags/tag.service';
+import { getForecast } from './forecast.service';
 import * as reportService from './report.service';
 
 export function createReportsRouter() {
@@ -51,6 +52,10 @@ export function createReportsRouter() {
   router.get('/yearly', advanced, async (req, res) => {
     const { year } = parse(reportYearlyQuery, req.query);
     res.json(await reportService.getYearly(currentUserId(req), year));
+  });
+
+  router.get('/forecast', requireFeature(FEATURE_FLAGS.FORECAST), async (req, res) => {
+    res.json(await getForecast(currentUserId(req)));
   });
 
   return router;
