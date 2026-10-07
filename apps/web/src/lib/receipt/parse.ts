@@ -13,6 +13,8 @@ export interface ReceiptFields {
   /** YYYY-MM-DD */
   date: ReceiptField<string> | null;
   merchant: ReceiptField<string> | null;
+  /** Nama barang yang dibeli, urut seperti di struk (maks. MAX_ITEMS). */
+  items: string[];
 }
 
 export interface OcrLine {
@@ -228,24 +230,28 @@ function toIsoDate(year: number, month: number, day: number): string | null {
 const daysBetween = (a: string, b: string) =>
   Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
+/** Semua tanggal valid di satu baris, urut dari kiri. */
+function datesIn(text: string): string[] {
+  const found: Array<{ index: number; iso: string }> = [];
+  for (const { re, order } of DATE_PATTERNS) {
+    for (const m of text.matchAll(re)) {
+      const [, a, b, c] = m as unknown as [string, string, string, string];
+      let iso: string | null = null;
+      if (order === 'ymd') iso = toIsoDate(+a, +b, +c);
+      else if (order === 'dmy') iso = toIsoDate(+c, +b, +a);
+      else {
+        const month = MONTHS[b.slice(0, 3)];
+        if (month) iso = toIsoDate(+c, month, +a);
+      }
+      if (iso) found.push({ index: m.index, iso });
+    }
+  }
+  return found.sort((x, y) => x.index - y.index).map((f) => f.iso);
+}
+
 function findPrintedDate(lines: Line[], today: string): ReceiptField<string> | null {
   for (const line of lines) {
-    const found: Array<{ index: number; iso: string }> = [];
-    for (const { re, order } of DATE_PATTERNS) {
-      for (const m of line.text.matchAll(re)) {
-        const [, a, b, c] = m as unknown as [string, string, string, string];
-        let iso: string | null = null;
-        if (order === 'ymd') iso = toIsoDate(+a, +b, +c);
-        else if (order === 'dmy') iso = toIsoDate(+c, +b, +a);
-        else {
-          const month = MONTHS[b.slice(0, 3)];
-          if (month) iso = toIsoDate(+c, month, +a);
-        }
-        if (iso) found.push({ index: m.index, iso });
-      }
-    }
-    found.sort((x, y) => x.index - y.index);
-    for (const { iso } of found) {
+    for (const iso of datesIn(line.text)) {
       const age = daysBetween(iso, today);
       // Masa depan atau terlalu lama = hampir pasti salah baca (mis. jam "10.10.10").
       if (age < -1 || age > MAX_RECEIPT_AGE_DAYS) continue;
@@ -315,12 +321,32 @@ const KNOWN_MERCHANTS: Array<[RegExp, string]> = [
 
 const NOT_MERCHANT_RE =
   /\b(JL|JLN|JALAN|TELP?|TLP|PHONE|HP|WA|NPWP|NO|KASIR|STRUK|NOTA|INVOICE|FAKTUR|TANGGAL|TGL|JAM|WWW|HTTPS?|RT|RW|KEL|KEC|KAB|KOTA|BLOK|RUKO|LT|CABANG|CAB|BON|ORDER|MEJA|TABLE|SELAMAT|WELCOME|TERIMA|KASIH|CUSTOMER|PELANGGAN|ALAMAT|KODE|ID)\b/;
-const KEEP_UPPER = new Set(['PT', 'CV', 'UD', 'TB', 'RM', 'KFC', 'SPBU']);
+const KEEP_UPPER = new Set([
+  'PT',
+  'CV',
+  'UD',
+  'TB',
+  'RM',
+  'KFC',
+  'SPBU',
+  'UHT',
+  'ATM',
+  'LPG',
+  'USB',
+  'AC',
+  'TV',
+]);
+
+/** Singkatan tanpa vokal (UHT, KFC, SPC) dan ukuran satu huruf (2L) tetap huruf besar. */
+const keepUpper = (w: string) => {
+  const bare = w.replace(/[.,]/g, '');
+  return KEEP_UPPER.has(bare) || /^[B-DF-HJ-NP-TV-Z]{2,4}$/.test(bare) || /^\d+[A-Z]$/.test(bare);
+};
 
 function titleCase(text: string): string {
   return text
     .split(' ')
-    .map((w) => (KEEP_UPPER.has(w.replace(/\./g, '')) ? w : w.charAt(0) + w.slice(1).toLowerCase()))
+    .map((w) => (keepUpper(w) ? w : w.charAt(0) + w.slice(1).toLowerCase()))
     .join(' ');
 }
 
@@ -366,7 +392,81 @@ function findMerchant(lines: Line[]): ReceiptField<string> | null {
   return { value: titleCase(chosen), confidence: 'low' };
 }
 
-/** Ambil total, tanggal, dan nama toko dari teks hasil OCR. Tidak pernah melempar error. */
+const MAX_ITEMS = 12;
+const MAX_ITEM_LENGTH = 40;
+/** Batas daftar barang: baris total/subtotal/jumlah item, atau baris pembayaran. */
+const ITEMS_END_RE = new RegExp(
+  `\\b(SUB\\s?-?\\s?)?${TOTAL}\\b|\\b(JUMLAH|JML|ITEM|QTY|TUNAI|CASH|KEMBALI(AN)?|CHANGE)\\b`,
+);
+/** Baris kepala struk (alamat, kasir, nomor, jam); barang selalu tercetak di bawahnya. */
+const isHeaderLine = (text: string) =>
+  text.includes(':') || text.includes('#') || NOT_MERCHANT_RE.test(text) || ID_LINE_RE.test(text);
+/** Biaya tambahan, bukan barang. Baris berpersen (PB1 10%, Service 5%) juga dilewati. */
+const NOT_ITEM_RE =
+  /%|\b(PB1|PPN|DPP|PAJAK|TAX|SERVICE CHARGE|DISKON|DISC|POTONGAN|HEMAT|VOUCHER|DONASI|PEMBULATAN|ROUNDING|ADMIN|ONGKIR|POIN|POINT|DEPOSIT)\b/;
+/** Token penutup baris barang: jumlah, harga, satuan ("2 x 25.000 50.000", "1 STRIP 12.500"). */
+const ITEM_TAIL_RE =
+  /^(\d[\d.,]*|X|@|RP\.?|PCS|PC|STRIP|BTL|BOTOL|SAK|BH|BUAH|KG|GR|G|L|LTR|ML|PAK|PACK|BOX|DUS|-+\.?)$/;
+
+/** Harga berformat ribuan ("18.000", "RP15.000"); semua setelahnya bukan bagian nama barang. */
+const PRICE_TOKEN_RE = /^(RP\.?)?\d{1,3}([.,]\d{3})+([.,]\d{2})?$/;
+
+function itemName(line: string): string | null {
+  const words = line
+    .replace(/^\d{1,3}\s?X?\s+(?=[A-Z])/, '')
+    .split(' ')
+    .filter(Boolean);
+  const price = words.findIndex((w) => PRICE_TOKEN_RE.test(w));
+  if (price >= 0) words.length = price;
+  while (words.length > 0 && ITEM_TAIL_RE.test(words.at(-1)!)) words.pop();
+  const name = words.join(' ').replace(/[^A-Z0-9)%]+$/, '');
+  const letters = name.replace(/[^A-Z]/g, '').length;
+  const visible = name.replace(/\s/g, '').length;
+  if (letters < 3 || letters / visible < 0.5) return null;
+  return titleCase(name.slice(0, MAX_ITEM_LENGTH).trim());
+}
+
+function findItems(lines: Line[]): string[] {
+  let end = lines.findIndex((l) => ITEMS_END_RE.test(l.text));
+  if (end < 0) end = lines.length;
+  let start = 0;
+  for (let i = 0; i < end; i++) {
+    if (isHeaderLine(lines[i]!.text) || datesIn(lines[i]!.text).length > 0) start = i + 1;
+  }
+  const items: string[] = [];
+  // Supermarket sering mencetak nama di satu baris lalu "1 x 38.500  38.500" di baris berikutnya.
+  let pendingName: string | null = null;
+  for (const { text } of lines.slice(start, end)) {
+    if (NOT_ITEM_RE.test(text)) {
+      pendingName = null;
+      continue;
+    }
+    if (!FORMATTED_AMOUNT_RE.test(text) || lastAmount(text) === undefined) {
+      pendingName = itemName(text);
+      continue;
+    }
+    const name = itemName(text) ?? pendingName;
+    pendingName = null;
+    if (name) items.push(name);
+  }
+  return items.slice(0, MAX_ITEMS);
+}
+
+const NOTE_MAX = 200;
+
+/** "Toko: Barang A, Barang B" muat dalam batas catatan; sisa barang diringkas "+N lainnya". */
+export function receiptNote(merchant: string | null, items: string[]): string | null {
+  if (items.length === 0) return merchant;
+  const prefix = merchant ? `${merchant}: ` : '';
+  for (let n = items.length; n > 0; n--) {
+    const rest = items.length - n;
+    const note = `${prefix}${items.slice(0, n).join(', ')}${rest > 0 ? ` +${rest} lainnya` : ''}`;
+    if (note.length <= NOTE_MAX) return note;
+  }
+  return merchant;
+}
+
+/** Ambil total, tanggal, nama toko, dan barang dari teks hasil OCR. Tidak pernah melempar error. */
 export function parseReceiptText(input: string | OcrLine[], today: string): ReceiptFields {
   const raw: OcrLine[] =
     typeof input === 'string' ? input.split(/\r?\n/).map((text) => ({ text })) : input;
@@ -377,6 +477,7 @@ export function parseReceiptText(input: string | OcrLine[], today: string): Rece
     total: findTotal(lines),
     date: findDate(lines, today),
     merchant: findMerchant(lines),
+    items: findItems(lines),
   };
 }
 

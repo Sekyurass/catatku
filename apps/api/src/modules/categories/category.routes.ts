@@ -1,8 +1,15 @@
-import { createCategorySchema, listCategoriesQuery, updateCategorySchema } from '@catatku/shared';
+import {
+  createCategorySchema,
+  FEATURE_FLAGS,
+  listCategoriesQuery,
+  updateCategorySchema,
+} from '@catatku/shared';
 import { Router } from 'express';
 import { parse } from '../../lib/validate';
 import { currentUserId } from '../../middleware/auth';
+import { requireFeature } from '../features/features.routes';
 import * as categoryService from './category.service';
+import { listCategoryMaps } from './categoryMap.service';
 
 export function createCategoriesRouter() {
   const router = Router();
@@ -10,6 +17,10 @@ export function createCategoriesRouter() {
   router.get('/', async (req, res) => {
     const { type } = parse(listCategoriesQuery, req.query);
     res.json({ items: await categoryService.listCategories(currentUserId(req), type) });
+  });
+
+  router.get('/learned', requireFeature(FEATURE_FLAGS.AUTO_CATEGORY), async (req, res) => {
+    res.json({ items: await listCategoryMaps(currentUserId(req)) });
   });
 
   router.post('/', async (req, res) => {

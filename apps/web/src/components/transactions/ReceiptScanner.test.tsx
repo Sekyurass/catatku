@@ -46,7 +46,9 @@ const RESULT: ReceiptScanResult = {
   total: { value: 54_300, confidence: 'high' },
   date: { value: '2026-10-06', confidence: 'low' },
   merchant: { value: 'Indomaret', confidence: 'high' },
+  items: ['Indomie Goreng', 'Aqua 600ml'],
 };
+const NOTE = 'Indomaret: Indomie Goreng, Aqua 600ml';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -135,7 +137,7 @@ describe('Pindai struk di form transaksi', () => {
       screen.getByText('Foto dibaca di perangkat ini dan tidak diunggah.'),
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Nominal')).toHaveValue('54.300');
-    expect(screen.getByLabelText('Catatan (opsional)')).toHaveValue('Indomaret');
+    expect(screen.getByLabelText('Catatan (opsional)')).toHaveValue(NOTE);
     expect(screen.getByRole('button', { name: 'Tanggal' })).toHaveTextContent('6 Okt 2026');
     expect(screen.getByText('Dari struk, kurang yakin. Cek lagi.')).toBeInTheDocument();
     expect(screen.getAllByText('Dari struk')).toHaveLength(2);
@@ -155,11 +157,17 @@ describe('Pindai struk di form transaksi', () => {
     await user().upload(screen.getByTestId('receipt-input'), photo());
     await screen.findByText('Diisi dari struk, periksa lagi sebelum menyimpan');
     expect(amount).toHaveValue('10.000');
-    expect(screen.getByLabelText('Catatan (opsional)')).toHaveValue('Indomaret');
+    expect(screen.getByLabelText('Catatan (opsional)')).toHaveValue(NOTE);
   });
 
   it('bila tidak terbaca, foto tetap tampil sebagai acuan isi manual', async () => {
-    parser.parse.mockResolvedValue({ text: '', total: null, date: null, merchant: null });
+    parser.parse.mockResolvedValue({
+      text: '',
+      total: null,
+      date: null,
+      merchant: null,
+      items: [],
+    });
     const { events } = setup();
     await screen.findByRole('button', { name: 'Pindai struk' });
     await user().upload(screen.getByTestId('receipt-input'), photo());
@@ -175,6 +183,28 @@ describe('Pindai struk di form transaksi', () => {
     await user().click(screen.getByRole('button', { name: 'Hapus foto struk' }));
     expect(screen.getByRole('button', { name: 'Pindai struk' })).toBeInTheDocument();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:struk');
+  });
+
+  it('di layar sentuh ada tombol kamera langsung dan galeri', async () => {
+    parser.parse.mockResolvedValue(RESULT);
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q === '(pointer: coarse)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    setup();
+    const camera = await screen.findByTestId('receipt-camera');
+    expect(camera).toHaveAttribute('capture', 'environment');
+    expect(screen.getByTestId('receipt-input')).not.toHaveAttribute('capture');
+    const click = vi.spyOn(camera, 'click');
+    await user().click(await screen.findByRole('button', { name: 'Foto struk' }));
+    expect(click).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Dari galeri' })).toBeInTheDocument();
+
+    await user().upload(camera, photo());
+    await screen.findByText('Diisi dari struk, periksa lagi sebelum menyimpan');
+    expect(screen.getByLabelText('Catatan (opsional)')).toHaveValue(NOTE);
+    expect(screen.getByRole('button', { name: 'Foto ulang' })).toBeInTheDocument();
   });
 
   it('menolak file yang bukan foto tanpa menjalankan OCR', async () => {

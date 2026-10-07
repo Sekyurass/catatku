@@ -2,6 +2,7 @@ import type {
   BudgetMonthDTO,
   CategoryBreakdownDTO,
   CategoryDTO,
+  CategoryMapDTO,
   CategoryType,
   ImportBatchDTO,
   ListTransactionsQuery,
@@ -28,6 +29,7 @@ export type TransactionFilters = Partial<Omit<ListTransactionsQuery, 'cursor' | 
 export const queryKeys = {
   wallets: (includeArchived = false) => ['wallets', { includeArchived }] as const,
   categories: ['categories'] as const,
+  learnedCategories: ['categories', 'learned'] as const,
   transactions: (filters: TransactionFilters) => ['transactions', filters] as const,
   summary: (month: string) => ['reports', 'summary', month] as const,
   byCategory: (month: string, type: CategoryType) =>
@@ -140,6 +142,16 @@ export function useCategories(type?: CategoryType) {
     queryFn: ({ signal }) =>
       api<{ items: CategoryDTO[] }>('/categories', { signal }).then((r) => r.items),
     select: type ? (items) => items.filter((c) => c.type === type) : undefined,
+  });
+}
+
+export function useLearnedCategories(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.learnedCategories,
+    queryFn: ({ signal }) =>
+      api<{ items: CategoryMapDTO[] }>('/categories/learned', { signal }).then((r) => r.items),
+    enabled,
+    staleTime: 5 * 60_000,
   });
 }
 

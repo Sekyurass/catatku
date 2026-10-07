@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RECEIPT_SAMPLES, SAMPLE_TODAY } from './fixtures';
-import { normalizeLine, parseAmount, parseReceiptText } from './parse';
+import { normalizeLine, parseAmount, parseReceiptText, receiptNote } from './parse';
 
 describe('dataset struk', () => {
   const results = RECEIPT_SAMPLES.map((s) => ({
@@ -10,12 +10,23 @@ describe('dataset struk', () => {
   const accuracy = (field: 'total' | 'date' | 'merchant') =>
     results.filter(({ sample, got }) => (got[field]?.value ?? null) === sample.expected[field])
       .length / results.length;
+  const allItems = results.flatMap(({ sample }) => sample.expected.items);
+  const itemRecall =
+    results.reduce(
+      (n, { sample, got }) => n + sample.expected.items.filter((i) => got.items.includes(i)).length,
+      0,
+    ) / allItems.length;
+  const extraItems = results.reduce(
+    (n, { sample, got }) => n + got.items.filter((i) => !sample.expected.items.includes(i)).length,
+    0,
+  );
 
   it.each(results.map((r) => [r.sample.name, r] as const))('%s', (_name, { sample, got }) => {
     expect({
       total: got.total?.value ?? null,
       date: got.date?.value ?? null,
       merchant: got.merchant?.value ?? null,
+      items: got.items,
     }).toEqual(sample.expected);
   });
 
@@ -24,11 +35,16 @@ describe('dataset struk', () => {
       total: accuracy('total'),
       date: accuracy('date'),
       merchant: accuracy('merchant'),
+      itemRecall,
+      extraItems,
     };
     console.info('Akurasi parser struk', metrics);
     expect(metrics.total).toBeGreaterThanOrEqual(0.9);
     expect(metrics.date).toBeGreaterThanOrEqual(0.9);
     expect(metrics.merchant).toBeGreaterThanOrEqual(0.8);
+    expect(metrics.itemRecall).toBeGreaterThanOrEqual(0.8);
+    // Barang palsu (biaya, nomor, alamat) lebih mengganggu daripada barang yang terlewat.
+    expect(metrics.extraItems).toBeLessThanOrEqual(1);
   });
 });
 
@@ -146,6 +162,19 @@ describe('parseReceiptText', () => {
         SAMPLE_TODAY,
       ).merchant?.value,
     ).toBe('Bakmi Jaya');
+  });
+
+  it('catatan = toko + barang, dipotong rapi di 200 karakter', () => {
+    expect(
+      receiptNote('Hotways Chicken Bali', ['Strawberry Orange Milk', 'Paha Atas Crispy']),
+    ).toBe('Hotways Chicken Bali: Strawberry Orange Milk, Paha Atas Crispy');
+    expect(receiptNote(null, ['Kopi Hitam'])).toBe('Kopi Hitam');
+    expect(receiptNote('Warung', [])).toBe('Warung');
+    expect(receiptNote(null, [])).toBeNull();
+    const many = Array.from({ length: 12 }, (_, i) => `Barang Belanjaan Nomor ${i + 1}`);
+    const note = receiptNote('Superindo', many)!;
+    expect(note.length).toBeLessThanOrEqual(200);
+    expect(note).toMatch(/^Superindo: Barang Belanjaan Nomor 1, .* \+\d+ lainnya$/);
   });
 
   it('nama toko dari baris pertama yang wajar diberi keyakinan rendah', () => {

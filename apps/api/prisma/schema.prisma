@@ -83,6 +83,7 @@ model User {
   notifications       Notification[]
   notificationSetting NotificationSetting?
   pushSubscriptions   PushSubscription[]
+  categoryMaps        MerchantCategoryMap[]
 }
 
 /// Tautan "lupa kata sandi": sekali pakai, umur pendek, hanya hash yang disimpan.
@@ -162,8 +163,28 @@ model Category {
   budgets        Budget[]
   recurringRules RecurringRule[]
   templates      TransactionTemplate[]
+  merchantMaps   MerchantCategoryMap[]
 
   @@index([userId])
+}
+
+/// Kategori terakhir yang dipilih pengguna untuk suatu catatan/nama toko (Fase 3.2).
+/// Kunci = merchantKey(note); diperbarui setiap transaksi disimpan, jadi koreksi langsung dipelajari.
+model MerchantCategoryMap {
+  id         String       @id @default(cuid())
+  userId     String
+  type       CategoryType
+  key        String
+  categoryId String
+  hits       Int          @default(1)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, key])
+  @@index([userId, updatedAt(sort: Desc)])
 }
 
 model Transaction {

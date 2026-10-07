@@ -57,6 +57,23 @@ describe('event analitik', () => {
     expect(tooMany.status).toBe(400);
   });
 
+  it('POST /events mencatat penerimaan saran kategori', async () => {
+    const user = await registerUser();
+    const res = await authed(user)
+      .post('/api/v1/events')
+      .send({ name: 'category_suggestion', source: 'keyword', accepted: true });
+    expect(res.status).toBe(204);
+    const rows = await eventsOf(user.id, 2);
+    expect(rows[1]).toEqual({
+      name: 'category_suggestion',
+      props: { source: 'keyword', accepted: true },
+    });
+    const badSource = await authed(user)
+      .post('/api/v1/events')
+      .send({ name: 'category_suggestion', source: 'llm', accepted: true });
+    expect(badSource.status).toBe(400);
+  });
+
   it('POST /events menolak nama tak dikenal dan tanpa login', async () => {
     const user = await registerUser();
     const unknown = await authed(user).post('/api/v1/events').send({ name: 'wallet_created' });

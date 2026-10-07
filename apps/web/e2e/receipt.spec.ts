@@ -15,14 +15,19 @@ test('pindai struk: foto → form terisi otomatis → tinjau → simpan', async 
   await waitForApp(page);
   await page.getByRole('button', { name: 'Catat transaksi' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Catat transaksi' });
-  await dialog.getByRole('button', { name: 'Pindai struk' }).waitFor();
+  // Profil HP: kamera langsung + galeri. Jalur galeri dipakai karena kamera tidak bisa diotomasi.
+  await expect(dialog.getByTestId('receipt-camera')).toHaveAttribute('capture', 'environment');
+  await dialog.getByRole('button', { name: 'Dari galeri' }).waitFor();
   await dialog.getByTestId('receipt-input').setInputFiles(image);
 
   await expect(dialog.getByText('Diisi dari struk, periksa lagi sebelum menyimpan')).toBeVisible({
     timeout: 90_000,
   });
   await expect(dialog.getByLabel('Nominal', { exact: true })).toHaveValue('47.500');
-  await expect(dialog.getByLabel('Catatan (opsional)')).toHaveValue('Indomaret');
+  // Ejaan per barang mengikuti hasil OCR (mis. "Aqua" kadang terbaca "Apua"); yang diuji strukturnya.
+  await expect(dialog.getByLabel('Catatan (opsional)')).toHaveValue(
+    /^Indomaret: Indomie Goreng, \S+ 600ml, Roti Tawar, Susu UHT$/,
+  );
   const expectedDate = new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
     month: 'short',
@@ -34,7 +39,13 @@ test('pindai struk: foto → form terisi otomatis → tinjau → simpan', async 
     'true',
   );
 
-  await dialog.getByRole('group', { name: 'Kategori' }).getByText('Belanja').click();
+  const kategori = dialog.getByRole('group', { name: 'Kategori' });
+  if (flags.auto_category) {
+    await expect(kategori.getByLabel('Belanja')).toBeChecked();
+    await expect(dialog.getByText(/Belanja ditebak dari catatan/)).toBeVisible();
+  } else {
+    await kategori.getByText('Belanja').click();
+  }
   await dialog.getByRole('button', { name: 'Simpan' }).click();
   await expect(page.getByText('Transaksi tersimpan')).toBeVisible();
   await expect(page.getByRole('button', { name: /Indomaret/ }).first()).toBeVisible({

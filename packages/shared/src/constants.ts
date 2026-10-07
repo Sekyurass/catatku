@@ -61,6 +61,7 @@ export const FEATURE_FLAGS = {
   CSV_IMPORT: 'csv_import',
   PWA_OFFLINE: 'pwa_offline',
   RECEIPT_OCR: 'receipt_ocr',
+  AUTO_CATEGORY: 'auto_category',
 } as const;
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
 

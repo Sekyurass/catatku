@@ -1,4 +1,5 @@
 export * from './budget';
+export * from './categorize';
 export * from './constants';
 export * from './csvImport';
 export * from './errors';

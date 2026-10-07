@@ -46,6 +46,13 @@ export interface CategoryDTO {
   archivedAt: string | null;
 }
 
+/** Kategori yang dipelajari dari transaksi pengguna, per kunci catatan (lihat `merchantKey`). */
+export interface CategoryMapDTO {
+  key: string;
+  type: CategoryType;
+  categoryId: string;
+}
+
 export interface TransactionDTO {
   id: string;
   type: TransactionType;

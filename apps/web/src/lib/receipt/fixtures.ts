@@ -5,7 +5,12 @@
 export interface ReceiptSample {
   name: string;
   text: string;
-  expected: { total: number | null; date: string | null; merchant: string | null };
+  expected: {
+    total: number | null;
+    date: string | null;
+    merchant: string | null;
+    items: string[];
+  };
 }
 
 export const SAMPLE_TODAY = '2026-10-07';
@@ -28,7 +33,12 @@ TUNAI : 50,000
 KEMBALI : 23,400
 PPN : 2,636
 LAYANAN KONSUMEN SMS 0815 7000 7000`,
-    expected: { total: 26_600, date: '2026-10-06', merchant: 'Indomaret' },
+    expected: {
+      total: 26_600,
+      date: '2026-10-06',
+      merchant: 'Indomaret',
+      items: ['Indomie GRG SPC', 'Aqua 600ml', 'Roti Tawar Sari'],
+    },
   },
   {
     name: 'Alfamart (titik ribuan, Total Belanja)',
@@ -43,7 +53,12 @@ Total Belanja 17.200
 Tunai 20.000
 Kembalian 2.800
 Tgl. 05-10-2026 08:12:55 V.2026.1`,
-    expected: { total: 17_200, date: '2026-10-05', merchant: 'Alfamart' },
+    expected: {
+      total: 17_200,
+      date: '2026-10-05',
+      merchant: 'Alfamart',
+      items: ['Susu UHT Coklat', 'Sabun Mandi'],
+    },
   },
   {
     name: 'Restoran (subtotal, service, PB1, Total)',
@@ -60,7 +75,12 @@ PB1 10% 6.300
 Total Rp 69.300
 Debit BCA 69.300
 Terima kasih`,
-    expected: { total: 69_300, date: '2026-10-03', merchant: 'Warung Makan Bu Sri' },
+    expected: {
+      total: 69_300,
+      date: '2026-10-03',
+      merchant: 'Warung Makan Bu Sri',
+      items: ['Nasi Gudeg Komplit', 'Es Teh Manis'],
+    },
   },
   {
     name: 'SPBU Pertamina (TOTAL HARGA, tanggal yyyy-mm-dd)',
@@ -75,7 +95,7 @@ Harga/Liter: Rp. 10.000
 Volume: 15,00 L
 Total Harga: Rp. 150.000
 CASH Rp. 150.000`,
-    expected: { total: 150_000, date: '2026-10-01', merchant: 'Pertamina' },
+    expected: { total: 150_000, date: '2026-10-01', merchant: 'Pertamina', items: [] },
   },
   {
     name: 'Kafe (GRAND TOTAL, desimal ,00)',
@@ -89,7 +109,12 @@ SUB TOTAL 50.000,00
 TAX 10% 5.000,00
 GRAND TOTAL 55.000,00
 QRIS 55.000,00`,
-    expected: { total: 55_000, date: '2026-10-02', merchant: 'Kopi Kenangan Senja' },
+    expected: {
+      total: 55_000,
+      date: '2026-10-02',
+      merchant: 'Kopi Kenangan Senja',
+      items: ['Kopi Susu Aren', 'Croissant'],
+    },
   },
   {
     name: 'Salah baca OCR (T0TAL, O untuk 0, spasi di angka)',
@@ -100,7 +125,7 @@ MIE SEDAAP 3 3.1OO 9.3OO
 T0TAL BELANJA 9. 300
 TUNAI 1O.OOO
 KEMBALIAN 7OO`,
-    expected: { total: 9_300, date: '2026-10-04', merchant: 'Alfamart' },
+    expected: { total: 9_300, date: '2026-10-04', merchant: 'Alfamart', items: ['Mie Sedaap'] },
   },
   {
     name: 'Nominal di baris berikutnya',
@@ -111,7 +136,12 @@ SEMEN TIGA RODA 2 SAK
 CAT TEMBOK 5KG
 TOTAL BAYAR
 Rp 245.000`,
-    expected: { total: 245_000, date: '2026-09-28', merchant: 'Toko Bangunan Sumber Rejeki' },
+    expected: {
+      total: 245_000,
+      date: '2026-09-28',
+      merchant: 'Toko Bangunan Sumber Rejeki',
+      items: [],
+    },
   },
   {
     name: 'Apotek (nama bulan penuh)',
@@ -124,7 +154,12 @@ Vitamin C 1000 1 btl 45.000
 Jumlah 57.500
 Bayar 100.000
 Kembali 42.500`,
-    expected: { total: 57_500, date: '2026-09-30', merchant: 'Apotek Sehat Selalu' },
+    expected: {
+      total: 57_500,
+      date: '2026-09-30',
+      merchant: 'Apotek Sehat Selalu',
+      items: ['Paracetamol 500mg', 'Vitamin C'],
+    },
   },
   {
     name: 'Starbucks (format bahasa Inggris)',
@@ -139,7 +174,12 @@ PB1 10% 9,300
 Total 102,300
 Visa 102,300`,
     // Urutan bulan-tanggal-tahun ala AS tidak dikenali; pengguna mengisi tanggal sendiri.
-    expected: { total: 102_300, date: null, merchant: 'Starbucks' },
+    expected: {
+      total: 102_300,
+      date: null,
+      merchant: 'Starbucks',
+      items: ['Caffe Latte Grande', 'Butter Croissant'],
+    },
   },
   {
     name: 'Tanpa kata kunci total (tunai − kembali)',
@@ -149,7 +189,12 @@ kopi hitam 4.000
 TUNAI 20.000
 KEMBALI 4.000
 07-10-2026`,
-    expected: { total: 16_000, date: '2026-10-07', merchant: 'Warung Kopi Pak Man' },
+    expected: {
+      total: 16_000,
+      date: '2026-10-07',
+      merchant: 'Warung Kopi Pak Man',
+      items: ['Nasi Telur', 'Kopi Hitam'],
+    },
   },
   {
     name: 'KFC (TOTAL dua kali: sebelum & sesudah pembulatan)',
@@ -164,7 +209,7 @@ DONASI PEMBULATAN 0
 TOTAL 47.000
 CASH 50.000
 CHANGE 3.000`,
-    expected: { total: 47_000, date: '2026-10-01', merchant: 'KFC' },
+    expected: { total: 47_000, date: '2026-10-01', merchant: 'KFC', items: ['Paket Jagoan'] },
   },
   {
     // Teks OCR asli dari foto struk pengguna: logo di atas terbaca acak, 7 terbaca 1 di tanggal.
@@ -184,18 +229,81 @@ No Meja - : Takeaway-2                       Na
 Pax      ABI                         NG
 Kasir    : Lina                 sa :
 1 STRAWBERRY ORANGE MILK        15.000
-1 Paha Atas Crispy           18.000 --.
+1 Paha Atas Crispy           18.000 —"-.
 2 iten                                   S
 Grand Total: ON
 ORIS :      33.000 -
 - Thank You -                  .`,
-    expected: { total: 33_000, date: '2026-10-07', merchant: 'Hotways Chicken Bali' },
+    expected: {
+      total: 33_000,
+      date: '2026-10-07',
+      merchant: 'Hotways Chicken Bali',
+      items: ['Strawberry Orange Milk', 'Paha Atas Crispy'],
+    },
+  },
+  {
+    name: 'Warung mie (qty di depan, harga satuan + subtotal per baris)',
+    text: `MIE GACOAN
+CABANG DENPASAR
+No. Order : 1234
+07/10/2026 12:01
+2 MIE HOMPIMPA LV 1   10.000   20.000
+1 ES GOBAK SODOR       9.000
+1 UDANG RAMBUTAN       9.000
+SUB TOTAL            38.000
+PB1 10%               3.800
+TOTAL                41.800
+QRIS                 41.800`,
+    expected: {
+      total: 41_800,
+      date: '2026-10-07',
+      merchant: 'Mie Gacoan',
+      items: ['Mie Hompimpa LV', 'Es Gobak Sodor', 'Udang Rambutan'],
+    },
+  },
+  {
+    name: 'Bengkel (jasa servis sebagai barang, Bayar/Kembali)',
+    text: `BENGKEL MOTOR JAYA ABADI
+Jl. Gatot Subroto 17
+Nota: 0098   Tgl: 05/10/2026
+Ganti Oli MPX 1 55.000
+Kampas Rem Depan 1 45.000
+Jasa Servis 1 35.000
+Total Rp 135.000
+Bayar Rp 150.000
+Kembali Rp 15.000`,
+    expected: {
+      total: 135_000,
+      date: '2026-10-05',
+      merchant: 'Bengkel Motor Jaya Abadi',
+      items: ['Ganti Oli MPX', 'Kampas Rem Depan', 'Jasa Servis'],
+    },
+  },
+  {
+    name: 'Supermarket (nama barang dan harga di baris terpisah)',
+    text: `SUPER INDO
+PT LION SUPER INDO
+JL. RAYA KUTA 88
+06/10/2026 18:20 KSR 05
+MINYAK GORENG 2L
+  1 x 38.500        38.500
+TELUR AYAM 1KG
+  1 x 29.900        29.900
+SUBTOTAL            68.400
+TOTAL               68.400
+DEBIT BCA           68.400`,
+    expected: {
+      total: 68_400,
+      date: '2026-10-06',
+      merchant: 'Superindo',
+      items: ['Minyak Goreng 2L', 'Telur Ayam 1kg'],
+    },
   },
   {
     name: 'Struk buram (hampir tidak terbaca)',
     text: `~~ ..
 ,,, 1 ;; 2
 -- --`,
-    expected: { total: null, date: null, merchant: null },
+    expected: { total: null, date: null, merchant: null, items: [] },
   },
 ];

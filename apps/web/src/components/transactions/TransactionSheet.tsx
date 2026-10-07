@@ -10,23 +10,30 @@ import {
   type WalletDTO,
 } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, Trash2, WalletMinimal } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Check, Sparkles, Trash2, WalletMinimal } from 'lucide-react';
+import { type ChangeEvent, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { useBudgetWarning } from '../budgets/useBudgetWarning';
 import { FormAlert } from '../../pages/auth/AuthLayout';
 import { api, ApiError } from '../../lib/api';
+import {
+  rememberCategory,
+  suggestCategory,
+  type CategorySuggestion,
+} from '../../lib/categorySuggest';
 import { cn } from '../../lib/cn';
 import { useFeature } from '../../lib/features';
 import { applyServerErrors } from '../../lib/forms';
 import { today, yesterday } from '../../lib/format';
-import type { ReceiptField, ReceiptScanResult } from '../../lib/receipt';
+import { receiptNote, type ReceiptField, type ReceiptScanResult } from '../../lib/receipt';
 import {
   pickDefaultWallet,
   useCategories,
   useInvalidateMoney,
+  useLearnedCategories,
   useTemplates,
   useWallets,
 } from '../../lib/queries';
@@ -261,6 +268,11 @@ function TransactionForm({
   const templatesOn = useFeature(FEATURE_FLAGS.TEMPLATES) && withTemplates && !editing;
   const templates = useTemplates(templatesOn);
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const queryClient = useQueryClient();
+  const autoCategoryOn = useFeature(FEATURE_FLAGS.AUTO_CATEGORY);
+  const learned = useLearnedCategories(autoCategoryOn);
+  /** Kategori yang dipilih otomatis; selama belum diganti pengguna, saran baru boleh menggantinya. */
+  const [autoPicked, setAutoPicked] = useState<string | null>(null);
 
   const {
     control,
@@ -286,6 +298,23 @@ function TransactionForm({
   const amount = watch('amount');
   const note = watch('note');
   const isTransfer = kind === 'TRANSFER';
+  const categoryId = watch('categoryId');
+
+  const suggestFor = (text: string, forKind: TransactionKind) =>
+    autoCategoryOn && forKind !== 'TRANSFER'
+      ? suggestCategory(text, forKind, learned.data ?? [], categories)
+      : null;
+  const suggestion = suggestFor(note, kind);
+
+  // Dipanggil dari event (ketik catatan, pindai struk, ganti jenis), bukan efek, agar pilihan
+  // manual pengguna tidak pernah ditimpa.
+  const autoPick = (text: string, forKind: TransactionKind = getValues('kind')) => {
+    const next = suggestFor(text, forKind);
+    const current = getValues('categoryId');
+    if (!next || (current !== '' && current !== autoPicked)) return;
+    setValue('categoryId', next.categoryId, { shouldDirty: true, shouldValidate: !!current });
+    setAutoPicked(next.categoryId);
+  };
 
   // Hanya isi yang masih kosong/bawaan atau yang sebelumnya juga dari struk: ketikan pengguna tidak ditimpa.
   const applyScan = (result: ReceiptScanResult) => {
@@ -300,9 +329,11 @@ function TransactionForm({
       setValue('date', result.date.value, opts);
       next.date = result.date;
     }
-    if (result.merchant && (!current.note.trim() || current.note === scanned.note?.value)) {
-      setValue('note', result.merchant.value, opts);
-      next.note = result.merchant;
+    const note = receiptNote(result.merchant?.value ?? null, result.items);
+    if (note && (!current.note.trim() || current.note === scanned.note?.value)) {
+      setValue('note', note, opts);
+      next.note = { value: note, confidence: result.merchant?.confidence ?? 'low' };
+      autoPick(note);
     }
     setScanned(next);
   };
@@ -400,6 +431,20 @@ function TransactionForm({
             note: v.note,
           },
         });
+      }
+      if (autoCategoryOn && v.kind !== 'TRANSFER') {
+        const shown = suggestFor(v.note, v.kind);
+        if (shown && !editing) {
+          void api('/events', {
+            method: 'POST',
+            body: {
+              name: 'category_suggestion',
+              source: shown.source,
+              accepted: shown.categoryId === v.categoryId,
+            },
+          }).catch(() => undefined);
+        }
+        rememberCategory(queryClient, v.note, v.kind, v.categoryId);
       }
       const templateSaved =
         saveAsTemplate && canSaveTemplate && v.kind !== 'TRANSFER'
@@ -505,6 +550,8 @@ function TransactionForm({
         onChange={(next) => {
           setValue('kind', next, { shouldDirty: true });
           setValue('categoryId', '', { shouldDirty: true });
+          setAutoPicked(null);
+          autoPick(getValues('note'), next);
         }}
       />
 
@@ -565,6 +612,20 @@ function TransactionForm({
               />
             )}
           />
+          {suggestion && (
+            <CategorySuggestionNote
+              suggestion={suggestion}
+              category={categories.find((c) => c.id === suggestion.categoryId)}
+              picked={categoryId === suggestion.categoryId}
+              onApply={() => {
+                setValue('categoryId', suggestion.categoryId, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+                setAutoPicked(suggestion.categoryId);
+              }}
+            />
+          )}
           <Field label="Dompet" error={errors.walletId?.message}>
             {(a) => walletSelect('walletId', a, walletOptions())}
           </Field>
@@ -614,7 +675,9 @@ function TransactionForm({
             placeholder={isTransfer ? 'Mis. tarik tunai' : 'Mis. makan siang'}
             maxLength={200}
             enterKeyHint="done"
-            {...register('note')}
+            {...register('note', {
+              onChange: (e: ChangeEvent<HTMLInputElement>) => autoPick(e.target.value),
+            })}
           />
         )}
       </Field>
@@ -662,5 +725,41 @@ function TransactionForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Saran selalu bisa diabaikan: bila sudah terpilih cukup diberi keterangan, bila belum jadi tombol satu tap. */
+function CategorySuggestionNote({
+  suggestion,
+  category,
+  picked,
+  onApply,
+}: {
+  suggestion: CategorySuggestion;
+  category: CategoryDTO | undefined;
+  picked: boolean;
+  onApply: () => void;
+}) {
+  if (!category) return null;
+  if (picked) {
+    return (
+      <p className="-mt-2 flex items-center gap-1.5 text-xs text-muted">
+        <Sparkles className="size-3.5 shrink-0" aria-hidden />
+        {suggestion.source === 'history'
+          ? `${category.name} sesuai pilihanmu sebelumnya.`
+          : `${category.name} ditebak dari catatan.`}{' '}
+        Ketuk kategori lain untuk mengganti.
+      </p>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onApply}
+      className="-mt-2 inline-flex min-h-11 items-center gap-2 self-start rounded-full border border-primary/40 bg-primary-soft px-3 text-sm font-medium text-primary hover:border-primary"
+    >
+      <Sparkles className="size-4" aria-hidden />
+      Saran: {category.name}
+    </button>
   );
 }

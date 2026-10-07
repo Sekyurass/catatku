@@ -1,7 +1,7 @@
 import type { ReceiptFields } from './parse';
 
 export type { Confidence, ReceiptField, ReceiptFields } from './parse';
-export { countFields } from './parse';
+export { countFields, receiptNote } from './parse';
 export { ReceiptImageError, validateReceiptFile } from './image';
 
 export interface ReceiptProgress {

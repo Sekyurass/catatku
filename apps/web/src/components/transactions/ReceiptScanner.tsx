@@ -1,6 +1,7 @@
-import { RotateCcw, ScanLine, ShieldCheck, X } from 'lucide-react';
+import { Camera, Image as ImageIcon, RotateCcw, ScanLine, ShieldCheck, X } from 'lucide-react';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
+import { useMediaQuery } from '../../lib/media';
 import {
   countFields,
   loadReceiptParser,
@@ -24,7 +25,7 @@ const FIELD_KEYS = Object.keys(FIELD_LABELS) as FieldKey[];
 const listOf = (keys: FieldKey[]) => keys.map((k) => FIELD_LABELS[k]).join(', ');
 
 /**
- * Tombol "Pindai struk" + panel status. Foto hanya dibaca di perangkat (tidak diunggah) dan
+ * Tombol "Pindai struk" (di HP: "Foto struk" langsung ke kamera + "Dari galeri") + panel status. Foto hanya dibaca di perangkat (tidak diunggah) dan
  * dibuang saat panel ditutup; bila gagal, foto tetap tampil sebagai acuan mengisi manual.
  */
 export function ReceiptScanner({
@@ -39,6 +40,8 @@ export function ReceiptScanner({
   const [state, setState] = useState<State>({ status: 'idle' });
   const [zoomed, setZoomed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const touch = useMediaQuery('(pointer: coarse)');
   const abortRef = useRef<AbortController | null>(null);
   const previewRef = useRef<string | null>(null);
 
@@ -130,28 +133,68 @@ export function ReceiptScanner({
   };
 
   const input = (
-    <input
-      ref={inputRef}
-      type="file"
-      accept="image/*"
-      hidden
-      onChange={(e) => void scan(e)}
-      data-testid="receipt-input"
-    />
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => void scan(e)}
+        data-testid="receipt-input"
+      />
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(e) => void scan(e)}
+        data-testid="receipt-camera"
+      />
+    </>
   );
+
+  // `capture` hanya membuka kamera di HP/tablet; di desktop pemilih file biasa sudah cukup.
+  const pickers = (again: boolean) =>
+    touch ? (
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => cameraRef.current?.click()}
+          icon={<Camera className="size-4" aria-hidden />}
+        >
+          {again ? 'Foto ulang' : 'Foto struk'}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={pick}
+          icon={<ImageIcon className="size-4" aria-hidden />}
+        >
+          Dari galeri
+        </Button>
+      </div>
+    ) : (
+      <Button
+        variant="secondary"
+        onClick={pick}
+        icon={
+          again ? (
+            <RotateCcw className="size-4" aria-hidden />
+          ) : (
+            <ScanLine className="size-4" aria-hidden />
+          )
+        }
+        className="w-full"
+      >
+        {again ? 'Pindai ulang' : 'Pindai struk'}
+      </Button>
+    );
 
   if (state.status === 'idle') {
     return (
       <div>
         {input}
-        <Button
-          variant="secondary"
-          onClick={pick}
-          icon={<ScanLine className="size-4" aria-hidden />}
-          className="w-full"
-        >
-          Pindai struk
-        </Button>
+        {pickers(false)}
       </div>
     );
   }
@@ -201,16 +244,7 @@ export function ReceiptScanner({
         />
       )}
 
-      {state.status !== 'scanning' && (
-        <Button
-          variant="secondary"
-          onClick={pick}
-          icon={<RotateCcw className="size-4" aria-hidden />}
-          className="w-full"
-        >
-          Pindai ulang
-        </Button>
-      )}
+      {state.status !== 'scanning' && pickers(true)}
       <p className="flex items-center gap-1.5 text-xs text-muted">
         <ShieldCheck className="size-4 shrink-0" aria-hidden />
         Foto dibaca di perangkat ini dan tidak diunggah.

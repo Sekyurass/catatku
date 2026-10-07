@@ -63,16 +63,16 @@ Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12
 gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini; plus 4 template cepat catat:
 kopi susu, Gojek ke kantor, parkir, dan makan siang tanpa nominal).
 
-Fitur Fase 1 dan pindai struk (Fase 3.1) berada di balik feature flag yang **nonaktif** setelah seed.
-Untuk menyalakannya:
+Fitur Fase 1, pindai struk (Fase 3.1), dan saran kategori (Fase 3.2) berada di balik feature flag yang
+**nonaktif** setelah seed. Untuk menyalakannya:
 
 ```sql
 -- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
 UPDATE "FeatureFlag" SET enabled = true
-WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr');
+WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan. Akun baru dari halaman **Daftar**
 langsung diarahkan ke onboarding 3 langkah di `/mulai`: sambutan → dompet pertama → transaksi pertama
 (bisa dilewati kapan saja).
@@ -224,13 +224,15 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
     riwayat impornya tetap ada dengan status Dibatalkan.
   - **Batas**: file maks. 1 MB (dicek di browser dan server; body JSON khusus rute ini dinaikkan ke 3 MB),
     maks. 5.000 baris data, daftar baris bermasalah yang disimpan dipotong di 100.
-- **Pindai struk** (Fase 3.1, flag `receipt_ocr`): tombol **Pindai struk** di form pengeluaran baru. OCR
-  berjalan **di perangkat** dengan Tesseract.js (WebAssembly), jadi foto tidak pernah dikirim ke server
-  atau pihak ketiga. Hasilnya hanya **mengisi** form (nominal, tanggal, catatan = nama toko); pengguna
+- **Pindai struk** (Fase 3.1, flag `receipt_ocr`): tombol **Pindai struk** di form pengeluaran baru; di
+  perangkat sentuh (`pointer: coarse`) menjadi **Foto struk** (`capture="environment"`, langsung membuka
+  kamera belakang) + **Dari galeri**. OCR berjalan **di perangkat** dengan Tesseract.js (WebAssembly), jadi
+  foto tidak pernah dikirim ke server atau pihak ketiga. Hasilnya hanya **mengisi** form (nominal, tanggal,
+  catatan = `Toko: Barang A, Barang B`, maks. 200 karakter, sisa barang diringkas `+N lainnya`); pengguna
   selalu meninjau lalu menekan Simpan.
   - **Antarmuka `ReceiptParser`** (`apps/web/src/lib/receipt/index.ts`): `parse(foto, { today, signal,
-onProgress })` → `{ total, date, merchant, text }`, tiap kolom `{ value, confidence: high|low }` atau
-    `null`. Implementasi Tesseract (`tesseract.ts`) dimuat lazy hanya saat tombol dipakai; mengganti ke
+onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value, confidence: high|low }` atau
+    `null`; `items` = daftar nama barang (maks. 12). Implementasi Tesseract (`tesseract.ts`) dimuat lazy hanya saat tombol dipakai; mengganti ke
     layanan OCR server cukup menambah implementasi baru (wajib persetujuan pengguna dulu).
   - **Alur**: validasi (hanya gambar, maks. 15 MB) → diputar sesuai EXIF, diskalakan (sisi panjang ≤ 2000 px),
     grayscale + kontras → Tesseract bahasa `ind` mode _single block_ (mode otomatis membuang teks di bawah
@@ -238,8 +240,13 @@ onProgress })` → `{ total, date, merchant, text }`, tiap kolom `{ value, confi
   - **Aturan parser** (`parse.ts`): perbaikan salah baca angka (`O→0`, `l→1`, …), total dari kata kunci
     berbobot (GRAND TOTAL > TOTAL BAYAR > TOTAL > JUMLAH; abaikan SUBTOTAL, TOTAL ITEM, DISKON, PPN, TUNAI,
     KEMBALI, dll.) dan dicek silang dengan tunai − kembalian; tanggal `dd/mm/yy`, `yyyy-mm-dd`, `7 Okt 2026`
-    (tanggal masa depan atau > 3 tahun diabaikan); toko dari daftar jaringan ritel atau baris pertama yang masuk
-    akal. Kolom yang meragukan ditandai **kurang yakin** di form; kolom yang tidak terbaca dibiarkan kosong.
+    (tanggal masa depan atau > 3 tahun diabaikan) dan dicek silang dengan tanggal di nomor struk
+    (`…20261007…`) untuk salah baca 7↔1, 8↔0, dll.; toko dari daftar jaringan ritel atau baris pertama yang
+    berisi kata sungguhan (teks logo yang terbaca acak dilewati). **Barang**: baris di antara kepala struk
+    (baris ber-`:`/tanggal) dan baris TOTAL/SUBTOTAL/TUNAI yang berharga; jumlah di depan, harga, satuan,
+    dan sampah OCR setelah harga dibuang; baris pajak/diskon/biaya (PB1, PPN, %, SERVICE, …) dilewati; nama di
+    satu baris dengan `1 x 38.500` di baris berikutnya digabung. Kolom yang meragukan ditandai **kurang yakin**
+    di form; kolom yang tidak terbaca dibiarkan kosong.
   - **Gagal / tidak terbaca**: form manual tetap terbuka dengan foto bisa diperbesar sebagai acuan. Belum ada
     lampiran (Fase 2.5), jadi foto dibuang dari memori saat form ditutup.
   - **Aset self-hosted**: worker, core WASM (varian SIMD/non-SIMD), dan data bahasa `ind` (`4.0.0_best_int`)
@@ -247,12 +254,30 @@ onProgress })` → `{ total, date, merchant, text }`, tiap kolom `{ value, confi
     Data bahasa disajikan sebagai byte gzip dengan nama `ind.traineddata` (tanpa `.gz`) karena sebagian
     antivirus/proxy memblokir unduhan `.gz`; Tesseract mengenali gzip dari _magic bytes_. Pemakaian pertama
     mengunduh ±5 MB, berikutnya data bahasa diambil dari IndexedDB.
-  - **Dataset & metrik** (`lib/receipt/fixtures.ts` + `parse.test.ts`): 12 teks struk (minimarket, SPBU,
-    restoran, kafe, apotek, teks OCR berderau, struk tak terbaca). Tes menghitung akurasi per kolom dan gagal
-    bila total < 90%, tanggal < 90%, atau toko < 80% (saat ini 100% / 100% / 100%). E2E `receipt.spec.ts`
-    menjalankan Tesseract sungguhan pada gambar struk yang dirender.
-  - Keterbatasan: daftar item belum diambil; kategori otomatis menunggu Fase 3.2; akurasi turun pada foto
-    buram, miring, atau kertas kusut.
+  - **Dataset & metrik** (`lib/receipt/fixtures.ts` + `parse.test.ts`): 16 teks struk (minimarket,
+    supermarket dengan barang 2 baris, SPBU, restoran, warung mie, bengkel, kafe, apotek, teks OCR asli dari
+    foto pengguna, teks berderau, struk tak terbaca). Tes gagal bila total < 90%, tanggal < 90%, toko < 80%,
+    barang terambil < 80%, atau ada > 1 "barang" palsu (saat ini 100% / 100% / 100% / 100% / 0). E2E
+    `receipt.spec.ts` menjalankan Tesseract sungguhan pada gambar struk yang dirender.
+  - Keterbatasan: ejaan barang mengikuti hasil OCR (mis. "Aqua" bisa terbaca "Apua"); akurasi turun pada
+    foto buram, miring, atau kertas kusut; di desktop tombol membuka pemilih file (webcam tidak dipakai).
+- **Saran kategori** (Fase 3.2, flag `auto_category`): kategori ditebak dari catatan (diketik atau hasil
+  pindai struk) dan **hanya menyarankan**.
+  - **Urutan sumber**: (1) pilihan pengguna sendiri sebelumnya untuk catatan yang sama (`MerchantCategoryMap`,
+    per pengguna), (2) kamus kata kunci Indonesia → kategori bawaan (`packages/shared/src/categorize.ts`:
+    frasa utuh, terpanjang menang — "telur ayam" = Belanja, "ayam" = Makan; nama toko sebelum `:` berbobot
+    3×; kata umum seperti "langganan" kalah dari merek). Model/LLM cadangan belum dipakai.
+  - **Kunci belajar** `merchantKey(note)`: nama toko pada catatan struk, atau seluruh catatan tanpa angka,
+    huruf kecil (`"Makan siang 25rb"` → `makan siang`). Setiap transaksi pemasukan/pengeluaran yang disimpan
+    atau diedit meng-upsert kunci itu ke kategori yang dipilih (fire-and-forget, tidak memperlambat simpan),
+    jadi **koreksi pengguna langsung menjadi saran berikutnya**. Klien memuat maks. 500 pemetaan terbaru
+    sekali (`GET /categories/learned`) lalu mencocokkan di perangkat, jadi saran muncul seketika saat mengetik.
+  - **Form**: bila kategori belum dipilih, saran langsung dipilih dengan keterangan "ditebak dari catatan" /
+    "sesuai pilihanmu sebelumnya"; selama belum diganti pengguna, saran mengikuti catatan. Bila pengguna sudah
+    memilih kategori lain, saran tampil sebagai tombol **Saran: X** (satu tap). Pilihan manual tidak pernah
+    ditimpa. Kategori diarsipkan / beda jenis tidak disarankan.
+  - **Metrik**: dataset 63 catatan di `categorize.test.ts` (gagal bila < 90%, saat ini 100%); di produksi
+    event `category_suggestion` `{ source, accepted }` saat menyimpan transaksi baru (target diterima ≥ 70%).
 
 ## API (Fase 0)
 
@@ -267,7 +292,7 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 - ✅ `GET/PUT/DELETE /me/avatar` — PUT berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`,
   maks 300 kB) → `{ user }`; GET mengembalikan gambar (klien memakai `?v=<avatarUpdatedAt>` untuk cache)
 - ✅ `GET /features`, `GET /health` (di root)
-- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped" | "receipt_scanned", step?: 1–3, fields?: 0–3 }` → 204
+- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped" | "receipt_scanned" | "category_suggestion", step?: 1–3, fields?: 0–3, source?: "history" | "keyword", accepted?: boolean }` → 204
   (hanya event klien yang terdaftar; event lain dicatat server sendiri)
 - ✅ `GET/POST/PATCH/DELETE /wallets` (`?includeArchived=true`; DELETE mengarsipkan dompet yang punya riwayat)
 - ✅ `GET/POST/PATCH/DELETE /categories` (`?type=`; kategori bawaan hanya-baca → 403)
@@ -321,6 +346,12 @@ defaultType?: SIGN|EXPENSE|INCOME, skipDuplicates?: boolean (default true) }`
     `stats: { total, imported, skipped, failed }` dan `issues`; mendukung `Idempotency-Key`
   - Rollback → batch berstatus `ROLLED_BACK` (idempoten); 409 bila masih diproses atau impornya gagal
 
+### Fase 3 (di balik feature flag; flag mati → 404)
+
+- ✅ `auto_category`: `GET /categories/learned` → `{ items: [{ key, type, categoryId }] }` (maks. 500 terbaru,
+  tanpa kategori yang diarsipkan). Pemetaan diperbarui otomatis oleh `POST/PATCH /transactions`; saat flag
+  mati tidak ada yang dipelajari.
+
 ## Event analitik & gerbang fase
 
 | Event                                        | Dicatat oleh           | `props`                                       |
@@ -339,6 +370,7 @@ defaultType?: SIGN|EXPENSE|INCOME, skipDuplicates?: boolean (default true) }`
 | `import_rolled_back`                         | API                    | `removed`                                     |
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                                  |
 | `receipt_scanned`                            | Klien (`POST /events`) | `fields` (0–3 kolom terbaca)                  |
+| `category_suggestion`                        | Klien (`POST /events`) | `source` (history/keyword), `accepted`        |
 
 Contoh kueri untuk menilai gerbang Fase 0 → Fase 1 (jalankan di SQL editor Supabase):
 

@@ -54,6 +54,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   [FEATURE_FLAGS.CSV_IMPORT]: 'Fase 1.4 — impor CSV',
   [FEATURE_FLAGS.PWA_OFFLINE]: 'Fase 1.5 — PWA + offline',
   [FEATURE_FLAGS.RECEIPT_OCR]: 'Fase 3.1 — pindai struk (OCR di perangkat)',
+  [FEATURE_FLAGS.AUTO_CATEGORY]: 'Fase 3.2 — saran kategori otomatis',
 };
 
 /** Kategori default + baris feature flag (nonaktif). Aman dijalankan berulang. */

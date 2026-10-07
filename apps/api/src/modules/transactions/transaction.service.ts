@@ -16,6 +16,7 @@ import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
 import { parse } from '../../lib/validate';
 import { findUsableCategory } from '../categories/category.service';
+import { learnCategoryInBackground } from '../categories/categoryMap.service';
 import { findActiveWallet } from '../wallets/wallet.service';
 
 const walletSelect = { select: { id: true, name: true, color: true } } as const;
@@ -206,6 +207,7 @@ export async function createTransaction(
     include,
   });
   track(userId, 'transaction_created', { type: data.type });
+  learnCategoryInBackground(userId, data.note, data.categoryId, data.type);
   return toDTO(row);
 }
 
@@ -246,6 +248,9 @@ export async function updateTransaction(
     },
     include,
   });
+  if (input.categoryId || input.note !== undefined || input.type) {
+    learnCategoryInBackground(userId, row.note, categoryId, type);
+  }
   const [dto] = await toDTOs(userId, [row]);
   return dto!;
 }
