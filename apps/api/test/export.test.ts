@@ -64,19 +64,19 @@ describe('GET /export/transactions.csv', () => {
       /attachment; filename="catatku-transaksi-\d{4}-\d{2}-\d{2}\.csv"/,
     );
     expect(text.startsWith('\uFEFF')).toBe(true);
-    expect(lines[0]).toBe('Tanggal,Jenis,Kategori,Dompet,Dompet lawan,Jumlah,Catatan');
+    expect(lines[0]).toBe('Tanggal,Jenis,Kategori,Dompet,Dompet lawan,Jumlah,Catatan,Tag');
     // 1 pengeluaran + 1 pemasukan + 2 sisi transfer, urut terbaru dulu.
     expect(lines).toHaveLength(5);
   });
 
   it('jumlah bertanda, transfer menyebut dompet lawan, teks di-escape', async () => {
     const { lines } = await exportLines(user);
-    expect(lines).toContain('2026-10-01,Transfer keluar,,BCA,Tunai,-200000,');
-    expect(lines).toContain('2026-10-01,Transfer masuk,,Tunai,BCA,200000,');
-    expect(lines).toContain('2026-09-03,Pengeluaran,Makan,Tunai,,-25000,"Nasi ""padang"", pedas"');
+    expect(lines).toContain('2026-10-01,Transfer keluar,,BCA,Tunai,-200000,,');
+    expect(lines).toContain('2026-10-01,Transfer masuk,,Tunai,BCA,200000,,');
+    expect(lines).toContain('2026-09-03,Pengeluaran,Makan,Tunai,,-25000,"Nasi ""padang"", pedas",');
     // Formula dinetralkan dengan awalan kutip satu.
     expect(lines).toContain(
-      `2026-09-25,Pemasukan,Gaji,BCA,,5000000,"'=HYPERLINK(""http://jahat"")"`,
+      `2026-09-25,Pemasukan,Gaji,BCA,,5000000,"'=HYPERLINK(""http://jahat"")",`,
     );
   });
 
@@ -98,7 +98,7 @@ describe('GET /export/transactions.csv', () => {
   it('pengguna lain hanya mendapat header tanpa data', async () => {
     const stranger = await registerUser();
     const { lines } = await exportLines(stranger);
-    expect(lines).toEqual(['Tanggal,Jenis,Kategori,Dompet,Dompet lawan,Jumlah,Catatan']);
+    expect(lines).toEqual(['Tanggal,Jenis,Kategori,Dompet,Dompet lawan,Jumlah,Catatan,Tag']);
   });
 
   it('wajib login', async () => {

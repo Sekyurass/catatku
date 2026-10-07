@@ -63,17 +63,20 @@ Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12
 gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini; plus 4 template cepat catat:
 kopi susu, Gojek ke kantor, parkir, dan makan siang tanpa nominal).
 
-Fitur Fase 1, pindai struk (Fase 3.1), dan saran kategori (Fase 3.2) berada di balik feature flag yang
-**nonaktif** setelah seed. Untuk menyalakannya:
+Fitur Fase 1, tag & lampiran (Fase 2.5), pindai struk (Fase 3.1), dan saran kategori (Fase 3.2) berada
+di balik feature flag yang **nonaktif** setelah seed. Untuk menyalakannya:
 
 ```sql
 -- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
 UPDATE "FeatureFlag" SET enabled = true
-WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category');
+WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category',
+              'tags', 'attachments');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on` di `apps/api/.env` (restart API).
-Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan. Akun baru dari halaman **Daftar**
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on` di `apps/api/.env` (restart API).
+Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan.
+Lampiran foto butuh `STORAGE_S3_*` (lihat [Lampiran foto](#lampiran-foto-supabase-storage)); tanpa itu flag
+`attachments` selalu dianggap mati. Akun baru dari halaman **Daftar**
 langsung diarahkan ke onboarding 3 langkah di `/mulai`: sambutan → dompet pertama → transaksi pertama
 (bisa dilewati kapan saja).
 
@@ -117,6 +120,25 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
   ±620–970 ms (6543) vs ±125–260 ms (5432). Untuk satu server Node yang berjalan terus (bukan serverless),
   session pooler lebih cocok; transaction pooler perlu untuk banyak instans/serverless. Hindari juga
   `include` pada `create` di jalur yang sering dipakai (BEGIN + INSERT + 1 SELECT per relasi + COMMIT).
+
+### Lampiran foto (Supabase Storage)
+
+Foto lampiran disimpan di object storage lewat **protokol S3**, jadi pindah ke Cloudflare R2 (atau S3 lain)
+cukup mengganti env, tanpa mengubah kode:
+
+1. Supabase Dashboard → _Storage_ → **New bucket**, mis. `lampiran`, **Public bucket: mati** (privat).
+2. _Storage_ → _Settings_ → aktifkan **S3 protocol** → **New access key**.
+3. Isi di `apps/api/.env` (jangan di-commit; kunci ini melewati RLS dan hanya untuk server):
+
+| Variabel                       | Isi                                                       |
+| ------------------------------ | --------------------------------------------------------- |
+| `STORAGE_S3_ENDPOINT`          | `https://<project-ref>.storage.supabase.co/storage/v1/s3` |
+| `STORAGE_S3_REGION`            | Region proyek, mis. `ap-south-1`                          |
+| `STORAGE_S3_BUCKET`            | `lampiran`                                                |
+| `STORAGE_S3_ACCESS_KEY_ID`     | Access key ID dari langkah 2                              |
+| `STORAGE_S3_SECRET_ACCESS_KEY` | Secret access key dari langkah 2                          |
+
+Untuk R2: endpoint `https://<account-id>.r2.cloudflarestorage.com`, region `auto`. Restart API setelah mengisi.
 
 ### Alternatif lokal
 
@@ -265,8 +287,9 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     dan sampah OCR setelah harga dibuang; baris pajak/diskon/biaya (PB1, PPN, %, SERVICE, …) dilewati; nama di
     satu baris dengan `1 x 38.500` di baris berikutnya digabung. Kolom yang meragukan ditandai **kurang yakin**
     di form; kolom yang tidak terbaca dibiarkan kosong.
-  - **Gagal / tidak terbaca**: form manual tetap terbuka dengan foto bisa diperbesar sebagai acuan. Belum ada
-    lampiran (Fase 2.5), jadi foto dibuang dari memori saat form ditutup.
+  - **Gagal / tidak terbaca**: form manual tetap terbuka dengan foto bisa diperbesar sebagai acuan. Bila flag
+    `attachments` aktif, centang **Lampirkan foto struk** (default tercentang) menyimpan foto itu sebagai
+    lampiran transaksi; bila tidak dicentang, foto dibuang dari memori saat form ditutup.
   - **Aset self-hosted**: worker, core WASM (varian SIMD/non-SIMD), dan data bahasa `ind` (`4.0.0_best_int`)
     disajikan dari `/tesseract/<versi>/` oleh plugin Vite (dev: middleware, build: `emitFile`), tanpa CDN.
     Data bahasa disajikan sebagai byte gzip dengan nama `ind.traineddata` (tanpa `.gz`) karena sebagian
@@ -296,6 +319,29 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     ditimpa. Kategori diarsipkan / beda jenis tidak disarankan.
   - **Metrik**: dataset 63 catatan di `categorize.test.ts` (gagal bila < 90%, saat ini 100%); di produksi
     event `category_suggestion` `{ source, accepted }` saat menyimpan transaksi baru (target diterima ≥ 70%).
+- **Tag** (Fase 2.5, flag `tags`): tabel `Tag (userId, name, key)` unik per `(userId, key)`, dengan `key` =
+  nama huruf kecil dan spasi dirapikan, jadi "Liburan Bali", "#liburan bali" dan "LIBURAN BALI" adalah tag
+  yang sama. Relasi banyak-ke-banyak `TransactionTag`; maks. 10 tag per transaksi, nama maks. 30 karakter,
+  `#` di depan dibuang. Tag dibuat otomatis saat transaksi disimpan (tidak ada endpoint "buat tag").
+  - **Form**: kolom chip (Enter/koma menambah, Backspace menghapus) + saran tag yang paling sering dipakai.
+    Transfer tidak bisa diberi tag. Daftar transaksi menampilkan chip `#tag`, filter **Tag**, dan pencarian
+    juga mencocokkan nama tag. Ekspor CSV mendapat kolom `Tag` (nama dipisah koma).
+  - **Halaman `/tag`** (dari Profil): total per tag per bulan (pengeluaran/pemasukan), ketuk untuk melihat
+    transaksinya, ganti nama (409 bila bentrok), hapus (tag dilepas, transaksi tetap).
+  - Tag dan jumlah lampiran dimuat paralel dengan data transfer saat membentuk DTO (tidak menambah waktu
+    tunggu berurutan). Saat flag mati, tag dari klien diabaikan.
+- **Lampiran foto** (Fase 2.5, flag `attachments`): foto struk/bukti per transaksi di object storage
+  (antarmuka `ObjectStorage`, `lib/storage.ts`; driver S3 untuk Supabase Storage/R2, driver memori untuk tes).
+  - **Browser mengompres** (sisi panjang ≤ 1600 px, WebP dengan fallback JPEG, kualitas turun bertahap) sehingga
+    satu foto ±150–250 kB; 1 GB cukup untuk ±4.000–6.000 foto. Server menerima byte mentah maks. 4 MB (di
+    bawah batas body Vercel 4,5 MB), memeriksa jenis dari _magic bytes_, maks. 5 foto per transaksi.
+  - **Bucket privat**: kunci objek `userId/transactionId/uuid.ext`; klien hanya mendapat tautan bertanda
+    tangan berumur 15 menit dari `GET /transactions/:id/attachments`. Kunci S3 tidak pernah keluar dari server.
+  - **Form**: foto ditampung dulu di perangkat lalu diunggah setelah transaksi tersimpan, jadi transaksi tidak
+    gagal karena foto; bila ada foto gagal, muncul toast peringatan. Di perangkat sentuh tersedia **Ambil
+    foto** (kamera) dan **Dari galeri**.
+  - **Pembersihan**: menghapus lampiran menghapus objeknya lebih dulu. Lampiran yang transaksinya terhapus
+    permanen (mis. impor dibatalkan) menjadi yatim dan dibersihkan penjadwal tiap jam.
 
 ## API (Fase 0)
 
@@ -364,6 +410,18 @@ defaultType?: SIGN|EXPENSE|INCOME, skipDuplicates?: boolean (default true) }`
     `stats: { total, imported, skipped, failed }` dan `issues`; mendukung `Idempotency-Key`
   - Rollback → batch berstatus `ROLLED_BACK` (idempoten); 409 bila masih diproses atau impornya gagal
 
+### Fase 2 (di balik feature flag; flag mati → 404)
+
+- ✅ `tags`: `GET /tags` → `{ items: [{ id, name, count }] }`, `PATCH /tags/:id` `{ name }` (409 bila nama
+  sudah dipakai), `DELETE /tags/:id` → 204; `GET /reports/by-tag?month=&type=EXPENSE|INCOME` →
+  `{ month, type, items: [{ tagId, name, total, count }] }`
+  - `POST/PATCH /transactions` menerima `tags: string[]` (PATCH mengganti seluruh tag); `GET /transactions` dan
+    ekspor CSV menerima `tagId`; setiap transaksi berisi `tags: [{ id, name }]` dan `attachmentCount`
+- ✅ `attachments` (butuh `STORAGE_S3_*`, tanpa itu 404): `GET /transactions/:id/attachments` →
+  `{ items: [{ id, transactionId, mimeType, size, createdAt, url, expiresAt }] }`,
+  `POST /transactions/:id/attachments` berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`, maks.
+  4 MB) → 201 lampiran (400 bila sudah 5), `DELETE /attachments/:id` → 204
+
 ### Fase 3 (di balik feature flag; flag mati → 404)
 
 - ✅ `auto_category`: `GET /categories/learned` → `{ items: [{ key, type, categoryId }] }` (maks. 500 terbaru,
@@ -376,7 +434,8 @@ defaultType?: SIGN|EXPENSE|INCOME, skipDuplicates?: boolean (default true) }`
 | -------------------------------------------- | ---------------------- | --------------------------------------------- |
 | `user_registered`, `user_logged_in`          | API auth               | –                                             |
 | `wallet_created`                             | API                    | `type` (CASH/BANK/EWALLET)                    |
-| `transaction_created`                        | API                    | `type` (EXPENSE/INCOME/TRANSFER)              |
+| `transaction_created`                        | API                    | `type` (EXPENSE/INCOME/TRANSFER), `tags`      |
+| `attachment_uploaded`                        | API                    | `mimeType`, `size` (byte)                     |
 | `budget_saved`                               | API                    | `items`, `monthOnly` (jumlah)                 |
 | `export_csv`                                 | API                    | –                                             |
 | `password_reset_requested`, `password_reset` | API auth               | –                                             |

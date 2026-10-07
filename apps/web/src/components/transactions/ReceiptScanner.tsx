@@ -11,6 +11,7 @@ import {
   validateReceiptFile,
 } from '../../lib/receipt';
 import { Button } from '../ui/Button';
+import { Checkbox } from '../ui/Checkbox';
 
 type State =
   | { status: 'idle' }
@@ -25,17 +26,24 @@ const FIELD_KEYS = Object.keys(FIELD_LABELS) as FieldKey[];
 const listOf = (keys: FieldKey[]) => keys.map((k) => FIELD_LABELS[k]).join(', ');
 
 /**
- * Tombol "Pindai struk" (di HP: "Foto struk" langsung ke kamera + "Dari galeri") + panel status. Foto hanya dibaca di perangkat (tidak diunggah) dan
- * dibuang saat panel ditutup; bila gagal, foto tetap tampil sebagai acuan mengisi manual.
+ * Tombol "Pindai struk" (di HP: "Foto struk" langsung ke kamera + "Dari galeri") + panel status. Foto dibaca di perangkat,
+ * hanya diunggah bila pengguna memilih melampirkannya, dan dibuang saat panel ditutup; bila gagal,
+ * foto tetap tampil sebagai acuan mengisi manual.
  */
 export function ReceiptScanner({
   today,
   onScanned,
   onCleared,
+  onPhoto,
+  attach,
 }: {
   today: string;
   onScanned: (result: ReceiptScanResult) => void;
   onCleared: () => void;
+  /** Foto yang sedang dipakai (null saat dibuang), untuk dilampirkan ke transaksi. */
+  onPhoto?: (file: File | null) => void;
+  /** Ada = fitur lampiran aktif: tampilkan pilihan "Lampirkan foto struk". */
+  attach?: { checked: boolean; onChange: (checked: boolean) => void };
 }) {
   const [state, setState] = useState<State>({ status: 'idle' });
   const [zoomed, setZoomed] = useState(false);
@@ -70,10 +78,12 @@ export function ReceiptScanner({
     try {
       validateReceiptFile(file);
     } catch (err) {
+      onPhoto?.(null);
       setState({ status: 'failed', preview: null, message: (err as Error).message });
       return;
     }
 
+    onPhoto?.(file);
     const preview = URL.createObjectURL(file);
     previewRef.current = preview;
     const controller = new AbortController();
@@ -124,6 +134,7 @@ export function ReceiptScanner({
   const cancel = () => {
     abortRef.current?.abort();
     releasePreview();
+    onPhoto?.(null);
     setState({ status: 'idle' });
   };
 
@@ -245,9 +256,19 @@ export function ReceiptScanner({
       )}
 
       {state.status !== 'scanning' && pickers(true)}
+      {attach && preview && (
+        <Checkbox
+          checked={attach.checked}
+          onChange={attach.onChange}
+          label="Lampirkan foto struk"
+          description="Disimpan bersama transaksi sebagai bukti."
+        />
+      )}
       <p className="flex items-center gap-1.5 text-xs text-muted">
         <ShieldCheck className="size-4 shrink-0" aria-hidden />
-        Foto dibaca di perangkat ini dan tidak diunggah.
+        {attach?.checked && preview
+          ? 'Foto dibaca di perangkat ini, lalu diunggah sebagai lampiran saat disimpan.'
+          : 'Foto dibaca di perangkat ini dan tidak diunggah.'}
       </p>
     </section>
   );

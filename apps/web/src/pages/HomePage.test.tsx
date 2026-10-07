@@ -54,6 +54,8 @@ const TX: TransactionDTO = {
   counterpartWallet: null,
   transferGroupId: null,
   recurringRuleId: null,
+  tags: [],
+  attachmentCount: 0,
   deletedAt: null,
   createdAt: '2026-10-02T05:00:00.000Z',
   updatedAt: '2026-10-02T05:00:00.000Z',

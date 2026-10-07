@@ -5,6 +5,7 @@ import {
   Camera,
   ChevronRight,
   FileUp,
+  Hash,
   ImageUp,
   KeyRound,
   LogOut,
@@ -63,6 +64,13 @@ const TEMPLATE_LINK = {
   icon: Zap,
 };
 
+const TAG_LINK = {
+  to: '/tag',
+  label: 'Tag',
+  description: 'Kelompokkan transaksi, lihat total per tag',
+  icon: Hash,
+};
+
 const IMPORT_LINK = {
   to: '/impor',
   label: 'Impor CSV',
@@ -89,6 +97,7 @@ export function ProfilePage() {
   const remindersOn = useFeature('reminders');
   const templatesOn = useFeature('templates');
   const importOn = useFeature('csv_import');
+  const tagsOn = useFeature('tags');
 
   return (
     <div className="flex flex-col gap-4">
@@ -125,6 +134,7 @@ export function ProfilePage() {
             ...LINKS,
             ...(recurringOn ? [RECURRING_LINK] : []),
             ...(templatesOn ? [TEMPLATE_LINK] : []),
+            ...(tagsOn ? [TAG_LINK] : []),
             ...(importOn ? [IMPORT_LINK] : []),
             ...(remindersOn ? [REMINDER_LINK] : []),
           ].map(({ to, label, description, icon: Icon }) => (

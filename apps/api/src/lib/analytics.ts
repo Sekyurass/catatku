@@ -18,7 +18,8 @@ export type EventName =
   | 'reminder_sent'
   | 'push_subscribed'
   | 'budget_saved'
-  | 'export_csv';
+  | 'export_csv'
+  | 'attachment_uploaded';
 
 /** Hanya nilai non-sensitif (jenis, jumlah item, langkah). Jangan masukkan nominal, catatan, atau email. */
 export type EventProps = Record<string, string | number | boolean>;

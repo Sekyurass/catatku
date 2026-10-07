@@ -2,6 +2,7 @@ import { APP_TIME_ZONE } from '@catatku/shared';
 import cron from 'node-cron';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
+import { purgeOrphanAttachments } from '../modules/attachments/attachment.service';
 import { pruneNotifications, runReminders } from '../modules/notifications/notification.service';
 import { runDueRules } from '../modules/recurring/recurring.service';
 
@@ -21,6 +22,12 @@ async function runNotifications() {
     if (sent > 0 || pruned > 0) logger.info({ sent, pruned }, 'Pengingat diproses');
   } catch (err) {
     logger.error({ err }, 'Putaran pengingat gagal');
+  }
+  try {
+    const purged = await purgeOrphanAttachments();
+    if (purged > 0) logger.info({ purged }, 'Lampiran tanpa transaksi dibersihkan');
+  } catch (err) {
+    logger.error({ err }, 'Pembersihan lampiran gagal');
   }
 }
 

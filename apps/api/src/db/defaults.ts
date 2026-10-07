@@ -55,6 +55,8 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   [FEATURE_FLAGS.PWA_OFFLINE]: 'Fase 1.5 — PWA + offline',
   [FEATURE_FLAGS.RECEIPT_OCR]: 'Fase 3.1 — pindai struk (OCR di perangkat)',
   [FEATURE_FLAGS.AUTO_CATEGORY]: 'Fase 3.2 — saran kategori otomatis',
+  [FEATURE_FLAGS.TAGS]: 'Fase 2.5 — tag transaksi + filter & laporan per tag',
+  [FEATURE_FLAGS.ATTACHMENTS]: 'Fase 2.5 — lampiran foto (butuh STORAGE_S3_* di server)',
 };
 
 /** Kategori default + baris feature flag (nonaktif). Aman dijalankan berulang. */

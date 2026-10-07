@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { createApiLimiter } from '../middleware/rateLimit';
+import { createAttachmentsRouter } from '../modules/attachments/attachment.routes';
 import { createAuthRouter } from '../modules/auth/auth.routes';
 import { createProfileRouter } from '../modules/auth/profile.routes';
 import { createBudgetsRouter } from '../modules/budgets/budget.routes';
@@ -12,6 +13,7 @@ import { createImportsRouter } from '../modules/imports/import.routes';
 import { createNotificationsRouter } from '../modules/notifications/notification.routes';
 import { createRecurringRouter } from '../modules/recurring/recurring.routes';
 import { createReportsRouter } from '../modules/reports/report.routes';
+import { createTagsRouter } from '../modules/tags/tag.routes';
 import { createTemplatesRouter } from '../modules/templates/template.routes';
 import { createTransactionsRouter } from '../modules/transactions/transaction.routes';
 import { createWalletsRouter } from '../modules/wallets/wallet.routes';
@@ -39,5 +41,7 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/notifications', createNotificationsRouter());
   router.use('/templates', createTemplatesRouter());
   router.use('/imports', createImportsRouter());
+  router.use('/tags', createTagsRouter());
+  router.use(createAttachmentsRouter());
   return router;
 }

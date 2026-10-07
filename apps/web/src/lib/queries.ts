@@ -1,4 +1,5 @@
 import type {
+  AttachmentDTO,
   BudgetMonthDTO,
   CategoryBreakdownDTO,
   CategoryDTO,
@@ -9,6 +10,8 @@ import type {
   PendingOccurrenceDTO,
   RecurringRuleDTO,
   SummaryDTO,
+  TagBreakdownDTO,
+  TagDTO,
   TransactionPage,
   TransactionTemplateDTO,
   TrendDTO,
@@ -44,7 +47,42 @@ export const queryKeys = {
   templates: ['templates'] as const,
   imports: ['imports'] as const,
   importBatch: (id: string) => ['imports', id] as const,
+  tags: ['tags'] as const,
+  byTag: (month: string, type: CategoryType) => ['reports', 'by-tag', month, type] as const,
+  attachments: (transactionId: string) => ['attachments', transactionId] as const,
 };
+
+export function useTags(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.tags,
+    queryFn: ({ signal }) => api<{ items: TagDTO[] }>('/tags', { signal }).then((r) => r.items),
+    enabled,
+  });
+}
+
+export function useByTag(month: string, type: CategoryType, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.byTag(month, type),
+    queryFn: ({ signal }) =>
+      api<TagBreakdownDTO>('/reports/by-tag', { query: { month, type }, signal }),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+/** Tautan foto berumur 15 menit; dimuat ulang sebelum kedaluwarsa. */
+export function useAttachments(transactionId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.attachments(transactionId ?? ''),
+    queryFn: ({ signal }) =>
+      api<{ items: AttachmentDTO[] }>(`/transactions/${transactionId}/attachments`, {
+        signal,
+      }).then((r) => r.items),
+    enabled: enabled && !!transactionId,
+    staleTime: 10 * 60_000,
+    gcTime: 12 * 60_000,
+  });
+}
 
 export function useImports(enabled = true) {
   return useQuery({
@@ -218,11 +256,11 @@ export function prefetchPageData(qc: QueryClient, path: string) {
 
 /**
  * Semua data yang ikut berubah saat uang bergerak: saldo, riwayat, laporan, anggaran, berulang,
- * dan template (status dompet/kategori diarsipkan).
+ * template (status dompet/kategori diarsipkan), dan jumlah pemakaian tag.
  */
 export function invalidateMoney(qc: QueryClient) {
   return Promise.all(
-    ['wallets', 'transactions', 'reports', 'budgets', 'recurring', 'templates'].map((key) =>
+    ['wallets', 'transactions', 'reports', 'budgets', 'recurring', 'templates', 'tags'].map((key) =>
       qc.invalidateQueries({ queryKey: [key] }),
     ),
   );

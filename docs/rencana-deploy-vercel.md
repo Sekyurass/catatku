@@ -41,6 +41,8 @@ refresh (`sameSite: lax`, `path: /api/v1/auth`) dan CORS tidak berubah.
      (lokal memakai 5432; lihat komentar di `apps/api/.env`)
    - `DIRECT_URL` (5432), `JWT_ACCESS_SECRET`, `CORS_ORIGINS` & `APP_URL` = domain Vercel, `TRUST_PROXY=1`,
      `SCHEDULER_ENABLED=false`, `CRON_SECRET`, SMTP, VAPID
+   - `STORAGE_S3_*` (lampiran foto). Unggahan lampiran dibatasi 4 MB agar di bawah batas body Vercel 4,5 MB;
+     pembersihan lampiran yatim ikut `runNotifications`, jadi ikut terpanggil oleh pg_cron.
    - Bagian "Deploy" di README
 
 ## Risiko

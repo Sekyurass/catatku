@@ -16,6 +16,7 @@ import { conflict, notFound, validationError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
+import { purgeOrphansInBackground } from '../attachments/attachment.service';
 import { findActiveWallet } from '../wallets/wallet.service';
 
 type ImportRequest = z.output<typeof importRequestSchema>;
@@ -283,5 +284,6 @@ export async function rollbackImport(userId: string, id: string): Promise<Import
     }),
   ]);
   track(userId, 'import_rolled_back', { removed: removed.count });
+  purgeOrphansInBackground();
   return toDTO(updated);
 }

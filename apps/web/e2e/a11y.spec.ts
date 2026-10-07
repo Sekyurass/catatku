@@ -75,6 +75,7 @@ async function auditAppPages(page: Page, browser: Browser) {
     walletId: wallet.id,
     categoryId: 'cat_makan',
     date: today,
+    tags: ['Liburan', 'Kantor'],
   });
   await post('/transactions', {
     type: 'INCOME',
@@ -118,6 +119,7 @@ async function auditAppPages(page: Page, browser: Browser) {
     '/kategori',
     '/berulang',
     '/template',
+    '/tag',
     '/impor',
     '/pengingat',
     '/profil',
@@ -194,6 +196,21 @@ async function auditAppPages(page: Page, browser: Browser) {
     await expect(page.getByRole('dialog', { name: 'Notifikasi' })).toBeVisible();
     await waitForApp(page);
     await test.step('lonceng notifikasi', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+  }
+
+  if (flags.tags) {
+    await page.goto('/');
+    await waitForApp(page);
+    await page.getByRole('button', { name: 'Catat transaksi' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Catat transaksi' });
+    await dialog.getByLabel('Tag (opsional)').fill('Dinas luar');
+    await dialog.getByLabel('Tag (opsional)').press('Enter');
+    await expect(dialog.getByRole('button', { name: 'Hapus tag Dinas luar' })).toBeVisible();
+    await expect(dialog.getByLabel('Tag yang pernah dipakai')).toBeVisible();
+    await test.step('form dengan tag', async () => {
       await expectNoViolations(page);
       await expectTouchTargets(page);
     });

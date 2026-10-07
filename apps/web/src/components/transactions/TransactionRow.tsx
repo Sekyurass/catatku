@@ -1,5 +1,5 @@
 import { formatRupiah, type TransactionDTO } from '@catatku/shared';
-import { Repeat } from 'lucide-react';
+import { Paperclip, Repeat } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { categoryIcon, TransferIcon } from '../../lib/icons';
 import { IconBadge } from '../IconBadge';
@@ -27,6 +27,13 @@ export function TransactionRow({
   const { title, subtitle } = describe(tx);
   const isTransfer = tx.type === 'TRANSFER';
   const recurring = tx.recurringRuleId !== null;
+  // Data lama di cache (sebelum fitur tag) bisa belum punya kolom ini.
+  const tags = tx.tags ?? [];
+  const attachments = tx.attachmentCount ?? 0;
+  const extras = [
+    tags.length > 0 && `tag ${tags.map((t) => t.name).join(', ')}`,
+    attachments > 0 && `${attachments} lampiran`,
+  ].filter(Boolean);
   const amountText =
     isTransfer && !showTransferSign
       ? formatRupiah(Math.abs(tx.amount))
@@ -37,7 +44,7 @@ export function TransactionRow({
       type="button"
       onClick={() => onSelect(tx)}
       className="flex min-h-14 w-full items-center gap-3 rounded-control px-2 py-2 text-left hover:bg-surface-muted"
-      aria-label={`${title}${recurring ? ' (berulang)' : ''}, ${amountText}, ${subtitle}. Ketuk untuk mengubah.`}
+      aria-label={`${title}${recurring ? ' (berulang)' : ''}, ${amountText}, ${subtitle}${extras.length ? `, ${extras.join(', ')}` : ''}. Ketuk untuk mengubah.`}
     >
       {isTransfer ? (
         <IconBadge icon={TransferIcon} color="#475569" />
@@ -56,8 +63,21 @@ export function TransactionRow({
               Berulang
             </span>
           )}
+          {attachments > 0 && <Paperclip className="size-3.5 shrink-0 text-muted" aria-hidden />}
         </span>
         <span className="block truncate text-sm text-muted">{subtitle}</span>
+        {tags.length > 0 && (
+          <span className="mt-1 flex flex-wrap gap-1" aria-hidden>
+            {tags.map((t) => (
+              <span
+                key={t.id}
+                className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-muted"
+              >
+                #{t.name}
+              </span>
+            ))}
+          </span>
+        )}
       </span>
       <span
         className={cn(

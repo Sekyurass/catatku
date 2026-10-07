@@ -6,10 +6,9 @@ import {
   currentMonth,
   formatRupiah,
   MONTH_REGEX,
-  shiftMonth,
 } from '@catatku/shared';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, PiggyBank, Trash2 } from 'lucide-react';
+import { PiggyBank, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { IconBadge } from '../components/IconBadge';
@@ -17,6 +16,7 @@ import { Button } from '../components/ui/Button';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
 import { Field } from '../components/ui/Field';
+import { MonthSwitcher } from '../components/ui/MonthSwitcher';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { RupiahInput } from '../components/ui/RupiahInput';
 import { Segmented } from '../components/ui/Segmented';
@@ -147,40 +147,6 @@ export function BudgetsPage() {
       >
         {editing && <BudgetForm item={editing} month={month} onDone={() => setEditing(null)} />}
       </Dialog>
-    </div>
-  );
-}
-
-function MonthSwitcher({ month, onChange }: { month: string; onChange: (m: string) => void }) {
-  const isCurrent = month === currentMonth();
-  return (
-    <div className="flex items-center gap-1 rounded-control border border-line bg-surface p-1">
-      <button
-        type="button"
-        onClick={() => onChange(shiftMonth(month, -1))}
-        className="flex size-11 items-center justify-center rounded-control text-muted hover:bg-surface-muted hover:text-fg"
-        aria-label="Bulan sebelumnya"
-      >
-        <ChevronLeft className="size-5" aria-hidden />
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(currentMonth())}
-        disabled={isCurrent}
-        className="min-h-11 min-w-36 rounded-control px-3 text-sm font-semibold enabled:hover:bg-surface-muted"
-        title={isCurrent ? undefined : 'Kembali ke bulan ini'}
-        aria-live="polite"
-      >
-        {formatMonthLabel(month)}
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(shiftMonth(month, 1))}
-        className="flex size-11 items-center justify-center rounded-control text-muted hover:bg-surface-muted hover:text-fg"
-        aria-label="Bulan berikutnya"
-      >
-        <ChevronRight className="size-5" aria-hidden />
-      </button>
     </div>
   );
 }

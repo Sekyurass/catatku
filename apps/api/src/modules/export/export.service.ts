@@ -12,6 +12,7 @@ export const CSV_HEADER = csvRow([
   'Dompet lawan',
   'Jumlah',
   'Catatan',
+  'Tag',
 ]);
 
 function typeLabel(tx: TransactionDTO): string {
@@ -30,6 +31,7 @@ export function toCsvRow(tx: TransactionDTO): string {
     tx.counterpartWallet?.name ?? '',
     tx.amount,
     tx.note ?? '',
+    tx.tags.map((t) => t.name).join(', '),
   ]);
 }
 

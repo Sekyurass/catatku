@@ -4,6 +4,7 @@ import {
   FEATURE_FLAGS,
   formatRupiah,
   MAX_AMOUNT,
+  MAX_ATTACHMENTS_PER_TRANSACTION,
   MAX_TEMPLATES,
   type TransactionDTO,
   type TransactionTemplateDTO,
@@ -12,13 +13,14 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Sparkles, Trash2, WalletMinimal } from 'lucide-react';
-import { type ChangeEvent, useEffect, useState } from 'react';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { useBudgetWarning } from '../budgets/useBudgetWarning';
 import { FormAlert } from '../../pages/auth/AuthLayout';
 import { api, ApiError } from '../../lib/api';
+import { compressAttachment, deleteAttachment, uploadAttachment } from '../../lib/attachments';
 import {
   rememberCategory,
   suggestCategory,
@@ -31,6 +33,8 @@ import { today, yesterday } from '../../lib/format';
 import { receiptNote, type ReceiptField, type ReceiptScanResult } from '../../lib/receipt';
 import {
   pickDefaultWallet,
+  queryKeys,
+  useAttachments,
   useCategories,
   useInvalidateMoney,
   useLearnedCategories,
@@ -47,8 +51,10 @@ import { Segmented } from '../ui/Segmented';
 import { ColorDot, Select, type SelectOption } from '../ui/Select';
 import { EmptyState, ErrorState, Skeleton } from '../ui/States';
 import { useToast } from '../ui/Toast';
+import { AttachmentField, type PendingPhoto } from './AttachmentField';
 import { CategoryPicker } from './CategoryPicker';
 import { ReceiptScanner } from './ReceiptScanner';
+import { TagInput } from './TagInput';
 
 export type TransactionKind = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
@@ -273,6 +279,20 @@ function TransactionForm({
   const learned = useLearnedCategories(autoCategoryOn);
   /** Kategori yang dipilih otomatis; selama belum diganti pengguna, saran baru boleh menggantinya. */
   const [autoPicked, setAutoPicked] = useState<string | null>(null);
+  const tagsOn = useFeature(FEATURE_FLAGS.TAGS);
+  const [tags, setTags] = useState<string[]>(() => editing?.tags.map((t) => t.name) ?? []);
+  const attachOn = useFeature(FEATURE_FLAGS.ATTACHMENTS) && editing?.type !== 'TRANSFER';
+  const attachments = useAttachments(editing?.id, attachOn);
+  /** Lampiran baru dan yang akan dihapus baru diterapkan setelah transaksi tersimpan. */
+  const [pending, setPending] = useState<PendingPhoto[]>([]);
+  const [removed, setRemoved] = useState<string[]>([]);
+  const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
+  const [attachReceipt, setAttachReceipt] = useState(true);
+  const previewUrls = useRef(new Set<string>());
+  useEffect(() => {
+    const urls = previewUrls.current;
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
   const {
     control,
@@ -379,9 +399,37 @@ function TransactionForm({
     }
   };
 
+  const existingAttachments = (attachments.data ?? []).filter((a) => !removed.includes(a.id));
+  const receiptAttached = attachOn && !!receiptPhoto && attachReceipt;
+  const attachmentCapacity =
+    MAX_ATTACHMENTS_PER_TRANSACTION -
+    existingAttachments.length -
+    pending.length -
+    (receiptAttached ? 1 : 0);
+
+  /** Unggah foto baru & hapus yang ditandai. Mengembalikan jumlah yang gagal. */
+  const syncAttachments = async (transactionId: string) => {
+    const uploads: Array<() => Promise<Blob>> = [
+      ...(receiptAttached ? [() => compressAttachment(receiptPhoto!)] : []),
+      ...pending.map((p) => () => Promise.resolve(p.blob)),
+    ];
+    if (uploads.length === 0 && removed.length === 0) return 0;
+    let failed = 0;
+    for (const id of removed) await deleteAttachment(id).catch(() => failed++);
+    for (const load of uploads) {
+      await load()
+        .then((blob) => uploadAttachment(transactionId, blob))
+        .catch(() => failed++);
+    }
+    void queryClient.invalidateQueries({ queryKey: queryKeys.attachments(transactionId) });
+    return failed;
+  };
+
   const onSubmit = handleSubmit(async (v) => {
     setFormError(null);
     const amount = v.amount!;
+    const withTags = tagsOn && v.kind !== 'TRANSFER';
+    let savedId = editing?.id;
     try {
       if (editing?.type === 'TRANSFER') {
         await api(`/transactions/${editing.id}`, {
@@ -404,6 +452,7 @@ function TransactionForm({
             date: v.date,
             note: v.note,
             ...(retyped && { type: v.kind, categoryId: v.categoryId }),
+            ...(withTags && { tags }),
           },
         });
       } else if (v.kind === 'TRANSFER') {
@@ -419,7 +468,7 @@ function TransactionForm({
           },
         });
       } else {
-        await api('/transactions', {
+        const created = await api<TransactionDTO>('/transactions', {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
           body: {
@@ -429,8 +478,10 @@ function TransactionForm({
             categoryId: v.categoryId,
             date: v.date,
             note: v.note,
+            ...(withTags && { tags }),
           },
         });
+        savedId = created.id;
       }
       if (autoCategoryOn && v.kind !== 'TRANSFER') {
         const shown = suggestFor(v.note, v.kind);
@@ -450,8 +501,15 @@ function TransactionForm({
         saveAsTemplate && canSaveTemplate && v.kind !== 'TRANSFER'
           ? await createTemplateFrom(v)
           : null;
+      const attachFailed =
+        attachOn && v.kind !== 'TRANSFER' && savedId ? await syncAttachments(savedId) : 0;
       void invalidate();
-      if (templateSaved === false) {
+      if (attachFailed > 0) {
+        toast({
+          message: `Transaksi tersimpan, tapi ${attachFailed} foto gagal diproses. Coba lampirkan lagi.`,
+          tone: 'warning',
+        });
+      } else if (templateSaved === false) {
         toast({ message: 'Transaksi tersimpan, tapi template gagal dibuat.', tone: 'warning' });
       } else {
         toast({
@@ -560,7 +618,13 @@ function TransactionForm({
       )}
 
       {ocrOn && !editing && kind === 'EXPENSE' && (
-        <ReceiptScanner today={today()} onScanned={applyScan} onCleared={() => setScanned({})} />
+        <ReceiptScanner
+          today={today()}
+          onScanned={applyScan}
+          onCleared={() => setScanned({})}
+          onPhoto={setReceiptPhoto}
+          attach={attachOn ? { checked: attachReceipt, onChange: setAttachReceipt } : undefined}
+        />
       )}
 
       <Field label="Nominal" error={errors.amount?.message} hint={scanHint(scanned.amount, amount)}>
@@ -681,6 +745,29 @@ function TransactionForm({
           />
         )}
       </Field>
+
+      {tagsOn && !isTransfer && <TagInput value={tags} onChange={setTags} />}
+
+      {attachOn && !isTransfer && (
+        <AttachmentField
+          existing={existingAttachments}
+          pending={pending}
+          capacity={attachmentCapacity}
+          onAdd={(photo) => {
+            previewUrls.current.add(photo.url);
+            setPending((list) => [...list, photo]);
+          }}
+          onRemovePending={(id) => {
+            const photo = pending.find((p) => p.id === id);
+            if (photo) {
+              URL.revokeObjectURL(photo.url);
+              previewUrls.current.delete(photo.url);
+            }
+            setPending((list) => list.filter((p) => p.id !== id));
+          }}
+          onRemoveExisting={(id) => setRemoved((list) => [...list, id])}
+        />
+      )}
 
       {canSaveTemplate && !isTransfer && (
         <label

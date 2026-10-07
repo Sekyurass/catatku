@@ -1,4 +1,9 @@
-import { formatRupiah, type TransactionDTO, type TransactionType } from '@catatku/shared';
+import {
+  FEATURE_FLAGS,
+  formatRupiah,
+  type TransactionDTO,
+  type TransactionType,
+} from '@catatku/shared';
 import { ListFilter, Plus, ReceiptText, Search, SearchX, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -13,16 +18,18 @@ import { Field, Input } from '../components/ui/Field';
 import { ColorDot, Select } from '../components/ui/Select';
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
 import { cn } from '../lib/cn';
+import { useFeature } from '../lib/features';
 import { formatDayLabel } from '../lib/format';
 import { categoryIcon } from '../lib/icons';
 import {
   type TransactionFilters,
   useCategories,
+  useTags,
   useTransactions,
   useWallets,
 } from '../lib/queries';
 
-const FILTER_KEYS = ['q', 'type', 'walletId', 'categoryId', 'from', 'to'] as const;
+const FILTER_KEYS = ['q', 'type', 'walletId', 'categoryId', 'tagId', 'from', 'to'] as const;
 
 const TYPE_LABELS: Record<TransactionType, string> = {
   EXPENSE: 'Pengeluaran',
@@ -77,7 +84,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (q: string) =
         type="search"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Cari catatan atau kategori"
+        placeholder="Cari catatan, kategori, atau tag"
         aria-label="Cari transaksi"
         className="pl-10"
       />
@@ -90,6 +97,8 @@ export function TransactionsPage() {
   const { openNew, openEdit } = useQuickAdd();
   const wallets = useWallets(true);
   const categories = useCategories();
+  const tagsOn = useFeature(FEATURE_FLAGS.TAGS);
+  const tags = useTags(tagsOn);
   const query = useTransactions(filters);
   const activeCount = FILTER_KEYS.filter((k) => k !== 'q' && filters[k]).length;
   const [showFilters, setShowFilters] = useState(activeCount > 0);
@@ -210,6 +219,25 @@ export function TransactionsPage() {
               />
             )}
           </Field>
+          {(tagsOn || filters.tagId) && (
+            <Field label="Tag">
+              {(a) => (
+                <Select
+                  {...a}
+                  value={filters.tagId ?? ''}
+                  onChange={(tagId) => update({ tagId })}
+                  options={[
+                    { value: '', label: 'Semua tag' },
+                    ...(tags.data ?? []).map((t) => ({
+                      value: t.id,
+                      label: `#${t.name}`,
+                      detail: `${t.count} transaksi`,
+                    })),
+                  ]}
+                />
+              )}
+            </Field>
+          )}
           <Field label="Dari tanggal">
             {(a) => (
               <DatePicker

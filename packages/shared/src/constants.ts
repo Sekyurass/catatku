@@ -39,6 +39,18 @@ export type AvatarMimeType = (typeof AVATAR_MIME_TYPES)[number];
 /** Foto struk dibaca di perangkat dan tidak pernah diunggah; batas ini menjaga memori HP. */
 export const RECEIPT_MAX_BYTES = 15 * 1024 * 1024;
 
+/**
+ * Lampiran foto dikompres di browser (sisi terpanjang 1600 px) sebelum diunggah. Batas server di
+ * bawah 4,5 MB agar tetap muat di batas body fungsi serverless.
+ */
+export const ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024;
+export const ATTACHMENT_MIME_TYPES = AVATAR_MIME_TYPES;
+export const MAX_ATTACHMENTS_PER_TRANSACTION = 5;
+
+/** Tag per transaksi dan panjang nama tag. */
+export const MAX_TAGS_PER_TRANSACTION = 10;
+export const TAG_NAME_MAX = 30;
+
 /** Template "Cepat catat" per pengguna; chip lebih dari ini tidak lagi cepat dipindai mata. */
 export const MAX_TEMPLATES = 20;
 
@@ -62,6 +74,9 @@ export const FEATURE_FLAGS = {
   PWA_OFFLINE: 'pwa_offline',
   RECEIPT_OCR: 'receipt_ocr',
   AUTO_CATEGORY: 'auto_category',
+  TAGS: 'tags',
+  /** Juga butuh penyimpanan objek (STORAGE_S3_*) di server; tanpa itu dianggap nonaktif. */
+  ATTACHMENTS: 'attachments',
 } as const;
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
 

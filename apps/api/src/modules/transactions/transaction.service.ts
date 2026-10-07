@@ -7,8 +7,14 @@ import type {
   TransactionPage,
   TransferDTO,
 } from '@catatku/shared';
-import { DATE_REGEX, updateTransactionSchema, updateTransferSchema } from '@catatku/shared';
-import type { Prisma } from '@prisma/client';
+import {
+  DATE_REGEX,
+  FEATURE_FLAGS,
+  type TagRefDTO,
+  updateTransactionSchema,
+  updateTransferSchema,
+} from '@catatku/shared';
+import { Prisma } from '@prisma/client';
 import type { z } from 'zod';
 import { track } from '../../lib/analytics';
 import { notFound, validationError } from '../../lib/errors';
@@ -17,6 +23,8 @@ import { prisma } from '../../lib/prisma';
 import { parse } from '../../lib/validate';
 import { findUsableCategory } from '../categories/category.service';
 import { learnCategoryInBackground } from '../categories/categoryMap.service';
+import { isFeatureEnabled } from '../features/featureFlag.service';
+import { resolveTags } from '../tags/tag.service';
 import { findActiveWallet } from '../wallets/wallet.service';
 
 const walletSelect = { select: { id: true, name: true, color: true } } as const;
@@ -29,7 +37,16 @@ type WalletRef = TransactionDTO['wallet'];
 const signed = (type: 'INCOME' | 'EXPENSE', amount: number) =>
   BigInt(type === 'INCOME' ? amount : -amount);
 
-function toDTO(row: Row, counterpart: WalletRef | null = null): TransactionDTO {
+interface Extras {
+  counterpart?: WalletRef | null;
+  tags?: TagRefDTO[];
+  attachmentCount?: number;
+}
+
+function toDTO(
+  row: Row,
+  { counterpart = null, tags = [], attachmentCount = 0 }: Extras = {},
+): TransactionDTO {
   return {
     id: row.id,
     type: row.type,
@@ -43,29 +60,61 @@ function toDTO(row: Row, counterpart: WalletRef | null = null): TransactionDTO {
     transferGroupId: row.transferGroupId,
     counterpartWallet: counterpart,
     recurringRuleId: row.recurringRuleId,
+    tags,
+    attachmentCount,
     deletedAt: row.deletedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-/** Lengkapi baris transfer dengan dompet di sisi seberangnya (satu query untuk semua baris). */
+/**
+ * Lengkapi baris dengan dompet seberang (transfer), tag, dan jumlah lampiran. Ketiganya diambil
+ * paralel, masing-masing satu kueri untuk semua baris.
+ */
 async function toDTOs(userId: string, rows: Row[]): Promise<TransactionDTO[]> {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
   const groupIds = [
     ...new Set(rows.flatMap((r) => (r.transferGroupId ? [r.transferGroupId] : []))),
   ];
-  const legs = groupIds.length
-    ? await prisma.transaction.findMany({
-        where: { userId, transferGroupId: { in: groupIds } },
-        select: { id: true, transferGroupId: true, wallet: walletSelect },
-      })
-    : [];
+  const [legs, tagRows, counts] = await Promise.all([
+    groupIds.length
+      ? prisma.transaction.findMany({
+          where: { userId, transferGroupId: { in: groupIds } },
+          select: { id: true, transferGroupId: true, wallet: walletSelect },
+        })
+      : [],
+    prisma.$queryRaw<{ transactionId: string; id: string; name: string }[]>`
+      SELECT tt."transactionId", tg.id, tg.name
+      FROM "TransactionTag" tt JOIN "Tag" tg ON tg.id = tt."tagId"
+      WHERE tt."transactionId" IN (${Prisma.join(ids)})
+      ORDER BY tg.key`,
+    prisma.attachment.groupBy({
+      by: ['transactionId'],
+      where: { transactionId: { in: ids } },
+      _count: { _all: true },
+    }),
+  ]);
   return rows.map((row) => {
     const other = row.transferGroupId
       ? legs.find((l) => l.transferGroupId === row.transferGroupId && l.id !== row.id)
       : undefined;
-    return toDTO(row, other?.wallet ?? null);
+    return toDTO(row, {
+      counterpart: other?.wallet ?? null,
+      tags: tagRows
+        .filter((t) => t.transactionId === row.id)
+        .map((t) => ({ id: t.id, name: t.name })),
+      attachmentCount: counts.find((c) => c.transactionId === row.id)?._count._all ?? 0,
+    });
   });
+}
+
+/** Tag dari input dipakai hanya bila fitur tag aktif untuk pengguna ini. */
+async function tagsFromInput(userId: string, names: string[] | undefined) {
+  if (names === undefined) return undefined;
+  if (!(await isFeatureEnabled(FEATURE_FLAGS.TAGS, userId))) return undefined;
+  return resolveTags(userId, names);
 }
 
 async function findActiveRow(userId: string, id: string): Promise<Row> {
@@ -124,6 +173,7 @@ export function buildTransactionFilter(
     ...(q.walletId && { walletId: q.walletId }),
     ...(q.categoryId && { categoryId: q.categoryId }),
     ...(q.type && { type: q.type }),
+    ...(q.tagId && { tags: { some: { tagId: q.tagId } } }),
     ...((q.from || q.to) && {
       date: { ...(q.from && { gte: toDbDate(q.from) }), ...(q.to && { lte: toDbDate(q.to) }) },
     }),
@@ -131,6 +181,7 @@ export function buildTransactionFilter(
       OR: [
         { note: { contains: q.q, mode: 'insensitive' } },
         { category: { is: { name: { contains: q.q, mode: 'insensitive' } } } },
+        { tags: { some: { tag: { name: { contains: q.q, mode: 'insensitive' } } } } },
       ],
     }),
   };
@@ -194,9 +245,10 @@ export async function createTransaction(
 ): Promise<TransactionDTO> {
   // Tiap kueri = satu perjalanan ke database jarak jauh: validasi berjalan paralel, dan dompet/kategori
   // yang sudah diambil dipakai ulang alih-alih `include` (yang memakai BEGIN + 3 SELECT + COMMIT).
-  const [wallet, category] = await allInOrder([
+  const [wallet, category, tags] = await allInOrder([
     findActiveWallet(userId, data.walletId),
     findUsableCategory(userId, data.categoryId, data.type),
+    tagsFromInput(userId, data.tags),
   ]);
   const row = await prisma.transaction.create({
     data: {
@@ -207,15 +259,24 @@ export async function createTransaction(
       amount: signed(data.type, data.amount),
       date: toDbDate(data.date),
       note: data.note,
+      ...(tags && tags.length > 0 && { tags: { create: tags.map((t) => ({ tagId: t.id })) } }),
     },
   });
-  track(userId, 'transaction_created', { type: data.type });
+  track(userId, 'transaction_created', { type: data.type, tags: tags?.length ?? 0 });
   learnCategoryInBackground(userId, data.note, data.categoryId, data.type);
-  return toDTO({
-    ...row,
-    wallet: { id: wallet.id, name: wallet.name, color: wallet.color },
-    category: { id: category.id, name: category.name, icon: category.icon, color: category.color },
-  });
+  return toDTO(
+    {
+      ...row,
+      wallet: { id: wallet.id, name: wallet.name, color: wallet.color },
+      category: {
+        id: category.id,
+        name: category.name,
+        icon: category.icon,
+        color: category.color,
+      },
+    },
+    { tags: tags ?? [] },
+  );
 }
 
 /** Seperti Promise.all, tapi bila beberapa gagal yang dilempar selalu yang pertama di daftar. */
@@ -251,6 +312,7 @@ export async function updateTransaction(
     throw validationError('Kategori wajib dipilih', { categoryId: 'Kategori wajib dipilih' });
   }
   if (input.categoryId || input.type) await findUsableCategory(userId, categoryId, type);
+  const tags = await tagsFromInput(userId, input.tags);
 
   const row = await prisma.transaction.update({
     where: { id },
@@ -261,6 +323,9 @@ export async function updateTransaction(
       ...(input.walletId && { walletId: input.walletId }),
       ...(input.date && { date: toDbDate(input.date) }),
       ...(input.note !== undefined && { note: input.note }),
+      ...(tags && {
+        tags: { deleteMany: {}, create: tags.map((t) => ({ tagId: t.id })) },
+      }),
     },
     include,
   });
@@ -310,8 +375,8 @@ export async function createTransfer(
   const legs = await getTransferLegs(userId, transferGroupId);
   return {
     transferGroupId,
-    out: toDTO(legs.out, legs.in.wallet),
-    in: toDTO(legs.in, legs.out.wallet),
+    out: toDTO(legs.out, { counterpart: legs.in.wallet }),
+    in: toDTO(legs.in, { counterpart: legs.out.wallet }),
   };
 }
 

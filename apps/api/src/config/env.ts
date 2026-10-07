@@ -41,6 +41,15 @@ const envSchema = z
       .string()
       .regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT harus diawali mailto: atau https://')
       .default('mailto:admin@catatku.local'),
+    /**
+     * Penyimpanan lampiran (S3-compatible: Supabase Storage, Cloudflare R2, MinIO). Kosong = fitur
+     * lampiran nonaktif. Bucket harus privat; berkas hanya dibuka lewat tautan bertanda tangan.
+     */
+    STORAGE_S3_ENDPOINT: z.union([z.url(), z.literal('')]).default(''),
+    STORAGE_S3_REGION: z.string().default('auto'),
+    STORAGE_S3_BUCKET: z.string().default(''),
+    STORAGE_S3_ACCESS_KEY_ID: z.string().default(''),
+    STORAGE_S3_SECRET_ACCESS_KEY: z.string().default(''),
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.BCRYPT_COST >= 12, {
     message: 'BCRYPT_COST harus >= 12 di production',
@@ -49,7 +58,23 @@ const envSchema = z
   .refine((env) => !env.VAPID_PUBLIC_KEY === !env.VAPID_PRIVATE_KEY, {
     message: 'VAPID_PUBLIC_KEY dan VAPID_PRIVATE_KEY harus diisi berpasangan',
     path: ['VAPID_PRIVATE_KEY'],
-  });
+  })
+  .refine(
+    (env) => {
+      const set = [
+        env.STORAGE_S3_ENDPOINT,
+        env.STORAGE_S3_BUCKET,
+        env.STORAGE_S3_ACCESS_KEY_ID,
+        env.STORAGE_S3_SECRET_ACCESS_KEY,
+      ].filter(Boolean).length;
+      return set === 0 || set === 4;
+    },
+    {
+      message:
+        'STORAGE_S3_ENDPOINT, STORAGE_S3_BUCKET, STORAGE_S3_ACCESS_KEY_ID, dan STORAGE_S3_SECRET_ACCESS_KEY harus diisi semua (atau kosong semua)',
+      path: ['STORAGE_S3_ENDPOINT'],
+    },
+  );
 
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {

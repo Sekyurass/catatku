@@ -69,9 +69,38 @@ export interface TransactionDTO {
   counterpartWallet: { id: string; name: string; color: string } | null;
   /** Diisi bila transaksi dibuat oleh aturan transaksi berulang. */
   recurringRuleId: string | null;
+  tags: TagRefDTO[];
+  attachmentCount: number;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TagRefDTO {
+  id: string;
+  name: string;
+}
+
+export interface TagDTO extends TagRefDTO {
+  /** Jumlah transaksi aktif yang memakai tag ini. */
+  count: number;
+}
+
+export interface TagBreakdownDTO {
+  month: string;
+  type: CategoryType;
+  items: { tagId: string; name: string; total: number; count: number }[];
+}
+
+export interface AttachmentDTO {
+  id: string;
+  transactionId: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+  /** Tautan bertanda tangan berumur pendek; minta ulang daftar lampiran bila sudah kedaluwarsa. */
+  url: string;
+  expiresAt: string;
 }
 
 export interface TransactionPage {

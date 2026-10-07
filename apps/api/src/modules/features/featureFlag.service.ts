@@ -2,6 +2,7 @@ import { FEATURE_FLAGS, type FeatureFlagKey } from '@catatku/shared';
 import type { FeatureFlag, Plan } from '@prisma/client';
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
+import { getStorage } from '../../lib/storage';
 
 /** "a:on,b:off" -> Map { a => true, b => false } */
 export function parseForcedFlags(raw: string): Map<string, boolean> {
@@ -76,6 +77,7 @@ export async function getFlagsForUser(userId: string): Promise<Record<FeatureFla
     const flag = byKey.get(key) ?? { key, enabled: false, plan: null, userIds: [] };
     result[key] = evaluateFlag(flag, user);
   }
+  if (!getStorage()) result[FEATURE_FLAGS.ATTACHMENTS] = false;
   return result;
 }
 

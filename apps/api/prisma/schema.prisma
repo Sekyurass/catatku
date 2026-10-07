@@ -84,6 +84,8 @@ model User {
   notificationSetting NotificationSetting?
   pushSubscriptions   PushSubscription[]
   categoryMaps        MerchantCategoryMap[]
+  tags                Tag[]
+  attachments         Attachment[]
 }
 
 /// Tautan "lupa kata sandi": sekali pakai, umur pendek, hanya hash yang disimpan.
@@ -207,11 +209,13 @@ model Transaction {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  wallet        Wallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
-  importBatch   ImportBatch?   @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet        Wallet           @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  category      Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  recurringRule RecurringRule?   @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+  importBatch   ImportBatch?     @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  tags          TransactionTag[]
+  attachments   Attachment[]
 
   @@index([userId, date(sort: Desc), createdAt(sort: Desc)])
   @@index([userId, walletId])
@@ -219,6 +223,52 @@ model Transaction {
   @@index([transferGroupId])
   @@index([recurringRuleId])
   @@index([importBatchId])
+}
+
+/// Fase 2.5. Label bebas milik pengguna; satu transaksi bisa punya banyak tag.
+/// `key` = nama dinormalisasi (huruf kecil, spasi tunggal) agar "Liburan" dan "liburan" tidak ganda.
+model Tag {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  key       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions TransactionTag[]
+
+  @@unique([userId, key])
+}
+
+model TransactionTag {
+  transactionId String
+  tagId         String
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([transactionId, tagId])
+  @@index([tagId])
+}
+
+/// Fase 2.5. Foto lampiran; berkasnya di penyimpanan objek (S3-compatible), di sini hanya metadata.
+/// Transaksi terhapus permanen -> transactionId null, lalu berkas + baris dibersihkan oleh job.
+model Attachment {
+  id            String   @id @default(cuid())
+  userId        String
+  transactionId String?
+  storageKey    String   @unique
+  mimeType      String
+  size          Int
+  createdAt     DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([transactionId])
+  @@index([userId])
 }
 
 /// Fase 1.4. Satu kali impor CSV ke satu dompet.

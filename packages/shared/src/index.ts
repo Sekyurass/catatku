@@ -11,6 +11,7 @@ export * from './schemas/auth';
 export * from './schemas/wallet';
 export * from './schemas/category';
 export * from './schemas/transaction';
+export * from './schemas/tag';
 export * from './schemas/budget';
 export * from './schemas/report';
 export * from './schemas/event';
