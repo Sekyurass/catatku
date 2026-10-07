@@ -148,17 +148,18 @@ Untuk R2: endpoint `https://<account-id>.r2.cloudflarestorage.com`, region `auto
 
 ## Skrip
 
-| Perintah             | Fungsi                                                       |
-| -------------------- | ------------------------------------------------------------ |
-| `npm run dev`        | API (tsx watch) + web (Vite) bersamaan                       |
-| `npm run build`      | Build API (tsup) dan web (Vite)                              |
-| `npm run typecheck`  | `tsc` di semua workspace                                     |
-| `npm run lint`       | ESLint seluruh repo                                          |
-| `npm test`           | Tes unit/API semua workspace (API butuh `TEST_DATABASE_URL`) |
-| `npm run test:e2e`   | Playwright (HP + desktop) terhadap API & web sungguhan       |
-| `npm run db:migrate` | Buat migrasi baru saat skema berubah (dev)                   |
-| `npm run db:deploy`  | Terapkan migrasi (CI/produksi)                               |
-| `npm run db:seed`    | Seed idempoten; `SEED_DEMO=false` untuk lewati akun demo     |
+| Perintah                                 | Fungsi                                                       |
+| ---------------------------------------- | ------------------------------------------------------------ |
+| `npm run dev`                            | API (tsx watch) + web (Vite) bersamaan                       |
+| `npm run build`                          | Build API (tsup) dan web (Vite)                              |
+| `npm run typecheck`                      | `tsc` di semua workspace                                     |
+| `npm run lint`                           | ESLint seluruh repo                                          |
+| `npm test`                               | Tes unit/API semua workspace (API butuh `TEST_DATABASE_URL`) |
+| `npm run test:e2e`                       | Playwright (HP + desktop) terhadap API & web sungguhan       |
+| `npm run db:migrate`                     | Buat migrasi baru saat skema berubah (dev)                   |
+| `npm run db:deploy`                      | Terapkan migrasi (CI/produksi)                               |
+| `npm run db:seed`                        | Seed idempoten; `SEED_DEMO=false` untuk lewati akun demo     |
+| `npm run dataset:export -w @catatku/api` | Ekspor sampel Ketik cepat (JSONL) ke stdout                  |
 
 ## Keputusan arsitektur
 
@@ -343,6 +344,13 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
   - **Metrik**: set uji 62 kalimat di `quickText.test.ts` (gagal bila nominal < 100% atau kalimat benar
     seluruhnya < 95%; saat ini 62/62). Di produksi event `quick_text_used` `{ fields, accepted }` saat
     menyimpan: `accepted` = hasil bacaan disimpan tanpa diubah (ukuran akurasi nyata).
+  - **Dataset ketikan (opt-in)**: di Profil, kartu **Bantu tingkatkan Ketik cepat** (mati secara bawaan,
+    `User.shareQuickText`). Bila aktif, kalimat yang hasil bacaannya **dikoreksi** sebelum disimpan dikirim
+    sebagai sampel `{ text, parsed, final }` ke tabel `QuickTextSample`: tanpa `userId`, dompet/kategori
+    berupa nama (bukan id), tanggal relatif (`dateOffset`), nomor HP/rekening/kartu dan email disamarkan
+    (`maskSensitive`, dijalankan lagi di server), `corrected` = daftar isian yang diubah. Kalimat yang
+    disimpan tanpa diubah tidak dikirim. Masa simpan 90 hari (`expiresAt`), dihapus oleh job terjadwal
+    tiap jam. Ekspor untuk evaluasi parser: `npm run dataset:export -w @catatku/api > sampel.jsonl`.
 - **Perkiraan akhir bulan** (Fase 2.4, flag `forecast`): kartu di Beranda di bawah ringkasan. Perkiraan
   saldo akhir bulan = saldo sekarang − rata-rata pengeluaran harian × sisa hari − tagihan berulang yang
   akan datang + pemasukan terjadwal, ditampilkan sebagai **rentang pesimis–optimis**, plus rincian dan
@@ -550,6 +558,9 @@ safe|tight|short }`
 - ✅ `auto_category`: `GET /categories/learned` → `{ items: [{ key, type, categoryId }] }` (maks. 500 terbaru,
   tanpa kategori yang diarsipkan). Pemetaan diperbarui otomatis oleh `POST/PATCH /transactions`; saat flag
   mati tidak ada yang dipelajari.
+- ✅ `natural_input`: `GET /quick-text/sharing` → `{ enabled }`; `PUT /quick-text/sharing` `{ enabled }`
+  (opt-in dataset); `POST /quick-text/samples` `{ text, parsed, final }` → 204 (403 bila belum opt-in,
+  sampel tanpa koreksi diabaikan; maks. 60/jam per pengguna).
 
 ## Event analitik & gerbang fase
 

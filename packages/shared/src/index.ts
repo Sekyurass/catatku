@@ -25,4 +25,5 @@ export * from './schemas/template';
 export * from './schemas/goal';
 export * from './schemas/import';
 export * from './schemas/notification';
+export * from './schemas/quickTextSample';
 export * from './dto';

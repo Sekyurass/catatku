@@ -13,6 +13,7 @@ import { Card } from '../components/ui/Card';
 import { Field } from '../components/ui/Field';
 import { Select } from '../components/ui/Select';
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
+import { Switch } from '../components/ui/Switch';
 import { useToast } from '../components/ui/Toast';
 import { api, ApiError } from '../lib/api';
 import { cn } from '../lib/cn';
@@ -213,44 +214,6 @@ function ReminderCard({ settings }: { settings: NotificationSettingsDTO }) {
         </Button>
       </form>
     </Card>
-  );
-}
-
-function Switch({
-  id,
-  checked,
-  onChange,
-}: {
-  id: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <span className="relative inline-flex h-11 w-14 shrink-0 items-center justify-center">
-      <input
-        id={id}
-        type="checkbox"
-        role="switch"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="peer absolute inset-0 cursor-pointer opacity-0"
-      />
-      <span
-        aria-hidden
-        className={cn(
-          'pointer-events-none flex h-7 w-12 items-center rounded-full p-0.5 transition-colors',
-          'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary',
-          checked ? 'bg-primary' : 'bg-line',
-        )}
-      >
-        <span
-          className={cn(
-            'size-6 rounded-full bg-surface shadow transition-transform',
-            checked && 'translate-x-5',
-          )}
-        />
-      </span>
-    </span>
   );
 }
 

@@ -23,6 +23,7 @@ import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { Avatar } from '../components/Avatar';
 import { ExportButton } from '../components/ExportButton';
+import { QuickTextSharingCard } from '../components/quickText/QuickTextSharingCard';
 import { ThemePicker } from '../components/ThemePicker';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -107,6 +108,7 @@ export function ProfilePage() {
   const importOn = useFeature('csv_import');
   const tagsOn = useFeature('tags');
   const reportsOn = useFeature('advanced_reports');
+  const quickTextOn = useFeature('natural_input');
 
   return (
     <div className="flex flex-col gap-4">
@@ -176,6 +178,7 @@ export function ProfilePage() {
       <Card>
         <ThemePicker />
       </Card>
+      {quickTextOn && <QuickTextSharingCard />}
       <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
         <div className="flex-1">
           <p className="font-medium">Ekspor data</p>

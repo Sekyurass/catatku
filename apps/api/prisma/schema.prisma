@@ -66,6 +66,8 @@ model User {
   updatedAt       DateTime  @updatedAt
   /// null = belum ada foto profil. Juga dipakai klien sebagai versi cache foto.
   avatarUpdatedAt DateTime?
+  /// Opt-in: kalimat ketik cepat yang dikoreksi boleh disimpan (tanpa identitas) sebagai dataset.
+  shareQuickText  Boolean   @default(false)
 
   avatar              UserAvatar?
   wallets             Wallet[]
@@ -492,6 +494,24 @@ model InsightDismissal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, insightId])
+}
+
+/// Dataset ketikan cepat dari pengguna yang ikut (User.shareQuickText). Sengaja TANPA userId dan
+/// tanpa jam agar tidak bisa dikaitkan ke akun; nomor HP/rekening & email sudah disamarkan.
+/// Dihapus otomatis setelah expiresAt.
+model QuickTextSample {
+  id        String   @id @default(cuid())
+  text      String
+  /// Hasil parser: { type, amount, dateOffset, wallet, toWallet, category, note }.
+  parsed    Json
+  /// Nilai yang akhirnya disimpan pengguna, bentuknya sama dengan parsed.
+  final     Json
+  /// Isian yang berbeda antara parsed dan final, mis. ["amount", "category"].
+  corrected String[]
+  createdOn DateTime @db.Date
+  expiresAt DateTime @db.Date
+
+  @@index([expiresAt])
 }
 
 /// Flag fitur fase berikutnya. plan null = semua paket; userIds = allowlist per pengguna.

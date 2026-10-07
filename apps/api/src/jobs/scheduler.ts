@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { logger } from '../lib/logger';
 import { purgeOrphanAttachments } from '../modules/attachments/attachment.service';
 import { pruneNotifications, runReminders } from '../modules/notifications/notification.service';
+import { purgeExpiredSamples } from '../modules/quickText/quickText.service';
 import { runDueRules } from '../modules/recurring/recurring.service';
 
 async function runRecurring() {
@@ -28,6 +29,12 @@ async function runNotifications() {
     if (purged > 0) logger.info({ purged }, 'Lampiran tanpa transaksi dibersihkan');
   } catch (err) {
     logger.error({ err }, 'Pembersihan lampiran gagal');
+  }
+  try {
+    const expired = await purgeExpiredSamples();
+    if (expired > 0) logger.info({ expired }, 'Sampel ketik cepat kedaluwarsa dihapus');
+  } catch (err) {
+    logger.error({ err }, 'Pembersihan sampel ketik cepat gagal');
   }
 }
 

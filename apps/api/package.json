@@ -15,6 +15,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "dataset:export": "tsx prisma/export-quick-text.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

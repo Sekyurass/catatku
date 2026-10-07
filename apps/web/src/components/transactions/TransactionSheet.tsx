@@ -7,6 +7,7 @@ import {
   MAX_ATTACHMENTS_PER_TRANSACTION,
   MAX_TEMPLATES,
   type QuickTextResult,
+  type QuickTextValues,
   type TransactionDTO,
   type TransactionTemplateDTO,
   type WalletDTO,
@@ -38,10 +39,13 @@ import {
   useAttachments,
   useCategories,
   useInvalidateMoney,
+  quickTextSharingQuery,
   useLearnedCategories,
+  useQuickTextSharing,
   useTemplates,
   useWallets,
 } from '../../lib/queries';
+import { parsedSource, toSampleValues } from '../../lib/quickTextSample';
 import { TemplateChips } from '../templates/TemplateChips';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
@@ -285,9 +289,13 @@ function TransactionForm({
   const [autoPicked, setAutoPicked] = useState<string | null>(null);
   const quickTextOn = useFeature(FEATURE_FLAGS.NATURAL_INPUT) && withTemplates && !editing;
   /** Isian terakhir dari ketik cepat, untuk mengukur apakah disimpan tanpa diubah. */
-  const [quickFilled, setQuickFilled] = useState<{ values: FormValues; fields: number } | null>(
-    null,
-  );
+  const [quickFilled, setQuickFilled] = useState<{
+    values: FormValues;
+    fields: number;
+    text: string;
+    parsed: QuickTextValues;
+  } | null>(null);
+  useQuickTextSharing(quickTextOn);
   const formRef = useRef<HTMLFormElement>(null);
   const tagsOn = useFeature(FEATURE_FLAGS.TAGS);
   const [tags, setTags] = useState<string[]>(() => editing?.tags.map((t) => t.name) ?? []);
@@ -369,7 +377,7 @@ function TransactionForm({
   };
 
   // Tindakan eksplisit (Enter / "Isi form"), jadi boleh menimpa isian; yang tidak terbaca dibiarkan.
-  const applyQuickText = (r: QuickTextResult) => {
+  const applyQuickText = (r: QuickTextResult, text: string) => {
     const opts = { shouldDirty: true };
     const kindChanged = r.type !== getValues('kind');
     setValue('kind', r.type, opts);
@@ -384,7 +392,12 @@ function TransactionForm({
     }
     if (r.note) setValue('note', r.note, opts);
     const filled = getValues();
-    setQuickFilled({ values: filled, fields: Math.min(r.found.length, 6) });
+    setQuickFilled({
+      values: filled,
+      fields: Math.min(r.found.length, 6),
+      text,
+      parsed: toSampleValues(parsedSource(r), { today: today(), wallets, categories }),
+    });
     // Lengkap → fokus ke Simpan agar Enter berikutnya menyimpan; kurang → ke isian yang kosong.
     if (r.amount === null) setFocus('amount');
     else if (r.type === 'TRANSFER' && !filled.toWalletId) setFocus('toWalletId');
@@ -537,14 +550,34 @@ function TransactionForm({
           v.kind === 'TRANSFER'
             ? ['kind', 'amount', 'walletId', 'toWalletId', 'date', 'note']
             : ['kind', 'amount', 'walletId', 'categoryId', 'date', 'note'];
+        const accepted = keys.every((k) => v[k] === quickFilled.values[k]);
         void api('/events', {
           method: 'POST',
-          body: {
-            name: 'quick_text_used',
-            fields: quickFilled.fields,
-            accepted: keys.every((k) => v[k] === quickFilled.values[k]),
-          },
+          body: { name: 'quick_text_used', fields: quickFilled.fields, accepted },
         }).catch(() => undefined);
+        if (!accepted) {
+          const sample = { text: quickFilled.text, parsed: quickFilled.parsed };
+          const final = toSampleValues(
+            {
+              type: v.kind,
+              amount,
+              date: v.date,
+              walletId: v.walletId,
+              toWalletId: v.toWalletId,
+              categoryId: v.categoryId,
+              note: v.note,
+            },
+            { today: today(), wallets, categories },
+          );
+          void queryClient
+            .ensureQueryData(quickTextSharingQuery)
+            .then((enabled) =>
+              enabled
+                ? api('/quick-text/samples', { method: 'POST', body: { ...sample, final } })
+                : undefined,
+            )
+            .catch(() => undefined);
+        }
       }
       const templateSaved =
         saveAsTemplate && canSaveTemplate && v.kind !== 'TRANSFER'

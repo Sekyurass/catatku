@@ -45,7 +45,7 @@ export function QuickTextField({
   wallets: WalletDTO[];
   categories: CategoryDTO[];
   suggestCategory?: QuickTextContext['suggestCategory'];
-  onApply: (result: QuickTextResult) => void;
+  onApply: (result: QuickTextResult, text: string) => void;
 }) {
   const id = useId();
   const [text, setText] = useState('');
@@ -63,7 +63,7 @@ export function QuickTextField({
 
   const apply = () => {
     if (!result || !usable) return;
-    onApply(result);
+    onApply(result, trimmed);
     const missing = missingFields(result);
     setStatus(
       missing.length

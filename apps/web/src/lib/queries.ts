@@ -64,7 +64,19 @@ export const queryKeys = {
   compare: (from: string, to: string) => ['reports', 'compare', from, to] as const,
   yearlyReport: (year: number) => ['reports', 'yearly', year] as const,
   forecast: ['reports', 'forecast'] as const,
+  quickTextSharing: ['quick-text', 'sharing'] as const,
 };
+
+export const quickTextSharingQuery = queryOptions({
+  queryKey: queryKeys.quickTextSharing,
+  queryFn: ({ signal }) =>
+    api<{ enabled: boolean }>('/quick-text/sharing', { signal }).then((r) => r.enabled),
+  staleTime: Infinity,
+});
+
+export function useQuickTextSharing(enabled = true) {
+  return useQuery({ ...quickTextSharingQuery, enabled });
+}
 
 export function useForecast() {
   return useQuery({

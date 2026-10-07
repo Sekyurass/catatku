@@ -13,6 +13,7 @@ import { createGoalsRouter } from '../modules/goals/goal.routes';
 import { createImportsRouter } from '../modules/imports/import.routes';
 import { createInsightsRouter } from '../modules/insights/insight.routes';
 import { createNotificationsRouter } from '../modules/notifications/notification.routes';
+import { createQuickTextRouter } from '../modules/quickText/quickText.routes';
 import { createRecurringRouter } from '../modules/recurring/recurring.routes';
 import { createReportsRouter } from '../modules/reports/report.routes';
 import { createTagsRouter } from '../modules/tags/tag.routes';
@@ -46,6 +47,7 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/tags', createTagsRouter());
   router.use('/goals', createGoalsRouter());
   router.use('/insights', createInsightsRouter());
+  router.use('/quick-text', createQuickTextRouter());
   router.use(createAttachmentsRouter());
   return router;
 }
