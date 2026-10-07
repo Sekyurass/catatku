@@ -26,7 +26,7 @@ test('pindai struk: foto → form terisi otomatis → tinjau → simpan', async 
   await expect(dialog.getByLabel('Nominal', { exact: true })).toHaveValue('47.500');
   // Ejaan per barang mengikuti hasil OCR (mis. "Aqua" kadang terbaca "Apua"); yang diuji strukturnya.
   await expect(dialog.getByLabel('Catatan (opsional)')).toHaveValue(
-    /^Indomaret: Indomie Goreng, \S+ 600ml, Roti Tawar, Susu UHT$/,
+    /^Indomaret: Indomie Goreng Rp6\.200, \S+ 600ml Rp3\.500, Roti Tawar Rp16\.900, Susu UHT Rp20\.900$/,
   );
   const expectedDate = new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',

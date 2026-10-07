@@ -139,6 +139,7 @@ async function auditAppPages(page: Page, browser: Browser) {
       amount: 250_000,
       date: today,
       note: 'Sisa gaji',
+      walletId: wallet.id,
     });
     await post('/goals', { name: 'Dana darurat', targetAmount: 100_000 });
     const done = await get<{ items: { id: string; name: string }[] }>('/goals');
@@ -147,6 +148,7 @@ async function auditAppPages(page: Page, browser: Browser) {
       type: 'DEPOSIT',
       amount: 100_000,
       date: today,
+      walletId: wallet.id,
     });
   }
 

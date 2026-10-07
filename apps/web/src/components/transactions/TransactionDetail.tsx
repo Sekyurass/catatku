@@ -136,9 +136,12 @@ function DetailBody({
           </h3>
           <ol className="flex flex-col gap-1 rounded-control bg-surface-muted p-3 text-sm">
             {noteItems.items.map((item, i) => (
-              <li key={`${i}-${item}`} className="flex gap-2">
+              <li key={`${i}-${item.name}`} className="flex gap-2">
                 <span className="tabular w-5 shrink-0 text-right text-muted">{i + 1}.</span>
-                <span className="min-w-0 break-words">{item}</span>
+                <span className="min-w-0 flex-1 break-words">{item.name}</span>
+                {item.price !== null && (
+                  <span className="tabular shrink-0 font-medium">{formatRupiah(item.price)}</span>
+                )}
               </li>
             ))}
             {noteItems.more > 0 && (

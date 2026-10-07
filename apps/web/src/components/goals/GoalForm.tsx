@@ -46,7 +46,7 @@ const GOAL_ICONS: CategoryIcon[] = [
   'circle-ellipsis',
 ];
 
-const NO_WALLET = 'none';
+const NEW_WALLET = 'new';
 
 const formSchema = z
   .object({
@@ -97,19 +97,21 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
       deadline: goal?.deadline ?? '',
       icon: goal?.icon ?? 'piggy-bank',
       color: goal?.color ?? '#0F766E',
-      walletId: goal?.walletId ?? NO_WALLET,
+      walletId: goal?.walletId ?? NEW_WALLET,
     },
   });
 
   const icon = watch('icon');
   const color = watch('color');
   const walletId = watch('walletId');
+  const name = watch('name').trim();
+  const newWalletName = `Tabungan ${name || 'nama target'}`.slice(0, 40);
   const iconOptions = (GOAL_ICONS.includes(icon) ? GOAL_ICONS : [icon, ...GOAL_ICONS]).map(
     (value) => ({ value, label: CATEGORY_ICON_LABELS[value] }),
   );
 
   const walletOptions: SelectOption[] = [
-    { value: NO_WALLET, label: 'Tanpa dompet khusus' },
+    { value: NEW_WALLET, label: `Buat dompet baru: ${newWalletName}` },
     ...(wallets.data ?? [])
       .filter((w) => !w.archivedAt || w.id === goal?.walletId)
       .map((w) => ({
@@ -128,7 +130,7 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
       deadline: v.deadline || null,
       icon: v.icon,
       color: v.color,
-      walletId: v.walletId === NO_WALLET ? null : v.walletId,
+      walletId: v.walletId === NEW_WALLET ? null : v.walletId,
     };
     try {
       if (goal) await api(`/goals/${goal.id}`, { method: 'PATCH', body });
@@ -140,7 +142,14 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
         });
       }
       void invalidate();
-      toast({ message: goal ? 'Perubahan tersimpan' : 'Target dibuat' });
+      toast({
+        message:
+          body.walletId === null
+            ? `${goal ? 'Perubahan tersimpan' : 'Target dibuat'}. Dompet ${newWalletName} siap dipakai.`
+            : goal
+              ? 'Perubahan tersimpan'
+              : 'Target dibuat',
+      });
       onDone();
     } catch (err) {
       setFormError(applyServerErrors(err, setError, FIELD_NAMES));
@@ -163,11 +172,11 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
   };
 
   const walletHint =
-    walletId === NO_WALLET
-      ? 'Setoran cukup dicatat sebagai uang yang disisihkan, saldo dompet tidak berubah.'
-      : goal?.walletId && goal.walletId !== walletId && goal.contributionCount > 0
-        ? 'Setoran lama tetap tercatat di dompet sebelumnya.'
-        : 'Setor dan tarik akan tercatat sebagai transfer ke/dari dompet ini.';
+    goal?.walletId && goal.walletId !== walletId && goal.contributionCount > 0
+      ? 'Setoran lama tetap tercatat di dompet sebelumnya.'
+      : walletId === NEW_WALLET
+        ? 'Setiap setor memindahkan uang dari dompetmu ke dompet tabungan baru ini, seperti transfer.'
+        : 'Setiap setor memindahkan uang dari dompet lain ke dompet ini, seperti transfer.';
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>

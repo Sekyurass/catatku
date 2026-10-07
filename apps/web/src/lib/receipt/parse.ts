@@ -13,8 +13,14 @@ export interface ReceiptFields {
   /** YYYY-MM-DD */
   date: ReceiptField<string> | null;
   merchant: ReceiptField<string> | null;
-  /** Nama barang yang dibeli, urut seperti di struk (maks. MAX_ITEMS). */
-  items: string[];
+  /** Barang yang dibeli, urut seperti di struk (maks. MAX_ITEMS). */
+  items: ReceiptItem[];
+}
+
+export interface ReceiptItem {
+  name: string;
+  /** Harga baris (jumlah × harga satuan) seperti tercetak; null bila tidak terbaca. */
+  price: number | null;
 }
 
 export interface OcrLine {
@@ -426,14 +432,14 @@ function itemName(line: string): string | null {
   return titleCase(name.slice(0, MAX_ITEM_LENGTH).trim());
 }
 
-function findItems(lines: Line[]): string[] {
+function findItems(lines: Line[]): ReceiptItem[] {
   let end = lines.findIndex((l) => ITEMS_END_RE.test(l.text));
   if (end < 0) end = lines.length;
   let start = 0;
   for (let i = 0; i < end; i++) {
     if (isHeaderLine(lines[i]!.text) || datesIn(lines[i]!.text).length > 0) start = i + 1;
   }
-  const items: string[] = [];
+  const items: ReceiptItem[] = [];
   // Supermarket sering mencetak nama di satu baris lalu "1 x 38.500  38.500" di baris berikutnya.
   let pendingName: string | null = null;
   for (const { text } of lines.slice(start, end)) {
@@ -441,26 +447,36 @@ function findItems(lines: Line[]): string[] {
       pendingName = null;
       continue;
     }
-    if (!FORMATTED_AMOUNT_RE.test(text) || lastAmount(text) === undefined) {
+    const price = FORMATTED_AMOUNT_RE.test(text) ? lastAmount(text) : undefined;
+    if (price === undefined) {
       pendingName = itemName(text);
       continue;
     }
     const name = itemName(text) ?? pendingName;
     pendingName = null;
-    if (name) items.push(name);
+    if (name) items.push({ name, price });
   }
   return items.slice(0, MAX_ITEMS);
 }
 
 const NOTE_MAX = 200;
 
-/** "Toko: Barang A, Barang B" muat dalam batas catatan; sisa barang diringkas "+N lainnya". */
-export function receiptNote(merchant: string | null, items: string[]): string | null {
+/** "Indomie Goreng Rp6.200"; format yang sama dibaca lagi oleh `splitNoteItems`. */
+export function itemNoteText({ name, price }: ReceiptItem): string {
+  return price === null ? name : `${name} Rp${String(price).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+}
+
+/**
+ * "Toko: Barang A Rp5.000, Barang B Rp7.500" muat dalam batas catatan; sisa barang diringkas
+ * "+N lainnya".
+ */
+export function receiptNote(merchant: string | null, items: ReceiptItem[]): string | null {
   if (items.length === 0) return merchant;
   const prefix = merchant ? `${merchant}: ` : '';
-  for (let n = items.length; n > 0; n--) {
-    const rest = items.length - n;
-    const note = `${prefix}${items.slice(0, n).join(', ')}${rest > 0 ? ` +${rest} lainnya` : ''}`;
+  const texts = items.map(itemNoteText);
+  for (let n = texts.length; n > 0; n--) {
+    const rest = texts.length - n;
+    const note = `${prefix}${texts.slice(0, n).join(', ')}${rest > 0 ? ` +${rest} lainnya` : ''}`;
     if (note.length <= NOTE_MAX) return note;
   }
   return merchant;

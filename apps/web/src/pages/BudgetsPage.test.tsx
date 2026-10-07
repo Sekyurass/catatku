@@ -70,7 +70,7 @@ const tx = (id: string, amount: number, note: string | null, day: string): Trans
 });
 
 const MAKAN_TX = [
-  tx('t1', 47_500, 'Indomaret: Indomie Goreng, Aqua 600ml, Roti Tawar', '05'),
+  tx('t1', 47_500, 'Indomaret: Indomie Goreng Rp6.200, Aqua 600ml, Roti Tawar', '05'),
   tx('t2', 802_500, null, '02'),
 ];
 
@@ -95,6 +95,18 @@ function setup() {
         ),
       };
       return json(data);
+    }
+    if (url.pathname.endsWith('/budgets/custom') && init?.method === 'POST') {
+      const body = JSON.parse(String(init.body)) as { name: string; limitAmount: number };
+      if (body.name.toLowerCase() === 'makan') {
+        const message = 'Kategori Makan sudah ada. Atur anggarannya dari daftar.';
+        return json({ error: { code: 'CONFLICT', message, fields: { name: message } } }, 409);
+      }
+      data = {
+        ...data,
+        items: [item('cat_baru', body.name, body.limitAmount, 0, 'ok'), ...data.items],
+      };
+      return json(data, 201);
     }
     if (url.pathname.endsWith('/budgets')) {
       const m = url.searchParams.get('month')!;
@@ -201,6 +213,47 @@ describe('BudgetsPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('anggaran dengan nama sendiri', async () => {
+    const fetchMock = setup();
+    await userEvent.click(await screen.findByRole('button', { name: 'Buat anggaran sendiri' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Anggaran baru' });
+    const submit = within(dialog).getByRole('button', { name: 'Simpan anggaran' });
+
+    await userEvent.click(submit);
+    expect(within(dialog).getByText('Nama anggaran wajib diisi')).toBeInTheDocument();
+    expect(within(dialog).getByText('Masukkan batas lebih dari 0')).toBeInTheDocument();
+
+    await userEvent.type(within(dialog).getByLabelText('Nama anggaran'), 'Makan');
+    await userEvent.type(within(dialog).getByLabelText('Batas per bulan'), '300000');
+    await userEvent.click(submit);
+    expect(
+      await within(dialog).findByText('Kategori Makan sudah ada. Atur anggarannya dari daftar.'),
+    ).toBeInTheDocument();
+
+    const name = within(dialog).getByLabelText('Nama anggaran');
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Jajan Kopi');
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Kopi' }));
+    await userEvent.click(submit);
+
+    await waitFor(() => {
+      const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST');
+      expect(JSON.parse(String(posts.at(-1)![1]!.body))).toMatchObject({
+        month,
+        name: 'Jajan Kopi',
+        icon: 'coffee',
+        limitAmount: 300_000,
+        scope: 'onward',
+      });
+    });
+    expect(
+      await screen.findByText((t) => t.startsWith('Anggaran Jajan Kopi berlaku mulai')),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Ubah anggaran Jajan Kopi' }),
+    ).toBeInTheDocument();
+  });
+
   it('rincian pengeluaran per anggaran → detail transaksi → Ubah', async () => {
     const fetchMock = setup();
     await screen.findByRole('button', { name: 'Ubah anggaran Makan' });
@@ -227,6 +280,8 @@ describe('BudgetsPage', () => {
     expect(within(detail).getByText('Rincian dari Indomaret')).toBeInTheDocument();
     expect(within(detail).getByText('· 3 barang')).toBeInTheDocument();
     expect(within(detail).getByText('Aqua 600ml')).toBeInTheDocument();
+    const indomie = within(detail).getByText('Indomie Goreng').closest('li')!;
+    expect(within(indomie).getByText('Rp 6.200')).toBeInTheDocument();
     expect(within(detail).getByText('#Kantor')).toBeInTheDocument();
 
     await userEvent.click(within(detail).getByRole('button', { name: 'Ubah' }));

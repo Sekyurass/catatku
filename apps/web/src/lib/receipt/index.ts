@@ -1,6 +1,6 @@
 import type { ReceiptFields } from './parse';
 
-export type { Confidence, ReceiptField, ReceiptFields } from './parse';
+export type { Confidence, ReceiptField, ReceiptFields, ReceiptItem } from './parse';
 export { countFields, receiptNote } from './parse';
 export { ReceiptImageError, validateReceiptFile } from './image';
 

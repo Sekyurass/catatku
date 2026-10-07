@@ -19,6 +19,8 @@ import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
 import { findActiveWallet } from '../wallets/wallet.service';
 
+const WALLET_NAME_MAX = 40;
+
 const include = {
   wallet: { select: { id: true, name: true, color: true, archivedAt: true } },
 } as const;
@@ -121,6 +123,21 @@ export async function getGoal(userId: string, id: string): Promise<GoalDTO> {
   return toDTO(row, totals.get(id));
 }
 
+/**
+ * Tiap target punya dompet tabungan supaya setor/tarik selalu berupa transfer dan saldo dompet
+ * ikut bergerak. walletId null = buatkan dompet baru "Tabungan {nama}".
+ */
+function newSavingsWallet(
+  tx: Pick<typeof prisma, 'wallet'>,
+  userId: string,
+  name: string,
+  color: string,
+) {
+  return tx.wallet.create({
+    data: { userId, name: `Tabungan ${name}`.slice(0, WALLET_NAME_MAX), type: 'BANK', color },
+  });
+}
+
 export async function createGoal(
   userId: string,
   data: z.output<typeof createGoalSchema>,
@@ -133,21 +150,25 @@ export async function createGoal(
   if (count >= MAX_GOALS) {
     throw conflict(`Maksimal ${MAX_GOALS} target. Hapus yang sudah selesai dulu.`);
   }
-  const row = await prisma.savingsGoal.create({
-    data: {
-      userId,
-      name: data.name,
-      targetAmount: BigInt(data.targetAmount),
-      deadline: data.deadline ? toDbDate(data.deadline) : null,
-      icon: data.icon,
-      color: data.color,
-      walletId: data.walletId,
-    },
-    include,
+  const row = await prisma.$transaction(async (tx) => {
+    const walletId =
+      data.walletId ?? (await newSavingsWallet(tx, userId, data.name, data.color)).id;
+    return tx.savingsGoal.create({
+      data: {
+        userId,
+        name: data.name,
+        targetAmount: BigInt(data.targetAmount),
+        deadline: data.deadline ? toDbDate(data.deadline) : null,
+        icon: data.icon,
+        color: data.color,
+        walletId,
+      },
+      include,
+    });
   });
   track(userId, 'goal_created', {
     hasDeadline: data.deadline !== null,
-    hasWallet: data.walletId !== null,
+    newWallet: data.walletId === null,
   });
   return toDTO(row);
 }
@@ -163,18 +184,24 @@ export async function updateGoal(
   if (input.walletId && input.walletId !== row.walletId) {
     await findActiveWallet(userId, input.walletId);
   }
-  await prisma.savingsGoal.update({
-    where: { id },
-    data: {
-      ...(input.name !== undefined && { name: input.name }),
-      ...(input.targetAmount !== undefined && { targetAmount: BigInt(input.targetAmount) }),
-      ...(input.deadline !== undefined && {
-        deadline: input.deadline ? toDbDate(input.deadline) : null,
-      }),
-      ...(input.icon !== undefined && { icon: input.icon }),
-      ...(input.color !== undefined && { color: input.color }),
-      ...(input.walletId !== undefined && { walletId: input.walletId }),
-    },
+  await prisma.$transaction(async (tx) => {
+    const walletId =
+      input.walletId === null
+        ? (await newSavingsWallet(tx, userId, input.name ?? row.name, input.color ?? row.color)).id
+        : input.walletId;
+    await tx.savingsGoal.update({
+      where: { id },
+      data: {
+        ...(input.name !== undefined && { name: input.name }),
+        ...(input.targetAmount !== undefined && { targetAmount: BigInt(input.targetAmount) }),
+        ...(input.deadline !== undefined && {
+          deadline: input.deadline ? toDbDate(input.deadline) : null,
+        }),
+        ...(input.icon !== undefined && { icon: input.icon }),
+        ...(input.color !== undefined && { color: input.color }),
+        ...(walletId !== undefined && { walletId }),
+      },
+    });
   });
   return getGoal(userId, id);
 }
@@ -268,48 +295,44 @@ export async function createContribution(
   };
 
   if (!goal.walletId || !goal.wallet) {
-    if (input.walletId) {
-      throw validationError('Target ini tidak memakai dompet tabungan', {
-        walletId: 'Target ini tidak memakai dompet tabungan',
-      });
-    }
-    await prisma.goalContribution.create({ data: contribution });
-  } else {
-    if (goal.wallet.archivedAt) {
-      throw validationError('Dompet tabungan target ini sudah diarsipkan. Ganti dompetnya dulu.');
-    }
-    const field = deposit ? 'Pilih dompet asal' : 'Pilih dompet tujuan';
-    if (!input.walletId) throw validationError(field, { walletId: field });
-    if (input.walletId === goal.walletId) {
-      throw validationError('Pilih dompet selain dompet tabungan', {
-        walletId: 'Pilih dompet selain dompet tabungan',
-      });
-    }
-    await findActiveWallet(userId, input.walletId);
-
-    const transferGroupId = randomUUID();
-    const [fromWalletId, toWalletId] = deposit
-      ? [input.walletId, goal.walletId]
-      : [goal.walletId, input.walletId];
-    const leg = {
-      userId,
-      type: 'TRANSFER' as const,
-      date: contribution.date,
-      note: input.note ?? `${deposit ? 'Setor ke' : 'Tarik dari'} target ${goal.name}`,
-      transferGroupId,
-    };
-    await prisma.$transaction([
-      prisma.transaction.create({
-        data: { ...leg, walletId: fromWalletId, amount: BigInt(-input.amount) },
-      }),
-      prisma.transaction.create({
-        data: { ...leg, walletId: toWalletId, amount: BigInt(input.amount) },
-      }),
-      prisma.goalContribution.create({ data: { ...contribution, transferGroupId } }),
-    ]);
+    throw validationError(
+      'Target ini belum punya dompet tabungan. Pilih atau buat dompetnya lewat Ubah target.',
+    );
   }
+  if (goal.wallet.archivedAt) {
+    throw validationError('Dompet tabungan target ini sudah diarsipkan. Ganti dompetnya dulu.');
+  }
+  const field = deposit ? 'Pilih dompet asal' : 'Pilih dompet tujuan';
+  if (!input.walletId) throw validationError(field, { walletId: field });
+  if (input.walletId === goal.walletId) {
+    throw validationError('Pilih dompet selain dompet tabungan', {
+      walletId: 'Pilih dompet selain dompet tabungan',
+    });
+  }
+  await findActiveWallet(userId, input.walletId);
 
-  track(userId, 'goal_contribution', { type: input.type, transfer: Boolean(goal.walletId) });
+  const transferGroupId = randomUUID();
+  const [fromWalletId, toWalletId] = deposit
+    ? [input.walletId, goal.walletId]
+    : [goal.walletId, input.walletId];
+  const leg = {
+    userId,
+    type: 'TRANSFER' as const,
+    date: contribution.date,
+    note: input.note ?? `${deposit ? 'Setor ke' : 'Tarik dari'} target ${goal.name}`,
+    transferGroupId,
+  };
+  await prisma.$transaction([
+    prisma.transaction.create({
+      data: { ...leg, walletId: fromWalletId, amount: BigInt(-input.amount) },
+    }),
+    prisma.transaction.create({
+      data: { ...leg, walletId: toWalletId, amount: BigInt(input.amount) },
+    }),
+    prisma.goalContribution.create({ data: { ...contribution, transferGroupId } }),
+  ]);
+
+  track(userId, 'goal_contribution', { type: input.type });
   return getGoal(userId, goalId);
 }
 

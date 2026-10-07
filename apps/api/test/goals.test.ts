@@ -62,7 +62,7 @@ describe('target tabungan', () => {
     expect(res.status).toBe(404);
   });
 
-  it('CRUD: default ikon/warna, ubah, lalu hapus', async () => {
+  it('CRUD: default ikon/warna, dompet tabungan dibuatkan, ubah, lalu hapus', async () => {
     const user = await newUser();
     const goal = await createGoal(user, { deadline: undefined });
     expect(goal).toMatchObject({
@@ -70,24 +70,47 @@ describe('target tabungan', () => {
       targetAmount: 3_000_000,
       deadline: null,
       icon: 'piggy-bank',
-      walletId: null,
-      wallet: null,
+      wallet: { name: 'Tabungan Liburan', archivedAt: null },
       saved: 0,
       savedThisMonth: 0,
       contributionCount: 0,
     });
+    expect(goal.walletId).toBe(goal.wallet!.id);
+    expect(await balance(user, goal.walletId!)).toBe(0);
 
     const updated = await authed(user)
       .patch(`/api/v1/goals/${goal.id}`)
-      .send({ name: 'Liburan Bali', icon: 'plane', deadline: nextYear });
+      .send({ name: 'Liburan Bali', icon: 'plane', deadline: nextYear, walletId: goal.walletId });
     expect(updated.status).toBe(200);
-    expect(updated.body).toMatchObject({ name: 'Liburan Bali', icon: 'plane', deadline: nextYear });
+    expect(updated.body).toMatchObject({
+      name: 'Liburan Bali',
+      icon: 'plane',
+      deadline: nextYear,
+      walletId: goal.walletId,
+    });
 
     const list = await authed(user).get('/api/v1/goals');
     expect(list.body.items.map((g: GoalDTO) => g.id)).toEqual([goal.id]);
 
     expect((await authed(user).delete(`/api/v1/goals/${goal.id}`)).status).toBe(204);
     expect((await authed(user).get('/api/v1/goals')).body.items).toEqual([]);
+  });
+
+  it('target lama tanpa dompet: setoran ditolak sampai dompet dipilih atau dibuat', async () => {
+    const user = await newUser();
+    const main = await createWallet(user, { initialBalance: 1_000_000 });
+    const goal = await createGoal(user);
+    await prisma.savingsGoal.update({ where: { id: goal.id }, data: { walletId: null } });
+
+    const res = await contribute(user, goal.id, { amount: 1000, walletId: main.id });
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toContain('belum punya dompet tabungan');
+
+    const fixed = await authed(user).patch(`/api/v1/goals/${goal.id}`).send({ walletId: null });
+    expect(fixed.body.wallet).toMatchObject({ name: 'Tabungan Liburan' });
+    expect(fixed.body.walletId).not.toBe(goal.walletId);
+    const ok = await contribute(user, goal.id, { amount: 1000, walletId: main.id });
+    expect(ok.status).toBe(201);
   });
 
   it('menolak tenggat di masa lalu dan dompet milik orang lain', async () => {
@@ -107,22 +130,34 @@ describe('target tabungan', () => {
     expect(res.body.error.fields.walletId).toBe('Dompet tidak ditemukan');
   });
 
-  it('setoran tanpa dompet: hanya dicatat; tarik tidak boleh melebihi yang terkumpul', async () => {
+  it('dompet tabungan otomatis: setor memotong dompet asal; tarik tidak boleh melebihi terkumpul', async () => {
     const user = await newUser();
+    const main = await createWallet(user, { name: 'Utama', initialBalance: 1_000_000 });
     const goal = await createGoal(user);
+    const savingsId = goal.walletId!;
 
-    const dep = await contribute(user, goal.id, { amount: 400_000 });
+    const dep = await contribute(user, goal.id, { amount: 400_000, walletId: main.id });
     expect(dep.status).toBe(201);
     expect(dep.body).toMatchObject({
       saved: 400_000,
       savedThisMonth: 400_000,
       contributionCount: 1,
     });
+    expect(await balance(user, main.id)).toBe(600_000);
+    expect(await balance(user, savingsId)).toBe(400_000);
 
-    const old = await contribute(user, goal.id, { amount: 100_000, date: lastMonth });
+    const old = await contribute(user, goal.id, {
+      amount: 100_000,
+      date: lastMonth,
+      walletId: main.id,
+    });
     expect(old.body).toMatchObject({ saved: 500_000, savedThisMonth: 400_000 });
 
-    const tooMuch = await contribute(user, goal.id, { type: 'WITHDRAW', amount: 600_000 });
+    const tooMuch = await contribute(user, goal.id, {
+      type: 'WITHDRAW',
+      amount: 600_000,
+      walletId: main.id,
+    });
     expect(tooMuch.status).toBe(400);
     expect(tooMuch.body.error.fields.amount).toBeTruthy();
 
@@ -130,24 +165,25 @@ describe('target tabungan', () => {
       type: 'WITHDRAW',
       amount: 150_000,
       note: 'Darurat',
+      walletId: main.id,
     });
     expect(wd.body.saved).toBe(350_000);
-
-    const withWallet = await contribute(user, goal.id, { amount: 1000, walletId: 'apa-saja' });
-    expect(withWallet.status).toBe(400);
+    expect(await balance(user, main.id)).toBe(650_000);
+    expect(await balance(user, savingsId)).toBe(350_000);
 
     const history = await authed(user).get(`/api/v1/goals/${goal.id}/contributions`);
     const items = history.body.items as GoalContributionDTO[];
-    expect(items.map((c) => [c.type, c.amount, c.note])).toEqual([
-      ['WITHDRAW', 150_000, 'Darurat'],
-      ['DEPOSIT', 400_000, null],
-      ['DEPOSIT', 100_000, null],
+    expect(items.map((c) => [c.type, c.amount, c.note, c.wallet?.name])).toEqual([
+      ['WITHDRAW', 150_000, 'Darurat', 'Utama'],
+      ['DEPOSIT', 400_000, null, 'Utama'],
+      ['DEPOSIT', 100_000, null, 'Utama'],
     ]);
 
     expect((await authed(user).delete(`/api/v1/goals/contributions/${items[0]!.id}`)).status).toBe(
       204,
     );
     expect((await authed(user).get('/api/v1/goals')).body.items[0].saved).toBe(500_000);
+    expect(await balance(user, main.id)).toBe(500_000);
   });
 
   it('dengan dompet tabungan: setor/tarik jadi transfer sungguhan dan mengikuti transfernya', async () => {
@@ -231,8 +267,9 @@ describe('target tabungan', () => {
   it('IDOR: target dan setoran pengguna lain tidak bisa dibaca atau diubah', async () => {
     const owner = await newUser();
     const attacker = await newUser();
+    const main = await createWallet(owner, { initialBalance: 500_000 });
     const goal = await createGoal(owner);
-    await contribute(owner, goal.id, { amount: 100_000 });
+    await contribute(owner, goal.id, { amount: 100_000, walletId: main.id });
     const [c] = (await authed(owner).get(`/api/v1/goals/${goal.id}/contributions`)).body
       .items as GoalContributionDTO[];
 
@@ -240,7 +277,9 @@ describe('target tabungan', () => {
     expect((await as.get(`/api/v1/goals/${goal.id}/contributions`)).status).toBe(404);
     expect((await as.patch(`/api/v1/goals/${goal.id}`).send({ name: 'Hack' })).status).toBe(404);
     expect((await as.delete(`/api/v1/goals/${goal.id}`)).status).toBe(404);
-    expect((await contribute(attacker, goal.id, { amount: 1 })).status).toBe(404);
+    expect((await contribute(attacker, goal.id, { amount: 1, walletId: main.id })).status).toBe(
+      404,
+    );
     expect((await as.delete(`/api/v1/goals/contributions/${c!.id}`)).status).toBe(404);
     expect((await as.get('/api/v1/goals')).body.items).toEqual([]);
 

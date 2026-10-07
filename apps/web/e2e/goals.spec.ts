@@ -21,7 +21,6 @@ test('target: tab Rencana → buat target → setor via transfer → saran bulan
     type: 'BANK',
     initialBalance: 2_000_000,
   });
-  await post('/wallets', { name: 'Tabungan', type: 'BANK', initialBalance: 0 });
 
   await page.goto('/anggaran');
   await waitForApp(page);
@@ -44,11 +43,15 @@ test('target: tab Rencana → buat target → setor via transfer → saran bulan
   const form = page.getByRole('dialog', { name: 'Target baru' });
   await form.getByLabel('Nama target').fill('Liburan Bali');
   await form.getByLabel('Jumlah target').fill('3000000');
-  await form.getByLabel('Dompet tabungan').click();
-  await page.getByRole('option', { name: /^Tabungan/ }).click();
+  // Default: dompet tabungan baru dibuatkan dengan nama target.
+  await expect(form.getByLabel('Dompet tabungan')).toContainText(
+    'Buat dompet baru: Tabungan Liburan Bali',
+  );
   await form.getByRole('radio', { name: 'Perjalanan' }).check({ force: true });
   await form.getByRole('button', { name: 'Simpan' }).click();
-  await expect(page.getByText('Target dibuat')).toBeVisible();
+  await expect(
+    page.getByText('Target dibuat. Dompet Tabungan Liburan Bali siap dipakai.'),
+  ).toBeVisible();
   await expect(form).toBeHidden();
 
   const list = page.getByRole('list', { name: 'Daftar target' });
@@ -58,13 +61,21 @@ test('target: tab Rencana → buat target → setor via transfer → saran bulan
   await bali.getByRole('button', { name: 'Setor ke Liburan Bali' }).click();
   const deposit = page.getByRole('dialog', { name: 'Liburan Bali' });
   await deposit.getByLabel('Nominal', { exact: true }).fill('500000');
-  await expect(deposit.getByText('Tercatat sebagai transfer ke Tabungan.')).toBeVisible();
+  await expect(deposit.getByLabel('Dari dompet')).toContainText('Utama');
+  await expect(
+    deposit.getByText(
+      'Saldo dompet ini berkurang dan pindah ke Tabungan Liburan Bali, seperti transfer.',
+    ),
+  ).toBeVisible();
   await deposit.getByRole('button', { name: 'Simpan setoran' }).click();
-  await expect(page.getByText(`Setoran ${formatRupiah(500_000)} dicatat`)).toBeVisible();
+  await expect(
+    page.getByText(`Setoran ${formatRupiah(500_000)} dipindah dari Utama ke Tabungan Liburan Bali`),
+  ).toBeVisible();
   await expect(deposit).toBeHidden();
   await expect(bali).toContainText(`${formatRupiah(500_000)} dari ${formatRupiah(3_000_000)}`);
   const wallets = await get<{ items: WalletDTO[] }>('/wallets');
   expect(wallets.items.find((w) => w.id === main.id)?.balance).toBe(1_500_000);
+  expect(wallets.items.find((w) => w.name === 'Tabungan Liburan Bali')?.balance).toBe(500_000);
 
   // Target dengan tenggat: 3 bulan termasuk bulan ini -> saran Rp400.000/bulan.
   const deadline = monthRange(shiftMonth(currentMonth(), 2)).end;
@@ -76,6 +87,8 @@ test('target: tab Rencana → buat target → setor via transfer → saran bulan
   await expect(darurat).toContainText('Sesuai rencana');
   await darurat.getByRole('button', { name: 'Setor ke Dana darurat' }).click();
   const quick = page.getByRole('dialog', { name: 'Dana darurat' });
+  await quick.getByLabel('Dari dompet').click();
+  await page.getByRole('option', { name: /^Utama/ }).click();
   await quick
     .getByRole('button', { name: `Pakai saran bulan ini · ${formatRupiah(400_000)}` })
     .click();
@@ -96,5 +109,6 @@ test('target: tab Rencana → buat target → setor via transfer → saran bulan
   await expect(page.getByText('Setoran dihapus')).toBeVisible();
   await expect(detail.getByText('Belum ada setoran')).toBeVisible();
   const after = await get<{ items: WalletDTO[] }>('/wallets');
-  expect(after.items.find((w) => w.id === main.id)?.balance).toBe(2_000_000);
+  // Setoran Dana darurat (400.000) tetap memotong Utama.
+  expect(after.items.find((w) => w.id === main.id)?.balance).toBe(1_600_000);
 });

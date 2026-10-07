@@ -203,3 +203,59 @@ describe('PUT/GET /budgets', () => {
     expect(hijack.status).toBe(400);
   });
 });
+
+describe('POST /budgets/custom', () => {
+  it('membuat kategori pengeluaran baru beserta anggarannya', async () => {
+    const owner = await registerUser();
+    const res = await authed(owner).post('/api/v1/budgets/custom').send({
+      month,
+      name: '  Jajan Kopi ',
+      icon: 'coffee',
+      color: '#B45309',
+      limitAmount: 300_000,
+    });
+    expect(res.status).toBe(201);
+    const created = (res.body.items as (BudgetItem & { category: { name: string } })[]).find(
+      (i) => i.category.name === 'Jajan Kopi',
+    )!;
+    expect(created).toMatchObject({ limitAmount: 300_000, spent: 0 });
+    expect(res.body.totalLimit).toBe(300_000);
+
+    const categories = await authed(owner).get('/api/v1/categories').query({ type: 'EXPENSE' });
+    expect(categories.body.items).toContainEqual(
+      expect.objectContaining({
+        id: created.categoryId,
+        name: 'Jajan Kopi',
+        icon: 'coffee',
+        isDefault: false,
+      }),
+    );
+    const later = await authed(owner).get('/api/v1/budgets').query({ month: nextMonth });
+    expect(byCategory(later.body.items, created.categoryId).limitAmount).toBe(300_000);
+
+    const monthOnly = await authed(owner)
+      .post('/api/v1/budgets/custom')
+      .send({ month, name: 'Kado Ultah', limitAmount: 150_000, scope: 'month' })
+      .expect(201);
+    const kado = (monthOnly.body.items as (BudgetItem & { category: { name: string } })[]).find(
+      (i) => i.category.name === 'Kado Ultah',
+    )!;
+    const after = await authed(owner).get('/api/v1/budgets').query({ month: nextMonth });
+    expect(byCategory(after.body.items, kado.categoryId)).toMatchObject({ id: null });
+
+    // Sudah dipakai kategori lain (bawaan maupun kustom) → ditolak tanpa membuat apa pun.
+    for (const name of ['makan', 'jajan kopi']) {
+      const clash = await authed(owner)
+        .post('/api/v1/budgets/custom')
+        .send({ month, name, limitAmount: 100_000 });
+      expect(clash.status).toBe(409);
+      expect(clash.body.error.fields.name).toMatch(/sudah ada/);
+    }
+    const zero = await authed(owner)
+      .post('/api/v1/budgets/custom')
+      .send({ month, name: 'Nol', limitAmount: 0 });
+    expect(zero.status).toBe(400);
+    const total = await authed(owner).get('/api/v1/categories').query({ type: 'EXPENSE' });
+    expect(total.body.items.filter((c: { isDefault: boolean }) => !c.isDefault)).toHaveLength(2);
+  });
+});

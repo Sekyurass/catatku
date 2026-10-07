@@ -12,8 +12,8 @@ const TABS = [
 export function PlanHeader({ action }: { action?: ReactNode }) {
   return (
     <header className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Rencana</h1>
+      <div className="flex min-h-[54px] items-center justify-between gap-2">
+        <h1 className="min-w-0 truncate text-2xl font-bold">Rencana</h1>
         {action}
       </div>
       <nav aria-label="Bagian rencana">

@@ -13,7 +13,10 @@ const goalFields = z.object({
   deadline: dateSchema.nullable(),
   icon: z.enum(CATEGORY_ICONS, { error: 'Ikon tidak tersedia' }),
   color: hexColorSchema,
-  /** Dompet tabungan. Bila diisi, setor/tarik dicatat sebagai transfer sungguhan. */
+  /**
+   * Dompet tabungan; setor/tarik selalu dicatat sebagai transfer ke/dari dompet ini.
+   * null = server membuatkan dompet baru "Tabungan {nama}".
+   */
   walletId: idSchema.nullable(),
 });
 
@@ -28,10 +31,7 @@ export type CreateGoalInput = z.input<typeof createGoalSchema>;
 export const updateGoalSchema = goalFields.partial();
 export type UpdateGoalInput = z.input<typeof updateGoalSchema>;
 
-/**
- * `walletId` = dompet asal (setor) atau dompet tujuan (tarik). Wajib bila target punya dompet
- * tabungan, dan tidak boleh diisi bila tidak.
- */
+/** `walletId` = dompet asal (setor) atau dompet tujuan (tarik); server mewajibkannya. */
 export const createContributionSchema = z.object({
   type: z.enum(GOAL_CONTRIBUTION_TYPES, { error: 'Pilih setor atau tarik' }),
   amount: amountSchema,

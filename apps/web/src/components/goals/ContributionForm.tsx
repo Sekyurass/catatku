@@ -1,10 +1,9 @@
 import { formatRupiah, type GoalContributionType, type GoalDTO, MAX_AMOUNT } from '@catatku/shared';
-import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ApiError, api } from '../../lib/api';
 import { today } from '../../lib/format';
 import { progressOf } from '../../lib/goal';
-import { pickDefaultWallet, queryKeys, useInvalidateMoney, useWallets } from '../../lib/queries';
+import { pickDefaultWallet, useInvalidateMoney, useWallets } from '../../lib/queries';
 import { FormAlert } from '../../pages/auth/AuthLayout';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
@@ -17,23 +16,24 @@ import { useToast } from '../ui/Toast';
 type Errors = Partial<Record<'amount' | 'date' | 'walletId', string>>;
 
 /**
- * Setor/tarik. Bila target punya dompet tabungan, uang benar-benar dipindah lewat transfer dari
- * (setor) atau ke (tarik) dompet yang dipilih; tanpa dompet hanya dicatat sebagai sisihan.
+ * Setor/tarik selalu memindahkan uang lewat transfer: dari dompet yang dipilih ke dompet tabungan
+ * target (setor), atau sebaliknya (tarik).
  */
 export function ContributionForm({
   goal,
   initialType,
   onDone,
+  onEdit,
 }: {
   goal: GoalDTO;
   initialType: GoalContributionType;
   onDone: () => void;
+  /** Buka form ubah target untuk memilih/membuat dompet tabungan. */
+  onEdit: () => void;
 }) {
-  const qc = useQueryClient();
   const toast = useToast();
   const invalidateMoney = useInvalidateMoney();
   const wallets = useWallets();
-  const linked = goal.walletId !== null;
   const others = (wallets.data ?? []).filter((w) => !w.archivedAt && w.id !== goal.walletId);
 
   const [type, setType] = useState(initialType);
@@ -47,6 +47,7 @@ export function ContributionForm({
   const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   const selectedWallet = walletId ?? pickDefaultWallet(others)?.id ?? '';
+  const source = others.find((w) => w.id === selectedWallet);
   const deposit = type === 'DEPOSIT';
   const p = progressOf(goal);
   const suggestion = deposit && p.dueThisMonth ? Math.min(p.dueThisMonth, MAX_AMOUNT) : null;
@@ -65,8 +66,7 @@ export function ContributionForm({
       next.amount = `Maksimal ${formatRupiah(goal.saved)} (yang sudah terkumpul)`;
     }
     if (!date) next.date = 'Pilih tanggal';
-    if (linked && !selectedWallet)
-      next.walletId = deposit ? 'Pilih dompet asal' : 'Pilih dompet tujuan';
+    if (!selectedWallet) next.walletId = deposit ? 'Pilih dompet asal' : 'Pilih dompet tujuan';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -75,22 +75,18 @@ export function ContributionForm({
     try {
       const updated = await api<GoalDTO>(`/goals/${goal.id}/contributions`, {
         method: 'POST',
-        body: {
-          type,
-          amount,
-          date,
-          note: note.trim() || undefined,
-          ...(linked && { walletId: selectedWallet }),
-        },
+        body: { type, amount, date, note: note.trim() || undefined, walletId: selectedWallet },
         headers: { 'Idempotency-Key': idempotencyKey },
       });
-      if (linked) void invalidateMoney();
-      else void qc.invalidateQueries({ queryKey: queryKeys.goals });
+      void invalidateMoney();
       const reached = updated.saved >= updated.targetAmount && goal.saved < goal.targetAmount;
+      const [from, to] = deposit
+        ? [source?.name, goal.wallet?.name]
+        : [goal.wallet?.name, source?.name];
       toast({
         message: reached
           ? `Selamat! Target ${goal.name} tercapai`
-          : `${deposit ? 'Setoran' : 'Penarikan'} ${formatRupiah(amount!)} dicatat`,
+          : `${deposit ? 'Setoran' : 'Penarikan'} ${formatRupiah(amount!)} dipindah dari ${from} ke ${to}`,
       });
       onDone();
     } catch (err) {
@@ -105,22 +101,31 @@ export function ContributionForm({
     }
   };
 
-  if (goal.wallet?.archivedAt) {
+  if (!goal.wallet || goal.wallet.archivedAt) {
     return (
-      <p className="text-sm text-muted">
-        Dompet tabungan {goal.wallet.name} sudah diarsipkan. Ubah target ini untuk memilih dompet
-        lain atau tanpa dompet khusus.
-      </p>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-muted">
+          {goal.wallet
+            ? `Dompet tabungan ${goal.wallet.name} sudah diarsipkan.`
+            : 'Target ini belum punya dompet tabungan.'}{' '}
+          Setoran selalu dipindah ke dompet tabungan supaya saldo dompet asalmu ikut berkurang.
+        </p>
+        <Button size="lg" onClick={onEdit}>
+          Pilih dompet tabungan
+        </Button>
+      </div>
     );
   }
-  if (linked && wallets.isSuccess && others.length === 0) {
+  if (wallets.isSuccess && others.length === 0) {
     return (
       <p className="text-sm text-muted">
-        Butuh dompet lain selain {goal.wallet?.name} untuk menyetor atau menarik dana. Tambahkan
+        Butuh dompet lain selain {goal.wallet.name} untuk menyetor atau menarik dana. Tambahkan
         dompet dulu di menu Dompet.
       </p>
     );
   }
+
+  const short = deposit && source && amount !== null && amount > source.balance;
 
   return (
     <form
@@ -178,30 +183,30 @@ export function ContributionForm({
         </button>
       )}
 
-      {linked && (
-        <Field
-          label={deposit ? 'Dari dompet' : 'Ke dompet'}
-          error={errors.walletId}
-          hint={
-            deposit
-              ? `Tercatat sebagai transfer ke ${goal.wallet?.name}.`
-              : `Tercatat sebagai transfer dari ${goal.wallet?.name}.`
-          }
-        >
-          {(a) => (
-            <Select
-              {...a}
-              value={selectedWallet}
-              onChange={(v) => {
-                setWalletId(v);
-                setErrors((e) => ({ ...e, walletId: undefined }));
-              }}
-              options={walletOptions}
-              placeholder="Pilih dompet"
-            />
-          )}
-        </Field>
-      )}
+      <Field
+        label={deposit ? 'Dari dompet' : 'Ke dompet'}
+        error={errors.walletId}
+        hint={
+          short
+            ? `Saldo ${source.name} hanya ${formatRupiah(source.balance)}; setelah setor saldonya minus.`
+            : deposit
+              ? `Saldo dompet ini berkurang dan pindah ke ${goal.wallet.name}, seperti transfer.`
+              : `Uang dipindah dari ${goal.wallet.name} ke dompet ini, seperti transfer.`
+        }
+      >
+        {(a) => (
+          <Select
+            {...a}
+            value={selectedWallet}
+            onChange={(v) => {
+              setWalletId(v);
+              setErrors((e) => ({ ...e, walletId: undefined }));
+            }}
+            options={walletOptions}
+            placeholder="Pilih dompet"
+          />
+        )}
+      </Field>
 
       <Field label="Tanggal" error={errors.date}>
         {(a) => <DatePicker {...a} value={date} onChange={setDate} max={today()} />}

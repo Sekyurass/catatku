@@ -10,9 +10,10 @@ import {
   monthRange,
 } from '@catatku/shared';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, PiggyBank, Trash2 } from 'lucide-react';
+import { ChevronDown, PiggyBank, Plus, Trash2 } from 'lucide-react';
 import { useId, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { CustomBudgetForm } from '../components/budgets/CustomBudgetForm';
 import { IconBadge } from '../components/IconBadge';
 import { PlanHeader } from '../components/plan/PlanHeader';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
@@ -49,20 +50,21 @@ export function BudgetsPage() {
   const [month, setMonth] = useMonthParam();
   const budgets = useBudgets(month);
   const [editing, setEditing] = useState<BudgetDTO | null>(null);
+  const [creating, setCreating] = useState(false);
   const goals = useFeature(FEATURE_FLAGS.SAVINGS_GOALS);
 
   const items = budgets.data?.items ?? [];
   const budgeted = items.filter((i) => i.id !== null);
   const unbudgeted = items.filter((i) => i.id === null);
-  const switcher = <MonthSwitcher month={month} onChange={setMonth} />;
+  const switcher = <MonthSwitcher month={month} onChange={setMonth} compact />;
 
   return (
     <div className="flex flex-col gap-4">
       {goals ? (
         <PlanHeader action={switcher} />
       ) : (
-        <header className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold">Anggaran</h1>
+        <header className="flex items-center justify-between gap-2">
+          <h1 className="min-w-0 truncate text-2xl font-bold">Anggaran</h1>
           {switcher}
         </header>
       )}
@@ -114,6 +116,15 @@ export function BudgetsPage() {
             </Card>
           )}
 
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={() => setCreating(true)}
+            icon={<Plus className="size-5" aria-hidden />}
+          >
+            Buat anggaran sendiri
+          </Button>
+
           {unbudgeted.length > 0 && (
             <Card className="p-2 sm:p-4">
               <CardHeader title="Belum ada anggaran" className="px-2 sm:px-0" />
@@ -157,6 +168,15 @@ export function BudgetsPage() {
         description={formatMonthLabel(month)}
       >
         {editing && <BudgetForm item={editing} month={month} onDone={() => setEditing(null)} />}
+      </Dialog>
+
+      <Dialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="Anggaran baru"
+        description={formatMonthLabel(month)}
+      >
+        {creating && <CustomBudgetForm month={month} onDone={() => setCreating(false)} />}
       </Dialog>
     </div>
   );

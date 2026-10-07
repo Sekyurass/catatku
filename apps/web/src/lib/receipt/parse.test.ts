@@ -3,10 +3,10 @@ import { RECEIPT_SAMPLES, SAMPLE_TODAY } from './fixtures';
 import { normalizeLine, parseAmount, parseReceiptText, receiptNote } from './parse';
 
 describe('dataset struk', () => {
-  const results = RECEIPT_SAMPLES.map((s) => ({
-    sample: s,
-    got: parseReceiptText(s.text, SAMPLE_TODAY),
-  }));
+  const results = RECEIPT_SAMPLES.map((s) => {
+    const parsed = parseReceiptText(s.text, SAMPLE_TODAY);
+    return { sample: s, got: { ...parsed, items: parsed.items.map((i) => i.name) } };
+  });
   const accuracy = (field: 'total' | 'date' | 'merchant') =>
     results.filter(({ sample, got }) => (got[field]?.value ?? null) === sample.expected[field])
       .length / results.length;
@@ -164,17 +164,37 @@ describe('parseReceiptText', () => {
     ).toBe('Bakmi Jaya');
   });
 
-  it('catatan = toko + barang, dipotong rapi di 200 karakter', () => {
+  it('harga per barang ikut terbaca, termasuk nama dan harga di baris terpisah', () => {
+    const got = parseReceiptText(
+      'INDOMARET\nTgl 07.10.26\nINDOMIE GORENG 2 3.100 6.200\nAQUA 600ML 3.500\nSUSU UHT COKLAT\n2 X 10.450 20.900\nTOTAL 30.600',
+      SAMPLE_TODAY,
+    );
+    expect(got.items).toEqual([
+      { name: 'Indomie Goreng', price: 6_200 },
+      { name: 'Aqua 600ml', price: 3_500 },
+      { name: 'Susu UHT Coklat', price: 20_900 },
+    ]);
+  });
+
+  it('catatan = toko + barang beserta harga, dipotong rapi di 200 karakter', () => {
     expect(
-      receiptNote('Hotways Chicken Bali', ['Strawberry Orange Milk', 'Paha Atas Crispy']),
-    ).toBe('Hotways Chicken Bali: Strawberry Orange Milk, Paha Atas Crispy');
-    expect(receiptNote(null, ['Kopi Hitam'])).toBe('Kopi Hitam');
+      receiptNote('Hotways Chicken Bali', [
+        { name: 'Strawberry Orange Milk', price: 18_000 },
+        { name: 'Paha Atas Crispy', price: null },
+      ]),
+    ).toBe('Hotways Chicken Bali: Strawberry Orange Milk Rp18.000, Paha Atas Crispy');
+    expect(receiptNote(null, [{ name: 'Kopi Hitam', price: 1_250_000 }])).toBe(
+      'Kopi Hitam Rp1.250.000',
+    );
     expect(receiptNote('Warung', [])).toBe('Warung');
     expect(receiptNote(null, [])).toBeNull();
-    const many = Array.from({ length: 12 }, (_, i) => `Barang Belanjaan Nomor ${i + 1}`);
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      name: `Barang Belanjaan Nomor ${i + 1}`,
+      price: 12_500,
+    }));
     const note = receiptNote('Superindo', many)!;
     expect(note.length).toBeLessThanOrEqual(200);
-    expect(note).toMatch(/^Superindo: Barang Belanjaan Nomor 1, .* \+\d+ lainnya$/);
+    expect(note).toMatch(/^Superindo: Barang Belanjaan Nomor 1 Rp12\.500, .* \+\d+ lainnya$/);
   });
 
   it('nama toko dari baris pertama yang wajar diberi keyakinan rendah', () => {

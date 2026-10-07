@@ -24,8 +24,8 @@ const goal = (patch: Partial<GoalDTO>): GoalDTO => ({
   deadline: monthRange(shiftMonth(month, 2)).end,
   icon: 'plane',
   color: '#2563EB',
-  walletId: null,
-  wallet: null,
+  walletId: 'w-tab',
+  wallet: { id: 'w-tab', name: 'Tabungan', color: '#0F766E', archivedAt: null },
   saved: 0,
   savedThisMonth: 0,
   contributionCount: 0,
@@ -47,8 +47,6 @@ const GOALS = [
     name: 'Rumah',
     targetAmount: 50_000_000,
     deadline: null,
-    walletId: 'w-tab',
-    wallet: { id: 'w-tab', name: 'Tabungan', color: '#0F766E', archivedAt: null },
     saved: 2_000_000,
   }),
 ];
@@ -68,7 +66,7 @@ const wallet = (id: string, name: string): WalletDTO => ({
 const json = (body: unknown, status = 201) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-function setup({ enabled = true } = {}) {
+function setup({ enabled = true, goals = GOALS } = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     if (url.pathname.endsWith('/features')) return json({ flags: { savings_goals: enabled } }, 200);
@@ -78,11 +76,11 @@ function setup({ enabled = true } = {}) {
     const contrib = url.pathname.match(/\/goals\/(\w+)\/contributions$/);
     if (contrib && init?.method === 'POST') {
       const body = JSON.parse(String(init.body)) as { amount: number };
-      const g = GOALS.find((x) => x.id === contrib[1])!;
+      const g = goals.find((x) => x.id === contrib[1])!;
       return json({ ...g, saved: g.saved + body.amount });
     }
     if (contrib) return json({ items: [] }, 200);
-    if (url.pathname.endsWith('/goals')) return json({ items: GOALS }, 200);
+    if (url.pathname.endsWith('/goals')) return json({ items: goals }, 200);
     return json({ error: { code: 'NOT_FOUND', message: 'x' } }, 404);
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -145,11 +143,17 @@ describe('GoalsPage', () => {
     expect(screen.getByText('Terkumpul dari 4 target')).toBeInTheDocument();
   });
 
-  it('setor tanpa dompet: validasi, pakai saran, lalu terkirim dengan Idempotency-Key', async () => {
+  it('setor = transfer dari dompet lain: validasi, pakai saran, Idempotency-Key', async () => {
     const fetchMock = setup();
     await userEvent.click(await screen.findByRole('button', { name: 'Setor ke Liburan' }));
     const dialog = await screen.findByRole('dialog', { name: 'Liburan' });
-    expect(within(dialog).queryByText('Dari dompet')).not.toBeInTheDocument();
+    // Dompet tabungan sendiri tidak ditawarkan; BCA terpilih otomatis.
+    expect(within(dialog).getByRole('combobox', { name: 'Dari dompet' })).toHaveTextContent('BCA');
+    expect(
+      within(dialog).getByText(
+        'Saldo dompet ini berkurang dan pindah ke Tabungan, seperti transfer.',
+      ),
+    ).toBeInTheDocument();
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Simpan setoran' }));
     expect(within(dialog).getByText('Masukkan nominal lebih dari 0')).toBeInTheDocument();
@@ -162,9 +166,33 @@ describe('GoalsPage', () => {
 
     await waitFor(() => expect(posted(fetchMock).url).toContain('/goals/g1/contributions'));
     const { body, headers } = posted(fetchMock);
-    expect(body).toEqual({ type: 'DEPOSIT', amount: 600_000, date: today, note: 'Sisa gaji' });
+    expect(body).toEqual({
+      type: 'DEPOSIT',
+      amount: 600_000,
+      date: today,
+      note: 'Sisa gaji',
+      walletId: 'w-bca',
+    });
     expect(headers['Idempotency-Key']).toMatch(/^[\w-]{8,}$/);
-    expect(await screen.findByText('Setoran Rp 600.000 dicatat')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Setoran Rp 600.000 dipindah dari BCA ke Tabungan'),
+    ).toBeInTheDocument();
+  });
+
+  it('target lama tanpa dompet: setor diarahkan memilih dompet tabungan dulu', async () => {
+    setup({ goals: [goal({ walletId: null, wallet: null })] });
+    await userEvent.click(await screen.findByRole('button', { name: 'Setor ke Liburan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Liburan' });
+    expect(within(dialog).getByText(/belum punya dompet tabungan/)).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Simpan setoran' }),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Pilih dompet tabungan' }));
+    const form = await screen.findByRole('dialog', { name: 'Ubah target' });
+    expect(within(form).getByRole('combobox', { name: 'Dompet tabungan' })).toHaveTextContent(
+      'Buat dompet baru: Tabungan Liburan',
+    );
   });
 
   it('target dengan dompet tabungan: tarik dibatasi yang terkumpul dan mengirim dompet tujuan', async () => {
@@ -177,7 +205,7 @@ describe('GoalsPage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Rumah' });
     expect(within(dialog).getByText('Ke dompet')).toBeInTheDocument();
     expect(
-      within(dialog).getByText('Tercatat sebagai transfer dari Tabungan.'),
+      within(dialog).getByText('Uang dipindah dari Tabungan ke dompet ini, seperti transfer.'),
     ).toBeInTheDocument();
     // Dompet tabungan sendiri tidak ditawarkan; BCA terpilih otomatis.
     expect(within(dialog).getByRole('combobox', { name: 'Ke dompet' })).toHaveTextContent('BCA');

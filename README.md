@@ -268,11 +268,13 @@ Untuk R2: endpoint `https://<account-id>.r2.cloudflarestorage.com`, region `auto
   perangkat sentuh (`pointer: coarse`) menjadi **Foto struk** (`capture="environment"`, langsung membuka
   kamera belakang) + **Dari galeri**. OCR berjalan **di perangkat** dengan Tesseract.js (WebAssembly), jadi
   foto tidak pernah dikirim ke server atau pihak ketiga. Hasilnya hanya **mengisi** form (nominal, tanggal,
-  catatan = `Toko: Barang A, Barang B`, maks. 200 karakter, sisa barang diringkas `+N lainnya`); pengguna
-  selalu meninjau lalu menekan Simpan.
+  catatan = `Toko: Barang A Rp6.200, Barang B`, maks. 200 karakter, sisa barang diringkas `+N lainnya`);
+  pengguna selalu meninjau lalu menekan Simpan. Detail transaksi memecah catatan berformat ini menjadi
+  daftar barang dengan harga per baris di kanan (`splitNoteItems`); harga juga bisa diketik manual
+  dengan format `Nama Rp10.000`. Transaksi lama yang tersimpan tanpa harga tetap tampil tanpa harga.
   - **Antarmuka `ReceiptParser`** (`apps/web/src/lib/receipt/index.ts`): `parse(foto, { today, signal,
 onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value, confidence: high|low }` atau
-    `null`; `items` = daftar nama barang (maks. 12). Implementasi Tesseract (`tesseract.ts`) dimuat lazy hanya saat tombol dipakai; mengganti ke
+    `null`; `items` = daftar `{ name, price }` (maks. 12; `price` = subtotal baris atau `null`). Implementasi Tesseract (`tesseract.ts`) dimuat lazy hanya saat tombol dipakai; mengganti ke
     layanan OCR server cukup menambah implementasi baru (wajib persetujuan pengguna dulu).
   - **Alur**: validasi (hanya gambar, maks. 15 MB) → diputar sesuai EXIF, diskalakan (sisi panjang ≤ 2000 px),
     grayscale + kontras → Tesseract bahasa `ind` mode _single block_ (mode otomatis membuang teks di bawah
@@ -347,9 +349,12 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
   "Anggaran" dan `/anggaran/target` dialihkan.
   - **Model**: `SavingsGoal (name, targetAmount, deadline?, icon, color, walletId?)` dan `GoalContribution`
     (nominal bertanda: + setor, − tarik). Maks. 20 target per pengguna.
-  - **Setor/tarik eksplisit**: target tanpa dompet → setoran hanya dicatat sebagai uang yang disisihkan.
-    Target dengan dompet tabungan → setor membuat transfer dompet asal → dompet tabungan (tarik sebaliknya)
-    dalam satu transaksi DB. Setoran tertaut memakai nominal & tanggal transfernya: transfer diubah di
+  - **Dompet tabungan wajib**: tiap target punya dompet tabungan. Membuat target tanpa memilih dompet
+    (`walletId: null`, pilihan default di form) membuatkan dompet baru `Tabungan {nama}` (tipe BANK, saldo 0,
+    warna target) dalam transaksi DB yang sama. Target lama tanpa dompet (atau dompetnya terhapus) tidak bisa
+    disetor sampai dompetnya dipilih/dibuat lewat **Ubah target**; setoran lama tanpa transfer tetap dihitung.
+  - **Setor/tarik eksplisit** selalu berupa transfer: setor = dompet asal → dompet tabungan, tarik sebaliknya,
+    dalam satu transaksi DB, jadi saldo dompet asal ikut berkurang. Setoran tertaut memakai nominal & tanggal transfernya: transfer diubah di
     Transaksi → progres ikut; transfer dihapus → tidak dihitung, diurungkan → kembali. Menghapus setoran
     menghapus transfernya; menghapus target membiarkan transfer yang sudah ada.
   - **Rumus** (`goalProgress` di `packages/shared/src/goal.ts`): bulan tersisa = bulan kalender sampai
@@ -385,7 +390,10 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
   - Transfer tidak dihitung sebagai pemasukan/pengeluaran; dashboard < 1 detik untuk 10.000 transaksi (diuji)
 - ✅ `GET /budgets?month=` (semua kategori pengeluaran aktif + anggaran, realisasi `spent`, dan jumlah transaksi
   `txCount`; tanpa anggaran → `id: null`),
-  `PUT /budgets` body `{ month, items: [{ categoryId, limitAmount }] }` (upsert massal; `limitAmount: 0` menghapus; idempoten)
+  `PUT /budgets` body `{ month, items: [{ categoryId, limitAmount }] }` (upsert massal; `limitAmount: 0` menghapus; idempoten),
+  `POST /budgets/custom` body `{ month, name: 1–30, icon?, color?, limitAmount > 0, scope? }` → 201 `BudgetMonthDTO`
+  (anggaran dengan nama sendiri = kategori pengeluaran kustom baru + anggarannya, atomik; nama yang sudah
+  dipakai kategori aktif → 409 dengan `fields.name`; mendukung `Idempotency-Key`)
   - Status: `ok` < 80%, `warning` 80–99%, `over` ≥ 100%. Hanya kategori pengeluaran yang aktif yang bisa dianggarkan
   - **Anggaran berlanjut**: baris `Budget(month)` berlaku mulai bulan itu sampai ada baris yang lebih baru
     (`since` di respons = bulan asalnya). Mengubah bulan X tidak mengubah bulan sebelum X; menghentikan
@@ -444,9 +452,10 @@ wallet, saved, savedThisMonth, contributionCount, createdAt }] }`, `POST /goals`
   - Body: `{ name: 1–40, targetAmount, deadline?: "YYYY-MM-DD"|null (tidak boleh lampau), icon?, color?,
 walletId?: string|null }`
   - `GET /goals/:id/contributions` → `{ items: [{ id, type: DEPOSIT|WITHDRAW, amount, date, note,
-transferGroupId, wallet }] }`; `POST /goals/:id/contributions` `{ type, amount, date, note?, walletId? }`
-    → target terbaru (201, mendukung `Idempotency-Key`). `walletId` (dompet asal/tujuan) wajib bila target
-    punya dompet tabungan dan ditolak bila tidak; tarik melebihi yang terkumpul → 400
+transferGroupId, wallet }] }`; `POST /goals/:id/contributions` `{ type, amount, date, note?, walletId }`
+    → target terbaru (201, mendukung `Idempotency-Key`). `walletId` (dompet asal/tujuan, bukan dompet
+    tabungan itu sendiri) wajib; target tanpa dompet tabungan, dompet diarsipkan, atau tarik melebihi yang
+    terkumpul → 400. `walletId: null` pada `POST`/`PATCH /goals` = buatkan dompet `Tabungan {nama}`
   - `DELETE /goals/contributions/:id` → 204 (transfer tertaut ikut dihapus)
 
 ### Fase 3 (di balik feature flag; flag mati → 404)
@@ -463,15 +472,15 @@ transferGroupId, wallet }] }`; `POST /goals/:id/contributions` `{ type, amount, 
 | `wallet_created`                             | API                    | `type` (CASH/BANK/EWALLET)                    |
 | `transaction_created`                        | API                    | `type` (EXPENSE/INCOME/TRANSFER), `tags`      |
 | `attachment_uploaded`                        | API                    | `mimeType`, `size` (byte)                     |
-| `budget_saved`                               | API                    | `items`, `monthOnly` (jumlah)                 |
+| `budget_saved`                               | API                    | `items`, `monthOnly` (jumlah), `custom?`      |
 | `export_csv`                                 | API                    | –                                             |
 | `password_reset_requested`, `password_reset` | API auth               | –                                             |
 | `recurring_rule_created`                     | API                    | `frequency`, `autoPost`                       |
 | `reminder_sent`, `push_subscribed`           | API                    | –                                             |
 | `template_created`                           | API                    | `type`, `fixedAmount`                         |
 | `template_used`                              | API                    | `type`, `amountChanged`                       |
-| `goal_created`                               | API                    | `hasDeadline`, `hasWallet`                    |
-| `goal_contribution`                          | API                    | `type` (DEPOSIT/WITHDRAW), `transfer`         |
+| `goal_created`                               | API                    | `hasDeadline`, `newWallet`                    |
+| `goal_contribution`                          | API                    | `type` (DEPOSIT/WITHDRAW)                     |
 | `import_completed`                           | API                    | `imported`, `skipped`, `failed`, `background` |
 | `import_rolled_back`                         | API                    | `removed`                                     |
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                                  |

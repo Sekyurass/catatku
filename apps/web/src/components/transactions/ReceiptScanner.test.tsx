@@ -46,9 +46,12 @@ const RESULT: ReceiptScanResult = {
   total: { value: 54_300, confidence: 'high' },
   date: { value: '2026-10-06', confidence: 'low' },
   merchant: { value: 'Indomaret', confidence: 'high' },
-  items: ['Indomie Goreng', 'Aqua 600ml'],
+  items: [
+    { name: 'Indomie Goreng', price: 6_200 },
+    { name: 'Aqua 600ml', price: null },
+  ],
 };
-const NOTE = 'Indomaret: Indomie Goreng, Aqua 600ml';
+const NOTE = 'Indomaret: Indomie Goreng Rp6.200, Aqua 600ml';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

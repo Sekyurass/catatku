@@ -1,7 +1,8 @@
-import { budgetMonthQuery, putBudgetsSchema } from '@catatku/shared';
+import { budgetMonthQuery, createCustomBudgetSchema, putBudgetsSchema } from '@catatku/shared';
 import { Router } from 'express';
 import { parse } from '../../lib/validate';
 import { currentUserId } from '../../middleware/auth';
+import { idempotent } from '../../middleware/idempotency';
 import * as budgetService from './budget.service';
 
 export function createBudgetsRouter() {
@@ -15,6 +16,11 @@ export function createBudgetsRouter() {
   router.put('/', async (req, res) => {
     const input = parse(putBudgetsSchema, req.body);
     res.json(await budgetService.putBudgets(currentUserId(req), input));
+  });
+
+  router.post('/custom', idempotent, async (req, res) => {
+    const input = parse(createCustomBudgetSchema, req.body);
+    res.status(201).json(await budgetService.createCustomBudget(currentUserId(req), input));
   });
 
   return router;

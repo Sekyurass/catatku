@@ -143,7 +143,12 @@ export function GoalsPage() {
         description="Catat setoran atau penarikan"
       >
         {view?.kind === 'contribute' && current && (
-          <ContributionForm goal={current} initialType={view.type} onDone={close} />
+          <ContributionForm
+            goal={current}
+            initialType={view.type}
+            onDone={close}
+            onEdit={() => setView({ kind: 'edit', id: current.id })}
+          />
         )}
       </Dialog>
     </div>

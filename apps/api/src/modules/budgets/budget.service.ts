@@ -1,8 +1,14 @@
-import type { BudgetDTO, BudgetMonthDTO, PutBudgetsInput } from '@catatku/shared';
+import type {
+  BudgetDTO,
+  BudgetMonthDTO,
+  createCustomBudgetSchema,
+  PutBudgetsInput,
+} from '@catatku/shared';
 import { budgetStatus, currentMonth, monthRange, shiftMonth } from '@catatku/shared';
 import type { Budget } from '@prisma/client';
+import type { z } from 'zod';
 import { track } from '../../lib/analytics';
-import { validationError } from '../../lib/errors';
+import { conflict, validationError } from '../../lib/errors';
 import { toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
 
@@ -167,5 +173,45 @@ export async function putBudgets(userId: string, input: PutBudgetsInput): Promis
     ...toSet.map(([categoryId, limit]) => upsert(categoryId, limit)),
   ]);
   track(userId, 'budget_saved', { items: input.items.length, monthOnly: monthOnly.length });
+  return getBudgets(userId, month);
+}
+
+/**
+ * Anggaran bernama sendiri = kategori pengeluaran kustom baru + batasnya, dibuat atomik.
+ * Nama yang sudah dipakai kategori aktif ditolak supaya anggaran yang ada tidak tertimpa diam-diam.
+ */
+export async function createCustomBudget(
+  userId: string,
+  input: z.output<typeof createCustomBudgetSchema>,
+): Promise<BudgetMonthDTO> {
+  const { month, name, icon, color, limitAmount, scope } = input;
+  const clash = await prisma.category.findFirst({
+    where: {
+      ...visibleTo(userId),
+      archivedAt: null,
+      type: 'EXPENSE',
+      name: { equals: name, mode: 'insensitive' },
+    },
+    select: { name: true },
+  });
+  if (clash) {
+    const message = `Kategori ${clash.name} sudah ada. Atur anggarannya dari daftar.`;
+    throw conflict(message, { name: message });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const category = await tx.category.create({
+      data: { userId, name, type: 'EXPENSE', icon, color },
+    });
+    await tx.budget.createMany({
+      data: [
+        { userId, categoryId: category.id, month, limitAmount: BigInt(limitAmount) },
+        ...(scope === 'month'
+          ? [{ userId, categoryId: category.id, month: shiftMonth(month, 1), limitAmount: 0n }]
+          : []),
+      ],
+    });
+  });
+  track(userId, 'budget_saved', { items: 1, monthOnly: scope === 'month' ? 1 : 0, custom: true });
   return getBudgets(userId, month);
 }
