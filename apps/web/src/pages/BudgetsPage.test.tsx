@@ -2,6 +2,8 @@ import {
   type BudgetDTO,
   type BudgetMonthDTO,
   currentMonth,
+  type GoalDTO,
+  monthRange,
   shiftMonth,
   type TransactionDTO,
 } from '@catatku/shared';
@@ -77,10 +79,30 @@ const MAKAN_TX = [
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-function setup() {
+const goal = (patch: Partial<GoalDTO>): GoalDTO => ({
+  id: 'g1',
+  name: 'Liburan',
+  targetAmount: 3_000_000,
+  deadline: monthRange(shiftMonth(month, 2)).end,
+  icon: 'plane',
+  color: '#2563EB',
+  walletId: 'w-tab',
+  wallet: { id: 'w-tab', name: 'Tabungan Liburan', color: '#0F766E', archivedAt: null },
+  saved: 400_000,
+  savedThisMonth: 400_000,
+  contributionCount: 1,
+  createdAt: new Date().toISOString(),
+  ...patch,
+});
+
+function setup({ goals }: { goals?: GoalDTO[] } = {}) {
   let data = DATA;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
+    if (goals && url.pathname.endsWith('/features')) {
+      return json({ flags: { savings_goals: true } });
+    }
+    if (goals && url.pathname.endsWith('/goals')) return json({ items: goals });
     if (url.pathname.endsWith('/budgets') && init?.method === 'PUT') {
       const body = JSON.parse(String(init.body)) as {
         items: { categoryId: string; limitAmount: number }[];
@@ -287,6 +309,33 @@ describe('BudgetsPage', () => {
     await userEvent.click(within(detail).getByRole('button', { name: 'Ubah' }));
     expect(await screen.findByRole('dialog', { name: 'Ubah transaksi' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Detail transaksi' })).not.toBeInTheDocument();
+  });
+
+  it('setoran target bulan ini tampil di kartu terpisah, bukan di anggaran pengeluaran', async () => {
+    setup({
+      goals: [
+        goal({}),
+        goal({ id: 'g2', name: 'Rumah', deadline: null, saved: 100_000, savedThisMonth: 100_000 }),
+      ],
+    });
+    const card = (await screen.findByRole('heading', { name: 'Menabung bulan ini' })).closest(
+      'div.rounded-card',
+    ) as HTMLElement;
+    expect(within(card).getByText('Rp 500.000')).toBeInTheDocument();
+    expect(
+      within(card).getByText((t) => t.includes('dari saran Rp 1.000.000')),
+    ).toBeInTheDocument();
+    expect(
+      within(card).getByText((t) => t.startsWith('Kurang Rp 500.000 lagi')),
+    ).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: 'Lihat target' })).toHaveAttribute(
+      'href',
+      '/anggaran/target',
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Bulan sebelumnya' }));
+    await screen.findByText((t) => t.startsWith('Belum ada anggaran untuk'));
+    expect(screen.queryByRole('heading', { name: 'Menabung bulan ini' })).not.toBeInTheDocument();
   });
 
   it('pindah bulan dan state kosong', async () => {

@@ -16,6 +16,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { CustomBudgetForm } from '../components/budgets/CustomBudgetForm';
 import { IconBadge } from '../components/IconBadge';
 import { PlanHeader } from '../components/plan/PlanHeader';
+import { SavingsThisMonthCard } from '../components/plan/SavingsThisMonthCard';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -34,7 +35,7 @@ import { useFeature } from '../lib/features';
 import { applyServerErrors } from '../lib/forms';
 import { formatMonthLabel, formatShortDate } from '../lib/format';
 import { categoryIcon } from '../lib/icons';
-import { queryKeys, useBudgets, useTransactions } from '../lib/queries';
+import { queryKeys, useBudgets, useGoals, useTransactions } from '../lib/queries';
 import { FormAlert } from './auth/AuthLayout';
 
 function useMonthParam() {
@@ -52,6 +53,9 @@ export function BudgetsPage() {
   const [editing, setEditing] = useState<BudgetDTO | null>(null);
   const [creating, setCreating] = useState(false);
   const goals = useFeature(FEATURE_FLAGS.SAVINGS_GOALS);
+  // Data setoran target hanya tersedia untuk bulan berjalan.
+  const goalList = useGoals(goals && month === currentMonth());
+  const goalItems = goals && month === currentMonth() ? (goalList.data ?? []) : [];
 
   const items = budgets.data?.items ?? [];
   const budgeted = items.filter((i) => i.id !== null);
@@ -115,6 +119,8 @@ export function BudgetsPage() {
               />
             </Card>
           )}
+
+          {goalItems.length > 0 && <SavingsThisMonthCard goals={goalItems} />}
 
           <Button
             variant="secondary"
