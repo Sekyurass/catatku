@@ -6,6 +6,7 @@ import {
   MAX_AMOUNT,
   MAX_ATTACHMENTS_PER_TRANSACTION,
   MAX_TEMPLATES,
+  type QuickTextResult,
   type TransactionDTO,
   type TransactionTemplateDTO,
   type WalletDTO,
@@ -53,6 +54,7 @@ import { EmptyState, ErrorState, Skeleton } from '../ui/States';
 import { useToast } from '../ui/Toast';
 import { AttachmentField, type PendingPhoto } from './AttachmentField';
 import { CategoryPicker } from './CategoryPicker';
+import { QuickTextField } from './QuickTextField';
 import { ReceiptScanner } from './ReceiptScanner';
 import { TagInput } from './TagInput';
 import { useDeleteTransaction } from './useDeleteTransaction';
@@ -144,7 +146,7 @@ export function TransactionFormPanel({
   editing?: TransactionDTO;
   initialKind?: TransactionKind;
   template?: TransactionTemplateDTO;
-  /** Chip template dan opsi "simpan sebagai template"; dimatikan di onboarding agar tetap ringkas. */
+  /** Pintasan (chip template, simpan sebagai template, ketik cepat); dimatikan di onboarding agar tetap ringkas. */
   withTemplates?: boolean;
 }) {
   const wallets = useWallets();
@@ -281,6 +283,12 @@ function TransactionForm({
   const learned = useLearnedCategories(autoCategoryOn);
   /** Kategori yang dipilih otomatis; selama belum diganti pengguna, saran baru boleh menggantinya. */
   const [autoPicked, setAutoPicked] = useState<string | null>(null);
+  const quickTextOn = useFeature(FEATURE_FLAGS.NATURAL_INPUT) && withTemplates && !editing;
+  /** Isian terakhir dari ketik cepat, untuk mengukur apakah disimpan tanpa diubah. */
+  const [quickFilled, setQuickFilled] = useState<{ values: FormValues; fields: number } | null>(
+    null,
+  );
+  const formRef = useRef<HTMLFormElement>(null);
   const tagsOn = useFeature(FEATURE_FLAGS.TAGS);
   const [tags, setTags] = useState<string[]>(() => editing?.tags.map((t) => t.name) ?? []);
   const attachOn = useFeature(FEATURE_FLAGS.ATTACHMENTS) && editing?.type !== 'TRANSFER';
@@ -358,6 +366,31 @@ function TransactionForm({
       autoPick(note);
     }
     setScanned(next);
+  };
+
+  // Tindakan eksplisit (Enter / "Isi form"), jadi boleh menimpa isian; yang tidak terbaca dibiarkan.
+  const applyQuickText = (r: QuickTextResult) => {
+    const opts = { shouldDirty: true };
+    const kindChanged = r.type !== getValues('kind');
+    setValue('kind', r.type, opts);
+    if (r.amount !== null) setValue('amount', r.amount, opts);
+    if (r.date) setValue('date', r.date, opts);
+    if (r.walletId) setValue('walletId', r.walletId, opts);
+    if (r.type === 'TRANSFER') {
+      setValue('toWalletId', r.toWalletId ?? '', opts);
+    } else if (r.categoryId || kindChanged) {
+      setValue('categoryId', r.categoryId ?? '', opts);
+      setAutoPicked(r.categoryId);
+    }
+    if (r.note) setValue('note', r.note, opts);
+    const filled = getValues();
+    setQuickFilled({ values: filled, fields: Math.min(r.found.length, 6) });
+    // Lengkap → fokus ke Simpan agar Enter berikutnya menyimpan; kurang → ke isian yang kosong.
+    if (r.amount === null) setFocus('amount');
+    else if (r.type === 'TRANSFER' && !filled.toWalletId) setFocus('toWalletId');
+    else if (r.type === 'TRANSFER' || filled.categoryId) {
+      formRef.current?.querySelector<HTMLElement>('button[type="submit"]')?.focus();
+    }
   };
 
   const scanHint = (field: ReceiptField<unknown> | undefined, value: unknown) => {
@@ -499,6 +532,20 @@ function TransactionForm({
         }
         rememberCategory(queryClient, v.note, v.kind, v.categoryId);
       }
+      if (quickFilled) {
+        const keys: Array<keyof FormValues> =
+          v.kind === 'TRANSFER'
+            ? ['kind', 'amount', 'walletId', 'toWalletId', 'date', 'note']
+            : ['kind', 'amount', 'walletId', 'categoryId', 'date', 'note'];
+        void api('/events', {
+          method: 'POST',
+          body: {
+            name: 'quick_text_used',
+            fields: quickFilled.fields,
+            accepted: keys.every((k) => v[k] === quickFilled.values[k]),
+          },
+        }).catch(() => undefined);
+      }
       const templateSaved =
         saveAsTemplate && canSaveTemplate && v.kind !== 'TRANSFER'
           ? await createTemplateFrom(v)
@@ -578,8 +625,21 @@ function TransactionForm({
   );
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+    <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       <FormAlert message={formError} />
+
+      {quickTextOn && (
+        <QuickTextField
+          wallets={wallets}
+          categories={categories}
+          suggestCategory={
+            autoCategoryOn
+              ? (text, type) => suggestCategory(text, type, learned.data ?? [], categories)
+              : undefined
+          }
+          onApply={applyQuickText}
+        />
+      )}
 
       <Segmented
         label="Jenis transaksi"

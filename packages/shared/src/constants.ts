@@ -86,6 +86,7 @@ export const FEATURE_FLAGS = {
   SAVINGS_GOALS: 'savings_goals',
   INSIGHTS: 'insights',
   ADVANCED_REPORTS: 'advanced_reports',
+  NATURAL_INPUT: 'natural_input',
 } as const;
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
 

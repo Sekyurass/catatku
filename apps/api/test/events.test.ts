@@ -57,6 +57,21 @@ describe('event analitik', () => {
     expect(tooMany.status).toBe(400);
   });
 
+  it('POST /events mencatat pemakaian ketik cepat (maks. 6 isian)', async () => {
+    const user = await registerUser();
+    const res = await authed(user)
+      .post('/api/v1/events')
+      .send({ name: 'quick_text_used', fields: 6, accepted: false });
+    expect(res.status).toBe(204);
+    const rows = await eventsOf(user.id, 2);
+    expect(rows[1]).toEqual({ name: 'quick_text_used', props: { fields: 6, accepted: false } });
+
+    const tooMany = await authed(user)
+      .post('/api/v1/events')
+      .send({ name: 'quick_text_used', fields: 7 });
+    expect(tooMany.status).toBe(400);
+  });
+
   it('POST /events mencatat penerimaan saran kategori', async () => {
     const user = await registerUser();
     const res = await authed(user)

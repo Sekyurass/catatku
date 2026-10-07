@@ -64,17 +64,17 @@ gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini; plu
 kopi susu, Gojek ke kantor, parkir, dan makan siang tanpa nominal).
 
 Fitur Fase 1, target tabungan (Fase 2.1), laporan lanjutan (Fase 2.2), insight (Fase 2.3), tag & lampiran (Fase 2.5), pindai struk
-(Fase 3.1), dan saran kategori (Fase 3.2) berada di balik feature flag yang **nonaktif** setelah seed. Untuk
+(Fase 3.1), saran kategori (Fase 3.2), dan ketik cepat (Fase 3.3) berada di balik feature flag yang **nonaktif** setelah seed. Untuk
 menyalakannya:
 
 ```sql
 -- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
 UPDATE "FeatureFlag" SET enabled = true
 WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category',
-              'tags', 'attachments', 'savings_goals', 'insights', 'advanced_reports');
+              'tags', 'attachments', 'savings_goals', 'insights', 'advanced_reports', 'natural_input');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on,advanced_reports:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on,advanced_reports:on,natural_input:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan.
 Lampiran foto butuh `STORAGE_S3_*` (lihat [Lampiran foto](#lampiran-foto-supabase-storage)); tanpa itu flag
 `attachments` selalu dianggap mati. Akun baru dari halaman **Daftar**
@@ -322,6 +322,26 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     ditimpa. Kategori diarsipkan / beda jenis tidak disarankan.
   - **Metrik**: dataset 63 catatan di `categorize.test.ts` (gagal bila < 90%, saat ini 100%); di produksi
     event `category_suggestion` `{ source, accepted }` saat menyimpan transaksi baru (target diterima ≥ 70%).
+- **Ketik cepat bahasa natural** (Fase 3.3, flag `natural_input`): kolom **Ketik cepat** di atas form catat.
+  Satu kalimat seperti chat ("makan siang 25rb di warteg", "gaji 5jt masuk bca kemarin", "transfer 200k bca
+  ke gopay") → pratinjau chip saat mengetik → **Enter / Isi form** mengisi form di bawahnya, **tidak pernah
+  langsung menyimpan**. Bila semua isian wajib terbaca, fokus pindah ke Simpan (Enter lagi menyimpan); bila
+  belum, muncul "Belum terbaca: …" dan fokus ke isian yang kosong.
+  - **Parser aturan, tanpa AI** (`parseQuickText` di `packages/shared/src/quickText.ts`, berjalan di perangkat):
+    nominal (`25rb`, `30 ribu`, `1,5jt`, `5k`, `Rp 15.000`, `350.000`, `2000`, `goceng`, `ceban`, `sejuta`;
+    beberapa nominal dijumlahkan dan ditandai kurang yakin), tanggal (hari ini, tadi, kemarin, kemarin lusa,
+    `3 hari lalu`, `tgl 3`, `tanggal 15`, `25 sep`, `3/10`, nama hari; tanggal tanpa tahun/bulan yang jatuh
+    setelah hari ini dianggap tahun/bulan lalu), dompet (nama dompet pengguna, kata pertama nama bila unik,
+    `tunai/cash` atau `rekening` bila dompet jenis itu hanya satu, ejaan `go-pay`/`shopee pay`), jenis
+    (pemasukan: gaji, bonus, thr, dapat, terima, jual, refund, `masuk BCA`…; transfer: transfer/tf/pindahin/
+    top up/nabung + dompet tujuan, tarik tunai, setor tunai), lalu kategori: riwayat pengguna > nama
+    kategori yang disebut > kamus kata kunci 3.2. Sisa kalimat jadi catatan.
+  - **"tf ke adik 100rb"** (tanpa dompet tujuan) = pengeluaran dengan catatan "Tf ke adik", bukan transfer
+    antardompet. Kalimat yang tidak terurai cukup jadi catatan; pengguna mengisi sisanya manual. LLM cadangan
+    belum dipakai.
+  - **Metrik**: set uji 62 kalimat di `quickText.test.ts` (gagal bila nominal < 100% atau kalimat benar
+    seluruhnya < 95%; saat ini 62/62). Di produksi event `quick_text_used` `{ fields, accepted }` saat
+    menyimpan: `accepted` = hasil bacaan disimpan tanpa diubah (ukuran akurasi nyata).
 - **Tag** (Fase 2.5, flag `tags`): tabel `Tag (userId, name, key)` unik per `(userId, key)`, dengan `key` =
   nama huruf kecil dan spasi dirapikan, jadi "Liburan Bali", "#liburan bali" dan "LIBURAN BALI" adalah tag
   yang sama. Relasi banyak-ke-banyak `TransactionTag`; maks. 10 tag per transaksi, nama maks. 30 karakter,
@@ -413,7 +433,7 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 - ✅ `GET/PUT/DELETE /me/avatar` — PUT berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`,
   maks 300 kB) → `{ user }`; GET mengembalikan gambar (klien memakai `?v=<avatarUpdatedAt>` untuk cache)
 - ✅ `GET /features`, `GET /health` (di root)
-- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped" | "receipt_scanned" | "category_suggestion" | "insight_opened", step?: 1–3, fields?: 0–3, source?: "history" | "keyword", accepted?: boolean, kind?: jenis insight }` → 204
+- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped" | "receipt_scanned" | "category_suggestion" | "insight_opened" | "quick_text_used", step?: 1–3, fields?: 0–6 (struk maks. 3), source?: "history" | "keyword", accepted?: boolean, kind?: jenis insight }` → 204
   (hanya event klien yang terdaftar; event lain dicatat server sendiri)
 - ✅ `GET/POST/PATCH/DELETE /wallets` (`?includeArchived=true`; DELETE mengarsipkan dompet yang punya riwayat)
 - ✅ `GET/POST/PATCH/DELETE /categories` (`?type=`; kategori bawaan hanya-baca → 403)
@@ -537,6 +557,7 @@ averageMonthlyExpense, monthsCounted, topCategories }`
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                                  |
 | `receipt_scanned`                            | Klien (`POST /events`) | `fields` (0–3 kolom terbaca)                  |
 | `category_suggestion`                        | Klien (`POST /events`) | `source` (history/keyword), `accepted`        |
+| `quick_text_used`                            | Klien (`POST /events`) | `fields` (0–6 terbaca), `accepted`            |
 
 Contoh kueri untuk menilai gerbang Fase 0 → Fase 1 (jalankan di SQL editor Supabase):
 

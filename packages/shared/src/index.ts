@@ -7,6 +7,7 @@ export * from './goal';
 export * from './insights';
 export * from './money';
 export * from './month';
+export * from './quickText';
 export * from './recurrence';
 export * from './reportStats';
 export * from './schemas/common';
