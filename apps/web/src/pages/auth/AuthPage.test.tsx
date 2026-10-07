@@ -37,18 +37,18 @@ describe('AuthPage', () => {
   beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
   afterEach(() => vi.useRealTimers());
 
-  it('tab Masuk/Daftar berganti tanpa memasang ulang halaman; form lama dilepas setelah animasi', async () => {
+  it('Masuk/Daftar berganti tanpa memasang ulang halaman; form lama dilepas setelah animasi', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderAt('/masuk');
-    const nav = screen.getByRole('navigation', { name: 'Masuk atau daftar' });
-    expect(screen.getByRole('link', { name: 'Masuk' })).toHaveAttribute('aria-current', 'page');
+    const main = screen.getByRole('main');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Selamat datang kembali!');
+    expect(screen.getByText('Belum punya akun?')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('link', { name: 'Daftar' }));
+    await user.click(screen.getByRole('link', { name: 'Daftar gratis' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/daftar');
-    expect(screen.getByRole('navigation', { name: 'Masuk atau daftar' })).toBe(nav);
-    expect(screen.getByRole('link', { name: 'Daftar' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('main')).toBe(main);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Buat akun gratis');
+    expect(screen.getByText('Sudah punya akun?')).toBeInTheDocument();
 
     // Selama geser, form Masuk masih ada tetapi tidak bisa difokus/dibaca.
     const leaving = screen.getByText('Selamat datang kembali!').closest('[inert]');
@@ -59,7 +59,7 @@ describe('AuthPage', () => {
     expect(screen.getAllByLabelText('Email')).toHaveLength(1);
   });
 
-  it('tujuan setelah masuk (state.from) ikut terbawa saat pindah tab', async () => {
+  it('tujuan setelah masuk (state.from) ikut terbawa saat berpindah', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderAt('/daftar', { from: '/anggaran' });
     await user.click(screen.getByRole('link', { name: 'Masuk' }));

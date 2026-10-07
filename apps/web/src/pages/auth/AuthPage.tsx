@@ -7,8 +7,18 @@ import { RegisterForm } from './RegisterForm';
 import { useEnterAnimation } from './useEnterAnimation';
 
 const MODES = [
-  { mode: 'login', path: '/masuk', label: 'Masuk', Form: LoginForm },
-  { mode: 'register', path: '/daftar', label: 'Daftar', Form: RegisterForm },
+  {
+    mode: 'login',
+    Form: LoginForm,
+    prompt: 'Belum punya akun?',
+    switchTo: { path: '/daftar', label: 'Daftar gratis' },
+  },
+  {
+    mode: 'register',
+    Form: RegisterForm,
+    prompt: 'Sudah punya akun?',
+    switchTo: { path: '/masuk', label: 'Masuk' },
+  },
 ] as const;
 type Mode = (typeof MODES)[number]['mode'];
 
@@ -16,7 +26,8 @@ const SLIDE_MS = 500;
 const SLIDE = 'duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]';
 
 /**
- * Masuk dan Daftar satu halaman: kedua form berjejer dan digeser bersamaan, tinggi area form ikut
+ * Masuk dan Daftar satu halaman (pindah lewat tautan di bawah): kedua form berjejer dan digeser
+ * bersamaan, tinggi area form ikut
  * menyesuaikan. Form yang keluar tetap terpasang selama animasi lalu dilepas, supaya label
  * "Email"/"Kata sandi" tidak ganda bagi pembaca layar dan tes.
  */
@@ -28,9 +39,11 @@ export function AuthPage() {
 
   const [current, setCurrent] = useState<Mode>(mode);
   const [leaving, setLeaving] = useState<Mode | null>(null);
+  const [switched, setSwitched] = useState(false);
   if (current !== mode) {
     setLeaving(current);
     setCurrent(mode);
+    setSwitched(true);
   }
   useEffect(() => {
     if (!leaving) return;
@@ -51,37 +64,13 @@ export function AuthPage() {
     return () => ro.disconnect();
   }, [mode]);
 
+  const { prompt, switchTo } = MODES[index]!;
+
   return (
     <AuthShell variant={mode} animateShowcase={firstVisit}>
-      <div className={cn('mx-auto w-full max-w-sm flex-1 pt-[max(2.5rem,10vh)] pb-10', enter)}>
-        <nav
-          aria-label="Masuk atau daftar"
-          className="relative mb-8 grid grid-cols-2 gap-1 rounded-control bg-surface-muted p-1"
-        >
-          <span
-            aria-hidden
-            className={cn(
-              'pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.375rem)] rounded-[10px] bg-surface shadow-card motion-safe:transition-transform',
-              SLIDE,
-            )}
-            style={{ transform: `translateX(calc(${index} * (100% + 0.25rem)))` }}
-          />
-          {MODES.map((m) => (
-            <Link
-              key={m.mode}
-              to={m.path}
-              state={location.state}
-              aria-current={m.mode === mode ? 'page' : undefined}
-              className={cn(
-                'relative flex min-h-11 items-center justify-center rounded-[10px] text-sm font-semibold transition-colors duration-300',
-                m.mode === mode ? 'text-fg' : 'text-muted hover:text-fg',
-              )}
-            >
-              {m.label}
-            </Link>
-          ))}
-        </nav>
-
+      <div
+        className={cn('mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10', enter)}
+      >
         {/* -m-1/p-1 memberi ruang cincin fokus agar tidak terpotong overflow-hidden. */}
         <div
           className={cn('-m-1 overflow-hidden motion-safe:transition-[height]', SLIDE)}
@@ -111,6 +100,22 @@ export function AuthPage() {
           </div>
         </div>
       </div>
+      <p
+        key={mode}
+        className={cn(
+          'text-center text-sm text-muted',
+          switched ? 'motion-safe:animate-fade-in' : enter,
+        )}
+      >
+        {prompt}{' '}
+        <Link
+          to={switchTo.path}
+          state={location.state}
+          className="font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          {switchTo.label}
+        </Link>
+      </p>
     </AuthShell>
   );
 }

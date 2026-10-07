@@ -287,6 +287,28 @@ describe('HomePage (dashboard)', () => {
     expect(screen.getByRole('link', { name: /Lihat semua/ })).toHaveAttribute('href', '/transaksi');
   });
 
+  it('total saldo bisa disembunyikan dan rincian dompet dibuka di kartu', async () => {
+    setup({ wallets: [WALLET, { ...WALLET, id: 'w2', name: 'BCA', balance: 0 }] });
+    const summary = within(await screen.findByRole('region', { name: 'Ringkasan bulan ini' }));
+
+    const toggle = summary.getByRole('button', { name: 'Dompet' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const list = within(summary.getByRole('list'));
+    expect(list.getByText('BCA')).toBeInTheDocument();
+    expect(list.getByText(formatRupiah(0))).toBeInTheDocument();
+    expect(summary.getByRole('link', { name: /Kelola dompet/ })).toHaveAttribute('href', '/dompet');
+
+    await userEvent.click(summary.getByRole('button', { name: 'Sembunyikan saldo' }));
+    expect(summary.queryByText(formatRupiah(1_410_000))).not.toBeInTheDocument();
+    expect(summary.getAllByText('Rp ••••••').length).toBeGreaterThanOrEqual(3);
+    expect(localStorage.getItem('catatku_hide_balance')).toBe('1');
+
+    await userEvent.click(summary.getByRole('button', { name: 'Tampilkan saldo' }));
+    expect(summary.getAllByText(formatRupiah(1_410_000)).length).toBeGreaterThan(0);
+  });
+
   it('berpindah ke rincian pemasukan', async () => {
     const { fetchMock } = setup();
     await screen.findByRole('list', { name: 'Rincian pengeluaran per kategori' });

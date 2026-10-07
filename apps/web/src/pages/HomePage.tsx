@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BalanceCard } from '../components/dashboard/BalanceCard';
 import { IconBadge } from '../components/IconBadge';
 import { BellButton } from '../components/notifications/NotificationCenter';
 import { PendingRecurringCard } from '../components/recurring/PendingRecurringCard';
@@ -155,27 +156,7 @@ function SummaryCards({ summary }: { summary: ReturnType<typeof useSummary> }) {
       aria-label="Ringkasan bulan ini"
       className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6"
     >
-      <Card className="col-span-2 flex flex-col justify-between gap-3 border-none bg-brand text-white">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm text-white/90">Total saldo</p>
-            <p className="tabular truncate text-3xl font-bold">{formatRupiah(totalBalance)}</p>
-          </div>
-          <Link
-            to="/dompet"
-            className="-mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-control px-2 text-sm font-semibold text-white hover:bg-white/10 focus-visible:outline-white"
-          >
-            Dompet
-            <ChevronRight className="size-4" aria-hidden />
-          </Link>
-        </div>
-        <p className="text-sm text-white/90">
-          Selisih bulan ini{' '}
-          <span className="tabular font-semibold text-white">
-            {formatRupiah(net, { signed: true })}
-          </span>
-        </p>
-      </Card>
+      <BalanceCard totalBalance={totalBalance} net={net} />
       <StatCard
         label="Pemasukan"
         value={income}
