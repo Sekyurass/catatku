@@ -8,6 +8,7 @@ export * from './insights';
 export * from './money';
 export * from './month';
 export * from './recurrence';
+export * from './reportStats';
 export * from './schemas/common';
 export * from './schemas/auth';
 export * from './schemas/wallet';

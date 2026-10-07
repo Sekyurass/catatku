@@ -325,6 +325,7 @@ function CategoryCard({ month, className }: { month: string; className?: string 
 
 function TrendCard({ className }: { className?: string }) {
   const trend = useTrend(6);
+  const reportsOn = useFeature('advanced_reports');
   const hasData = trend.data?.months.some((m) => m.income > 0 || m.expense > 0);
 
   return (
@@ -378,6 +379,12 @@ function TrendCard({ className }: { className?: string }) {
             </tbody>
           </table>
         </>
+      )}
+      {reportsOn && (
+        <Link to="/laporan" className={cn(linkClass, 'self-end')}>
+          Lihat laporan lengkap
+          <ChevronRight className="size-4" aria-hidden />
+        </Link>
       )}
     </Card>
   );

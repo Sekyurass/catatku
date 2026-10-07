@@ -22,6 +22,7 @@ export type EventName =
   | 'push_subscribed'
   | 'budget_saved'
   | 'export_csv'
+  | 'export_pdf'
   | 'attachment_uploaded';
 
 /** Hanya nilai non-sensitif (jenis, jumlah item, langkah). Jangan masukkan nominal, catatan, atau email. */

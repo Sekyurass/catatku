@@ -63,7 +63,7 @@ Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12
 gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini; plus 4 template cepat catat:
 kopi susu, Gojek ke kantor, parkir, dan makan siang tanpa nominal).
 
-Fitur Fase 1, target tabungan (Fase 2.1), insight (Fase 2.3), tag & lampiran (Fase 2.5), pindai struk
+Fitur Fase 1, target tabungan (Fase 2.1), laporan lanjutan (Fase 2.2), insight (Fase 2.3), tag & lampiran (Fase 2.5), pindai struk
 (Fase 3.1), dan saran kategori (Fase 3.2) berada di balik feature flag yang **nonaktif** setelah seed. Untuk
 menyalakannya:
 
@@ -71,10 +71,10 @@ menyalakannya:
 -- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
 UPDATE "FeatureFlag" SET enabled = true
 WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category',
-              'tags', 'attachments', 'savings_goals', 'insights');
+              'tags', 'attachments', 'savings_goals', 'insights', 'advanced_reports');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on,advanced_reports:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan.
 Lampiran foto butuh `STORAGE_S3_*` (lihat [Lampiran foto](#lampiran-foto-supabase-storage)); tanpa itu flag
 `attachments` selalu dianggap mati. Akun baru dari halaman **Daftar**
@@ -383,6 +383,22 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     `new_subscription:netflix`, `unusual_expense:<id transaksi>`): insight yang ditutup disimpan di
     `InsightDismissal` dan tidak muncul lagi di periode itu; bulan berikutnya bisa muncul lagi.
   - Nada netral: menjelaskan angka dan pilihan, tanpa menghakimi.
+- **Laporan lanjutan + PDF** (Fase 2.2, flag `advanced_reports`): halaman **Laporan** (`/laporan`, dari Profil
+  atau tautan di bawah grafik tren Beranda). Periode tersimpan di URL (`?bulan=2026-09`,
+  `?periode=tahunan&tahun=2026`), jadi bisa dibagikan/di-bookmark.
+  - **Bulanan**: pemasukan, pengeluaran (± % dari bulan lalu), selisih; rata-rata pengeluaran per hari dan hari
+    paling boros; grafik pengeluaran harian; per kategori dibanding bulan lalu (ketuk → daftar transaksi
+    kategori itu di bulan itu); pola per hari dalam seminggu; 5 pengeluaran terbesar.
+  - **Rata-rata per hari** dibagi hari yang sudah berjalan: bulan lalu = semua harinya, bulan ini = sampai
+    hari ini, bulan mendatang = 0 (`dailyStats` di `packages/shared/src/reportStats.ts`). Pola per hari =
+    total hari itu ÷ berapa kali hari itu muncul dalam hari yang dihitung.
+  - **Tahunan**: total setahun, rata-rata pengeluaran per bulan yang sudah berjalan, grafik 12 bulan, ringkasan
+    per bulan (ketuk → laporan bulan itu), 5 kategori pengeluaran terbesar.
+  - **Unduh PDF** (A4, satu halaman): ringkasan, grafik harian, per kategori, 5 pengeluaran terbesar. Dibuat
+    di server dengan `pdfkit` (font bawaan Helvetica, tanpa browser headless). Antivirus dengan web shield
+    (mis. 360 Total Security) bisa memblokir PDF ke browser; aplikasi lalu menampilkan pesan "File tidak
+    sampai ke browser" alih-alih menyimpan file kosong.
+  - Transfer antardompet (termasuk setoran target) tidak dihitung, sama seperti dashboard.
 
 ## API (Fase 0)
 
@@ -481,6 +497,15 @@ transferGroupId, wallet }] }`; `POST /goals/:id/contributions` `{ type, amount, 
 unusual_expense, priority: high|medium|low, tone: warning|positive|info, title, body, detail }] }` (urut
   prioritas; tanpa yang ditutup). `POST /insights/:id/dismiss` → 204 (idempoten), `DELETE /insights/:id/dismiss`
   → 204 (urungkan). `id` di-encode untuk URL; format tidak dikenal → 400
+- ✅ `advanced_reports`: `GET /reports/monthly?month=` → `{ month, income, expense, net, daysCounted,
+averageDaily, busiestDay: { date, total, count }|null, daily: [{ date, income, expense }], weekdays: [{ weekday
+(0 = Minggu), total, average }], topExpenses: [{ id, date, amount, note, category, wallet }] }`
+  - `GET /reports/compare?from=&to=&type=EXPENSE|INCOME` → `{ type, from: totals, to: totals, items: [{
+categoryId, name, icon, color, from, to, diff, change: number|null }] }` (urut |selisih| terbesar;
+    `change` null bila bulan pembanding 0)
+  - `GET /reports/yearly?year=2000–2100` → `{ year, income, expense, net, months: [12 × totals],
+averageMonthlyExpense, monthsCounted, topCategories }`
+  - `GET /export/report.pdf?month=` → `application/pdf` (`catatku-laporan-YYYY-MM.pdf`)
 
 ### Fase 3 (di balik feature flag; flag mati → 404)
 
@@ -497,7 +522,7 @@ unusual_expense, priority: high|medium|low, tone: warning|positive|info, title, 
 | `transaction_created`                        | API                    | `type` (EXPENSE/INCOME/TRANSFER), `tags`      |
 | `attachment_uploaded`                        | API                    | `mimeType`, `size` (byte)                     |
 | `budget_saved`                               | API                    | `items`, `monthOnly` (jumlah), `custom?`      |
-| `export_csv`                                 | API                    | –                                             |
+| `export_csv`, `export_pdf`                   | API                    | –                                             |
 | `password_reset_requested`, `password_reset` | API auth               | –                                             |
 | `recurring_rule_created`                     | API                    | `frequency`, `autoPost`                       |
 | `reminder_sent`, `push_subscribed`           | API                    | –                                             |

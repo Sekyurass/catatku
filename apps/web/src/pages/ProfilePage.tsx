@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   BellRing,
   Camera,
+  ChartColumn,
   ChevronRight,
   FileUp,
   Hash,
@@ -49,6 +50,13 @@ const LINKS = [
     icon: Tags,
   },
 ];
+
+const REPORTS_LINK = {
+  to: '/laporan',
+  label: 'Laporan',
+  description: 'Bulanan & tahunan, unduh PDF',
+  icon: ChartColumn,
+};
 
 const RECURRING_LINK = {
   to: '/berulang',
@@ -98,6 +106,7 @@ export function ProfilePage() {
   const templatesOn = useFeature('templates');
   const importOn = useFeature('csv_import');
   const tagsOn = useFeature('tags');
+  const reportsOn = useFeature('advanced_reports');
 
   return (
     <div className="flex flex-col gap-4">
@@ -131,6 +140,7 @@ export function ProfilePage() {
       <Card className="p-1">
         <ul>
           {[
+            ...(reportsOn ? [REPORTS_LINK] : []),
             ...LINKS,
             ...(recurringOn ? [RECURRING_LINK] : []),
             ...(templatesOn ? [TEMPLATE_LINK] : []),

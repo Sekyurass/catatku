@@ -316,3 +316,66 @@ export interface TrendPoint {
 export interface TrendDTO {
   months: TrendPoint[];
 }
+
+export interface MonthTotals {
+  month: string;
+  income: number;
+  expense: number;
+  net: number;
+}
+
+/** Laporan satu bulan: ringkasan, pola harian, dan pengeluaran terbesar. */
+export interface MonthlyReportDTO extends MonthTotals {
+  /** Hari yang dihitung untuk rata-rata: bulan lalu = jumlah harinya, bulan ini = sampai hari ini. */
+  daysCounted: number;
+  /** Pengeluaran ÷ daysCounted (dibulatkan); 0 untuk bulan yang belum mulai. */
+  averageDaily: number;
+  /** Hari dengan pengeluaran terbesar; null bila tidak ada pengeluaran. */
+  busiestDay: { date: string; total: number; count: number } | null;
+  /** Satu baris per tanggal di bulan itu. */
+  daily: { date: string; income: number; expense: number }[];
+  /** 0 = Minggu. average = total ÷ banyaknya hari itu dalam daysCounted. */
+  weekdays: { weekday: number; total: number; average: number }[];
+  /** Maks. 5, terbesar dulu. amount selalu positif. */
+  topExpenses: {
+    id: string;
+    date: string;
+    amount: number;
+    note: string | null;
+    category: { id: string; name: string; icon: string; color: string } | null;
+    wallet: { id: string; name: string; color: string };
+  }[];
+}
+
+export interface CompareItem {
+  categoryId: string | null;
+  name: string;
+  icon: string;
+  color: string;
+  from: number;
+  to: number;
+  diff: number;
+  /** diff ÷ from; null bila bulan pembanding 0. */
+  change: number | null;
+}
+
+export interface CompareDTO {
+  type: CategoryType;
+  from: MonthTotals;
+  to: MonthTotals;
+  /** Urut selisih terbesar (mutlak) dulu. */
+  items: CompareItem[];
+}
+
+export interface YearlyReportDTO {
+  year: number;
+  income: number;
+  expense: number;
+  net: number;
+  months: MonthTotals[];
+  /** Rata-rata pengeluaran per bulan yang sudah berjalan (bulan mendatang tidak dihitung). */
+  averageMonthlyExpense: number;
+  monthsCounted: number;
+  /** Pengeluaran per kategori setahun, maks. 5. */
+  topCategories: CategoryBreakdownItem[];
+}

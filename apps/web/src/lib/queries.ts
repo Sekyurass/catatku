@@ -5,11 +5,13 @@ import type {
   CategoryDTO,
   CategoryMapDTO,
   CategoryType,
+  CompareDTO,
   GoalContributionDTO,
   GoalDTO,
   ImportBatchDTO,
   InsightDTO,
   ListTransactionsQuery,
+  MonthlyReportDTO,
   PendingOccurrenceDTO,
   RecurringRuleDTO,
   SummaryDTO,
@@ -19,6 +21,7 @@ import type {
   TransactionTemplateDTO,
   TrendDTO,
   WalletDTO,
+  YearlyReportDTO,
 } from '@catatku/shared';
 import { currentMonth } from '@catatku/shared';
 import {
@@ -56,7 +59,36 @@ export const queryKeys = {
   goals: ['goals'] as const,
   goalContributions: (goalId: string) => ['goals', goalId, 'contributions'] as const,
   insights: ['insights'] as const,
+  monthlyReport: (month: string) => ['reports', 'monthly', month] as const,
+  compare: (from: string, to: string) => ['reports', 'compare', from, to] as const,
+  yearlyReport: (year: number) => ['reports', 'yearly', year] as const,
 };
+
+export function useMonthlyReport(month: string) {
+  return useQuery({
+    queryKey: queryKeys.monthlyReport(month),
+    queryFn: ({ signal }) =>
+      api<MonthlyReportDTO>('/reports/monthly', { query: { month }, signal }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCompare(from: string, to: string) {
+  return useQuery({
+    queryKey: queryKeys.compare(from, to),
+    queryFn: ({ signal }) =>
+      api<CompareDTO>('/reports/compare', { query: { from, to, type: 'EXPENSE' }, signal }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useYearlyReport(year: number) {
+  return useQuery({
+    queryKey: queryKeys.yearlyReport(year),
+    queryFn: ({ signal }) => api<YearlyReportDTO>('/reports/yearly', { query: { year }, signal }),
+    placeholderData: keepPreviousData,
+  });
+}
 
 export function useInsights(enabled = true) {
   return useQuery({

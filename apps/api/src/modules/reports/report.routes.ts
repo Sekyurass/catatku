@@ -1,8 +1,10 @@
 import {
   FEATURE_FLAGS,
   reportByCategoryQuery,
+  reportCompareQuery,
   reportMonthQuery,
   reportTrendQuery,
+  reportYearlyQuery,
 } from '@catatku/shared';
 import { Router } from 'express';
 import { parse } from '../../lib/validate';
@@ -32,6 +34,23 @@ export function createReportsRouter() {
   router.get('/trend', async (req, res) => {
     const { months } = parse(reportTrendQuery, req.query);
     res.json(await reportService.getTrend(currentUserId(req), months));
+  });
+
+  const advanced = requireFeature(FEATURE_FLAGS.ADVANCED_REPORTS);
+
+  router.get('/monthly', advanced, async (req, res) => {
+    const { month } = parse(reportMonthQuery, req.query);
+    res.json(await reportService.getMonthlyReport(currentUserId(req), month));
+  });
+
+  router.get('/compare', advanced, async (req, res) => {
+    const { from, to, type } = parse(reportCompareQuery, req.query);
+    res.json(await reportService.getCompare(currentUserId(req), from, to, type));
+  });
+
+  router.get('/yearly', advanced, async (req, res) => {
+    const { year } = parse(reportYearlyQuery, req.query);
+    res.json(await reportService.getYearly(currentUserId(req), year));
   });
 
   return router;

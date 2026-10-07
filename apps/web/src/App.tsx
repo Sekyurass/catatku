@@ -16,6 +16,7 @@ import {
   OnboardingPage,
   ProfilePage,
   RecurringPage,
+  ReportsPage,
   TagsPage,
   TemplatesPage,
   ResetPasswordPage,
@@ -76,6 +77,7 @@ export function App() {
           <Route path="berulang" element={<RecurringPage />} />
           <Route path="template" element={<TemplatesPage />} />
           <Route path="tag" element={<TagsPage />} />
+          <Route path="laporan" element={<ReportsPage />} />
           <Route path="impor" element={<ImportPage />} />
           <Route path="pengingat" element={<NotificationSettingsPage />} />
           <Route path="profil" element={<ProfilePage />} />

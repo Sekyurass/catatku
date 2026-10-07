@@ -38,6 +38,7 @@ export const TemplatesPage = page(() =>
   import('../pages/TemplatesPage').then((m) => m.TemplatesPage),
 );
 export const TagsPage = page(() => import('../pages/TagsPage').then((m) => m.TagsPage));
+export const ReportsPage = page(() => import('../pages/ReportsPage').then((m) => m.ReportsPage));
 /** Jarang dibuka, jadi tidak ikut diunduh di muka. */
 export const ImportPage = page(() => import('../pages/ImportPage').then((m) => m.ImportPage));
 export const NotificationSettingsPage = page(() =>
