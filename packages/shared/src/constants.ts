@@ -84,6 +84,7 @@ export const FEATURE_FLAGS = {
   /** Juga butuh penyimpanan objek (STORAGE_S3_*) di server; tanpa itu dianggap nonaktif. */
   ATTACHMENTS: 'attachments',
   SAVINGS_GOALS: 'savings_goals',
+  INSIGHTS: 'insights',
 } as const;
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
 

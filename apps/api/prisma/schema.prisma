@@ -88,6 +88,7 @@ model User {
   attachments         Attachment[]
   savingsGoals        SavingsGoal[]
   goalContributions   GoalContribution[]
+  insightDismissals   InsightDismissal[]
 }
 
 /// Tautan "lupa kata sandi": sekali pakai, umur pendek, hanya hash yang disimpan.
@@ -478,6 +479,19 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Insight yang ditutup pengguna. insightId sudah memuat periodenya (mis. bulan), jadi insight
+/// serupa di periode berikutnya tetap muncul.
+model InsightDismissal {
+  id          String   @id @default(cuid())
+  userId      String
+  insightId   String
+  dismissedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, insightId])
 }
 
 /// Flag fitur fase berikutnya. plan null = semua paket; userIds = allowlist per pengguna.

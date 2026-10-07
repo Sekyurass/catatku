@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { INSIGHT_KINDS } from '../insights';
 
 /** Event yang boleh dikirim langsung oleh klien; event lain hanya dicatat server. */
 export const CLIENT_EVENTS = [
@@ -6,6 +7,7 @@ export const CLIENT_EVENTS = [
   'onboarding_skipped',
   'receipt_scanned',
   'category_suggestion',
+  'insight_opened',
 ] as const;
 export type ClientEventName = (typeof CLIENT_EVENTS)[number];
 
@@ -20,5 +22,7 @@ export const trackEventSchema = z.object({
   /** Saran kategori: asal saran dan apakah kategori yang disimpan sama dengan sarannya. */
   source: z.enum(SUGGESTION_SOURCES).optional(),
   accepted: z.boolean().optional(),
+  /** Jenis insight yang dibuka detailnya. */
+  kind: z.enum(INSIGHT_KINDS).optional(),
 });
 export type TrackEventInput = z.infer<typeof trackEventSchema>;

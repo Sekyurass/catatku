@@ -24,6 +24,7 @@ import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BalanceCard } from '../components/dashboard/BalanceCard';
 import { IconBadge } from '../components/IconBadge';
+import { InsightsSection } from '../components/insights/InsightsSection';
 import { BellButton } from '../components/notifications/NotificationCenter';
 import { PendingRecurringCard } from '../components/recurring/PendingRecurringCard';
 import { QuickRecordCard } from '../components/templates/QuickRecordCard';
@@ -56,6 +57,7 @@ export function HomePage() {
   const { openNew } = useQuickAdd();
   const recurringOn = useFeature('recurring_transactions');
   const templatesOn = useFeature('templates');
+  const insightsOn = useFeature('insights');
 
   const noWallets = wallets.isSuccess && wallets.data.length === 0;
 
@@ -84,6 +86,7 @@ export function HomePage() {
           <SummaryCards summary={summary} />
           {templatesOn && <QuickRecordCard />}
           {recurringOn && <PendingRecurringCard />}
+          {insightsOn && <InsightsSection />}
           <TrendCard />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
             <CategoryCard month={month} />

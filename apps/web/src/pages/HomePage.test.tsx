@@ -2,6 +2,7 @@ import {
   type CategoryBreakdownDTO,
   currentMonth,
   formatRupiah,
+  type InsightDTO,
   monthRange,
   type NotificationDTO,
   type PendingOccurrenceDTO,
@@ -195,6 +196,69 @@ const TEMPLATES: TransactionTemplateDTO[] = [
   },
 ];
 
+const HIBURAN = { id: 'cat_hiburan', name: 'Hiburan', icon: 'clapperboard', color: '#8B5CF6' };
+
+const SUBSCRIPTION: InsightDTO = {
+  id: 'new_subscription:netflix',
+  kind: 'new_subscription',
+  priority: 'medium',
+  tone: 'info',
+  title: 'Sepertinya ada langganan: Netflix',
+  body: 'Rp 54.000 tercatat 2 kali, sekitar sebulan sekali.',
+  detail: {
+    merchant: 'Netflix',
+    amount: 54_000,
+    averageGapDays: 31,
+    lastDate: `${month}-02`,
+    nextDate: `${month}-28`,
+    category: HIBURAN,
+    walletId: 'w1',
+    note: 'Netflix',
+    occurrences: [
+      { id: 'n2', date: `${month}-02`, amount: 54_000, note: 'Netflix' },
+      { id: 'n1', date: '2026-09-02', amount: 54_000, note: 'Netflix' },
+    ],
+  },
+};
+
+const INSIGHTS: InsightDTO[] = [
+  {
+    id: `budget_pace:${month}:cat_makan`,
+    kind: 'budget_pace',
+    priority: 'high',
+    tone: 'warning',
+    title: 'Anggaran Makan bisa habis sekitar 20 Okt',
+    body: 'Dengan laju sekarang, totalnya sekitar Rp 1.240.000 bulan ini.',
+    detail: {
+      category: TX.category!,
+      month,
+      limit: 1_000_000,
+      spent: 600_000,
+      projected: 1_240_000,
+      daysElapsed: 15,
+      daysInMonth: 31,
+      runOutDate: `${month}-20`,
+      dailyAllowance: 23_529,
+    },
+  },
+  SUBSCRIPTION,
+  ...['a', 'b'].map((k): InsightDTO => ({
+    id: `unusual_expense:${k}`,
+    kind: 'unusual_expense',
+    priority: 'low',
+    tone: 'info',
+    title: `Pengeluaran ${k} lebih besar dari biasanya`,
+    body: 'Rp 600.000 pada 10 Okt.',
+    detail: {
+      category: TX.category!,
+      transaction: { id: k, date: `${month}-10`, amount: 600_000, note: null },
+      median: 100_000,
+      multiple: 6,
+      sampleSize: 5,
+    },
+  })),
+];
+
 function LocationProbe() {
   const location = useLocation();
   return <output data-testid="location">{location.pathname + location.search}</output>;
@@ -206,17 +270,35 @@ function setup({
   reminders = false,
   pending = [PENDING],
   templates = false,
+  insights = null,
 }: {
   wallets?: WalletDTO[];
   recurring?: boolean;
   reminders?: boolean;
   pending?: PendingOccurrenceDTO[];
   templates?: boolean;
+  insights?: InsightDTO[] | null;
 } = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     if (url.pathname.endsWith('/features'))
-      return json({ flags: { recurring_transactions: recurring, reminders, templates } });
+      return json({
+        flags: {
+          recurring_transactions: recurring,
+          reminders,
+          templates,
+          insights: insights !== null,
+        },
+      });
+    if (url.pathname.includes('/insights/')) return new Response(null, { status: 204 });
+    if (url.pathname.endsWith('/insights')) return json({ items: insights ?? [] });
+    if (url.pathname.endsWith('/events')) return new Response(null, { status: 204 });
+    if (init?.method === 'POST' && url.pathname.endsWith('/recurring'))
+      return json({ id: 'rule9' });
+    if (url.pathname.endsWith('/categories'))
+      return json({
+        items: [{ ...HIBURAN, type: 'EXPENSE', isDefault: true, archivedAt: null }],
+      });
     if (url.pathname.endsWith('/templates')) return json({ items: TEMPLATES });
     if (init?.method === 'POST' && url.pathname.endsWith('/use')) return json({ id: 't7' });
     if (init?.method === 'DELETE' && url.pathname.includes('/transactions/'))
@@ -459,6 +541,76 @@ describe('HomePage (dashboard)', () => {
     const dialog = within(await screen.findByRole('dialog', { name: 'Catat transaksi' }));
     expect(await dialog.findByLabelText('Catatan (opsional)')).toHaveValue('Makan siang');
     expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/use'))).toBe(false);
+  });
+
+  it('insight: maks 3 kartu, lihat semua, sembunyikan lalu urungkan', async () => {
+    const { fetchMock } = setup({ insights: INSIGHTS });
+    const list = within(await screen.findByRole('list', { name: 'Daftar insight' }));
+    expect(list.getAllByRole('article')).toHaveLength(3);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Lihat semua (4)' }));
+    const all = within(await screen.findByRole('dialog', { name: 'Semua insight' }));
+    expect(all.getAllByRole('article')).toHaveLength(4);
+    await userEvent.keyboard('{Escape}');
+
+    await userEvent.click(
+      list.getByRole('button', { name: `Sembunyikan insight: ${INSIGHTS[0]!.title}` }),
+    );
+    expect(list.queryByText(INSIGHTS[0]!.title)).not.toBeInTheDocument();
+    const dismissUrl = `/insights/${encodeURIComponent(INSIGHTS[0]!.id)}/dismiss`;
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([u, i]) => String(u).includes(dismissUrl) && i?.method === 'POST',
+        ),
+      ).toBe(true),
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Urungkan' }));
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([u, i]) => String(u).includes(dismissUrl) && i?.method === 'DELETE',
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it('detail langganan bisa langsung dijadikan transaksi berulang', async () => {
+    const { fetchMock } = setup({ insights: [SUBSCRIPTION], recurring: true, pending: [] });
+    await userEvent.click(
+      await screen.findByRole('button', { name: `Lihat detail: ${SUBSCRIPTION.title}` }),
+    );
+    const detail = within(await screen.findByRole('dialog', { name: SUBSCRIPTION.title }));
+    expect(detail.getByText('31 hari')).toBeInTheDocument();
+    expect(detail.getByText('Cara menghitung')).toBeInTheDocument();
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([u]) => String(u).includes('/events'));
+      expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+        name: 'insight_opened',
+        kind: 'new_subscription',
+      });
+    });
+
+    await userEvent.click(detail.getByRole('button', { name: 'Jadikan transaksi berulang' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Transaksi berulang baru' }));
+    expect(await form.findByLabelText('Catatan (opsional)')).toHaveValue('Netflix');
+    await userEvent.click(form.getByRole('button', { name: 'Simpan' }));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([u, i]) => String(u).endsWith('/recurring') && i?.method === 'POST',
+      );
+      expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({
+        type: 'EXPENSE',
+        amount: 54_000,
+        walletId: 'w1',
+        categoryId: 'cat_hiburan',
+        note: 'Netflix',
+        frequency: 'MONTHLY',
+        startDate: `${month}-28`,
+      });
+    });
   });
 
   it('melewati kejadian berulang', async () => {

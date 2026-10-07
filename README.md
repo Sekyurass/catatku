@@ -63,17 +63,18 @@ Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12
 gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini; plus 4 template cepat catat:
 kopi susu, Gojek ke kantor, parkir, dan makan siang tanpa nominal).
 
-Fitur Fase 1, target tabungan (Fase 2.1), tag & lampiran (Fase 2.5), pindai struk (Fase 3.1), dan saran
-kategori (Fase 3.2) berada di balik feature flag yang **nonaktif** setelah seed. Untuk menyalakannya:
+Fitur Fase 1, target tabungan (Fase 2.1), insight (Fase 2.3), tag & lampiran (Fase 2.5), pindai struk
+(Fase 3.1), dan saran kategori (Fase 3.2) berada di balik feature flag yang **nonaktif** setelah seed. Untuk
+menyalakannya:
 
 ```sql
 -- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
 UPDATE "FeatureFlag" SET enabled = true
 WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category',
-              'tags', 'attachments', 'savings_goals');
+              'tags', 'attachments', 'savings_goals', 'insights');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan.
 Lampiran foto butuh `STORAGE_S3_*` (lihat [Lampiran foto](#lampiran-foto-supabase-storage)); tanpa itu flag
 `attachments` selalu dianggap mati. Akun baru dari halaman **Daftar**
@@ -363,6 +364,25 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     **Sesuai rencana** bila terkumpul ≥ jalur lurus dari bulan dibuat sampai bulan tenggat (per bulan penuh
     yang lewat; bulan pertama selalu sesuai), **Tertinggal** bila kurang atau tenggat lewat, **Tercapai**
     bila terkumpul ≥ target. Bilah progres beranimasi singkat (dimatikan oleh `prefers-reduced-motion`).
+- **Insight otomatis** (Fase 2.3, flag `insights`): bagian **Insight untukmu** di Beranda, maks. 3 kartu yang
+  bisa digeser (di layar lebar jadi 3 kolom) plus **Lihat semua**. Tiap kartu membuka detail berisi angka
+  pendukung, "Cara menghitung", dan langkah lanjutan; tombol × menyembunyikannya (bisa diurungkan).
+  - **Berbasis aturan, bukan AI** (`computeInsights` di `packages/shared/src/insights.ts`, data 120 hari):
+    - **Laju anggaran**: mulai tanggal 3, bila (terpakai ÷ hari berjalan × hari sebulan) > 105% batas dan
+      belum lewat batas. Detail: tanggal perkiraan habis dan batas aman per hari. Prioritas tinggi bila habis
+      ≤ 7 hari lagi.
+    - **Kategori naik/turun**: mulai tanggal 5, tanggal 1–hari ini vs periode yang sama bulan lalu; selisih
+      ≥ 30% dan ≥ Rp50.000, salah satu periode ≥ Rp100.000, bulan lalu tidak 0. Maks. 2, terbesar dulu.
+    - **Langganan terdeteksi**: catatan sama (`merchantKey`), nominal selisih ≤ 5%, ≥ 2 kali berjarak 25–35
+      hari, terakhir ≤ 35 hari lalu, dan belum ada transaksi berulang dengan catatan serupa. Detail punya
+      tombol **Jadikan transaksi berulang** (flag `recurring_transactions`) yang membuka form berulang terisi,
+      mulai di perkiraan tagihan berikutnya (selalu setelah transaksi terakhir, jadi tidak tercatat ganda).
+    - **Pengeluaran tak biasa**: transaksi 14 hari terakhir ≥ 3× median kategorinya (≥ 5 transaksi dalam 90
+      hari sebelumnya) dan ≥ Rp200.000. Maks. 2. Transaksi dari aturan berulang tidak dihitung.
+  - **id stabil per periode** (`budget_pace:2026-10:cat_makan`, `category_change:2026-10:cat_makan:up`,
+    `new_subscription:netflix`, `unusual_expense:<id transaksi>`): insight yang ditutup disimpan di
+    `InsightDismissal` dan tidak muncul lagi di periode itu; bulan berikutnya bisa muncul lagi.
+  - Nada netral: menjelaskan angka dan pilihan, tanpa menghakimi.
 
 ## API (Fase 0)
 
@@ -377,7 +397,7 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 - ✅ `GET/PUT/DELETE /me/avatar` — PUT berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`,
   maks 300 kB) → `{ user }`; GET mengembalikan gambar (klien memakai `?v=<avatarUpdatedAt>` untuk cache)
 - ✅ `GET /features`, `GET /health` (di root)
-- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped" | "receipt_scanned" | "category_suggestion", step?: 1–3, fields?: 0–3, source?: "history" | "keyword", accepted?: boolean }` → 204
+- ✅ `POST /events` body `{ name: "onboarding_completed" | "onboarding_skipped" | "receipt_scanned" | "category_suggestion" | "insight_opened", step?: 1–3, fields?: 0–3, source?: "history" | "keyword", accepted?: boolean, kind?: jenis insight }` → 204
   (hanya event klien yang terdaftar; event lain dicatat server sendiri)
 - ✅ `GET/POST/PATCH/DELETE /wallets` (`?includeArchived=true`; DELETE mengarsipkan dompet yang punya riwayat)
 - ✅ `GET/POST/PATCH/DELETE /categories` (`?type=`; kategori bawaan hanya-baca → 403)
@@ -457,6 +477,10 @@ transferGroupId, wallet }] }`; `POST /goals/:id/contributions` `{ type, amount, 
     tabungan itu sendiri) wajib; target tanpa dompet tabungan, dompet diarsipkan, atau tarik melebihi yang
     terkumpul → 400. `walletId: null` pada `POST`/`PATCH /goals` = buatkan dompet `Tabungan {nama}`
   - `DELETE /goals/contributions/:id` → 204 (transfer tertaut ikut dihapus)
+- ✅ `insights`: `GET /insights` → `{ items: [{ id, kind: category_change|budget_pace|new_subscription|
+unusual_expense, priority: high|medium|low, tone: warning|positive|info, title, body, detail }] }` (urut
+  prioritas; tanpa yang ditutup). `POST /insights/:id/dismiss` → 204 (idempoten), `DELETE /insights/:id/dismiss`
+  → 204 (urungkan). `id` di-encode untuk URL; format tidak dikenal → 400
 
 ### Fase 3 (di balik feature flag; flag mati → 404)
 
@@ -481,6 +505,8 @@ transferGroupId, wallet }] }`; `POST /goals/:id/contributions` `{ type, amount, 
 | `template_used`                              | API                    | `type`, `amountChanged`                       |
 | `goal_created`                               | API                    | `hasDeadline`, `newWallet`                    |
 | `goal_contribution`                          | API                    | `type` (DEPOSIT/WITHDRAW)                     |
+| `insight_dismissed`                          | API                    | `kind`                                        |
+| `insight_opened`                             | Klien (`POST /events`) | `kind`                                        |
 | `import_completed`                           | API                    | `imported`, `skipped`, `failed`, `background` |
 | `import_rolled_back`                         | API                    | `removed`                                     |
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                                  |

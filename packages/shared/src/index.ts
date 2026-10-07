@@ -4,6 +4,7 @@ export * from './constants';
 export * from './csvImport';
 export * from './errors';
 export * from './goal';
+export * from './insights';
 export * from './money';
 export * from './month';
 export * from './recurrence';

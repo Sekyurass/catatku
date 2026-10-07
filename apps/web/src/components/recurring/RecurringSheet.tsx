@@ -87,14 +87,21 @@ const FIELD_NAMES: Array<keyof FormValues> = [
   'endDate',
 ];
 
+/** Isian awal untuk aturan baru, mis. dari langganan yang terdeteksi insight. */
+export type RecurringPrefill = Partial<
+  Pick<FormValues, 'amount' | 'walletId' | 'categoryId' | 'note' | 'startDate'>
+>;
+
 export function RecurringSheet({
   open,
   onClose,
   editing,
+  initial,
 }: {
   open: boolean;
   onClose: () => void;
   editing?: RecurringRuleDTO;
+  initial?: RecurringPrefill;
 }) {
   return (
     <Dialog
@@ -102,16 +109,18 @@ export function RecurringSheet({
       onClose={onClose}
       title={editing ? 'Ubah transaksi berulang' : 'Transaksi berulang baru'}
     >
-      <RecurringFormPanel editing={editing} onDone={onClose} />
+      <RecurringFormPanel editing={editing} initial={initial} onDone={onClose} />
     </Dialog>
   );
 }
 
 function RecurringFormPanel({
   editing,
+  initial,
   onDone,
 }: {
   editing?: RecurringRuleDTO;
+  initial?: RecurringPrefill;
   onDone: () => void;
 }) {
   const wallets = useWallets();
@@ -164,12 +173,18 @@ function RecurringFormPanel({
       wallets={wallets.data}
       categories={categories.data}
       editing={editing}
+      initial={initial}
       onDone={onDone}
     />
   );
 }
 
-function defaultValues(wallets: WalletDTO[], editing?: RecurringRuleDTO): FormValues {
+function defaultValues(
+  wallets: WalletDTO[],
+  categories: CategoryDTO[],
+  editing?: RecurringRuleDTO,
+  initial: RecurringPrefill = {},
+): FormValues {
   if (editing) {
     return {
       type: editing.type,
@@ -184,15 +199,19 @@ function defaultValues(wallets: WalletDTO[], editing?: RecurringRuleDTO): FormVa
       autoPost: editing.autoPost,
     };
   }
+  const usableWallet = wallets.some((w) => w.id === initial.walletId && !w.archivedAt);
+  const usableCategory = categories.some(
+    (c) => c.id === initial.categoryId && c.type === 'EXPENSE' && !c.archivedAt,
+  );
   return {
     type: 'EXPENSE',
-    amount: null,
-    walletId: pickDefaultWallet(wallets)?.id ?? '',
-    categoryId: '',
-    note: '',
+    amount: initial.amount ?? null,
+    walletId: usableWallet ? initial.walletId! : (pickDefaultWallet(wallets)?.id ?? ''),
+    categoryId: usableCategory ? initial.categoryId! : '',
+    note: initial.note ?? '',
     frequency: 'MONTHLY',
     interval: 1,
-    startDate: today(),
+    startDate: initial.startDate ?? today(),
     endDate: '',
     autoPost: true,
   };
@@ -202,11 +221,13 @@ function RecurringForm({
   wallets,
   categories,
   editing,
+  initial,
   onDone,
 }: {
   wallets: WalletDTO[];
   categories: CategoryDTO[];
   editing?: RecurringRuleDTO;
+  initial?: RecurringPrefill;
   onDone: () => void;
 }) {
   const toast = useToast();
@@ -225,7 +246,7 @@ function RecurringForm({
     formState: { errors, isSubmitting, dirtyFields },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: defaultValues(wallets, editing),
+    defaultValues: defaultValues(wallets, categories, editing, initial),
   });
 
   const type = watch('type');

@@ -8,6 +8,7 @@ import type {
   GoalContributionDTO,
   GoalDTO,
   ImportBatchDTO,
+  InsightDTO,
   ListTransactionsQuery,
   PendingOccurrenceDTO,
   RecurringRuleDTO,
@@ -54,7 +55,17 @@ export const queryKeys = {
   attachments: (transactionId: string) => ['attachments', transactionId] as const,
   goals: ['goals'] as const,
   goalContributions: (goalId: string) => ['goals', goalId, 'contributions'] as const,
+  insights: ['insights'] as const,
 };
+
+export function useInsights(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.insights,
+    queryFn: ({ signal }) =>
+      api<{ items: InsightDTO[] }>('/insights', { signal }).then((r) => r.items),
+    enabled,
+  });
+}
 
 export function useGoals(enabled = true) {
   return useQuery({
@@ -279,8 +290,8 @@ export function prefetchPageData(qc: QueryClient, path: string) {
 
 /**
  * Semua data yang ikut berubah saat uang bergerak: saldo, riwayat, laporan, anggaran, berulang,
- * template (status dompet/kategori diarsipkan), jumlah pemakaian tag, dan progres target (setoran
- * tertaut transfer mengikuti transaksinya).
+ * template (status dompet/kategori diarsipkan), jumlah pemakaian tag, progres target (setoran
+ * tertaut transfer mengikuti transaksinya), dan insight.
  */
 export function invalidateMoney(qc: QueryClient) {
   return Promise.all(
@@ -293,6 +304,7 @@ export function invalidateMoney(qc: QueryClient) {
       'templates',
       'tags',
       'goals',
+      'insights',
     ].map((key) => qc.invalidateQueries({ queryKey: [key] })),
   );
 }

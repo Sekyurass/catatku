@@ -11,6 +11,7 @@ import { createExportRouter } from '../modules/export/export.routes';
 import { createFeaturesRouter } from '../modules/features/features.routes';
 import { createGoalsRouter } from '../modules/goals/goal.routes';
 import { createImportsRouter } from '../modules/imports/import.routes';
+import { createInsightsRouter } from '../modules/insights/insight.routes';
 import { createNotificationsRouter } from '../modules/notifications/notification.routes';
 import { createRecurringRouter } from '../modules/recurring/recurring.routes';
 import { createReportsRouter } from '../modules/reports/report.routes';
@@ -44,6 +45,7 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/imports', createImportsRouter());
   router.use('/tags', createTagsRouter());
   router.use('/goals', createGoalsRouter());
+  router.use('/insights', createInsightsRouter());
   router.use(createAttachmentsRouter());
   return router;
 }

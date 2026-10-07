@@ -58,6 +58,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   [FEATURE_FLAGS.TAGS]: 'Fase 2.5 — tag transaksi + filter & laporan per tag',
   [FEATURE_FLAGS.ATTACHMENTS]: 'Fase 2.5 — lampiran foto (butuh STORAGE_S3_* di server)',
   [FEATURE_FLAGS.SAVINGS_GOALS]: 'Fase 2.1 — target tabungan + tab Rencana',
+  [FEATURE_FLAGS.INSIGHTS]: 'Fase 2.3 — insight otomatis berbasis aturan di Beranda',
 };
 
 /** Kategori default + baris feature flag (nonaktif). Aman dijalankan berulang. */
