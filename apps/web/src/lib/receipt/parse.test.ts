@@ -111,6 +111,43 @@ describe('parseReceiptText', () => {
     ).toBeNull();
   });
 
+  it('tanggal dicek silang dengan tanggal di nomor struk', () => {
+    const parse = (text: string) => parseReceiptText(text, SAMPLE_TODAY).date;
+    // 7 terbaca 1: nomor struk yang menang, tapi tetap minta ditinjau.
+    expect(parse('No: INV202610070012\nTgl 01-10-2026')).toEqual({
+      value: '2026-10-07',
+      confidence: 'low',
+    });
+    // Beda jauh: tanggal tercetak tetap dipakai, ditandai kurang yakin.
+    expect(parse('No: INV202609150012\nTgl 01-10-2026')).toEqual({
+      value: '2026-10-01',
+      confidence: 'low',
+    });
+    expect(parse('No: INV202610010012\nTgl 01-10-2026')?.confidence).toBe('high');
+    expect(parse('Nota TRX2026100500\nterima kasih')).toEqual({
+      value: '2026-10-05',
+      confidence: 'low',
+    });
+    // Nomor telepon bukan nomor struk.
+    expect(parse('Telp/No 0812202610050')).toBeNull();
+  });
+
+  it('teks logo yang terbaca acak tidak dijadikan nama toko', () => {
+    expect(
+      parseReceiptText('NN NYA : NA\nSN. AA RAR AI\nKEDAI KOPI NUSANTARA\nNo : 123', SAMPLE_TODAY)
+        .merchant,
+    ).toEqual({ value: 'Kedai Kopi Nusantara', confidence: 'low' });
+    expect(
+      parseReceiptText(
+        [
+          { text: 'BAKSO MAS', confidence: 30 },
+          { text: 'BAKMI JAYA', confidence: 88 },
+        ],
+        SAMPLE_TODAY,
+      ).merchant?.value,
+    ).toBe('Bakmi Jaya');
+  });
+
   it('nama toko dari baris pertama yang wajar diberi keyakinan rendah', () => {
     expect(
       parseReceiptText('*** RM PADANG SEDERHANA ***\nJl. Sudirman 1', SAMPLE_TODAY).merchant,

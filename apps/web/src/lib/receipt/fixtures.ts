@@ -167,6 +167,31 @@ CHANGE 3.000`,
     expected: { total: 47_000, date: '2026-10-01', merchant: 'KFC' },
   },
   {
+    // Teks OCR asli dari foto struk pengguna: logo di atas terbaca acak, 7 terbaca 1 di tanggal.
+    name: 'Restoran ayam (logo jadi teks acak, tanggal dari nomor struk)',
+    text: `AN SUA A -                    -.
+NN NYA :                       na
+SN. aa RaR ai       bi         .           .
+&   Hotway's
+Bela. 4
+.         ian iba
+Hotways Chicken Bali
+No       : HCB01202610070002
+Penjualan : SHCB019134065601              Sa
+Tangga!    : 01-10-2026 10:38
+Info      : pak man
+No Meja - : Takeaway-2                       Na
+Pax      ABI                         NG
+Kasir    : Lina                 sa :
+1 STRAWBERRY ORANGE MILK        15.000
+1 Paha Atas Crispy           18.000 --.
+2 iten                                   S
+Grand Total: ON
+ORIS :      33.000 -
+- Thank You -                  .`,
+    expected: { total: 33_000, date: '2026-10-07', merchant: 'Hotways Chicken Bali' },
+  },
+  {
     name: 'Struk buram (hampir tidak terbaca)',
     text: `~~ ..
 ,,, 1 ;; 2

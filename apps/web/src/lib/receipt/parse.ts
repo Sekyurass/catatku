@@ -228,7 +228,7 @@ function toIsoDate(year: number, month: number, day: number): string | null {
 const daysBetween = (a: string, b: string) =>
   Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
-function findDate(lines: Line[], today: string): ReceiptField<string> | null {
+function findPrintedDate(lines: Line[], today: string): ReceiptField<string> | null {
   for (const line of lines) {
     const found: Array<{ index: number; iso: string }> = [];
     for (const { re, order } of DATE_PATTERNS) {
@@ -254,6 +254,42 @@ function findDate(lines: Line[], today: string): ReceiptField<string> | null {
     }
   }
   return null;
+}
+
+/** Baris nomor struk; banyak mesin kasir menanam tanggal YYYYMMDD di nomornya (HCB01202610070002). */
+const RECEIPT_NO_RE = /\b(NO|STRUK|NOTA|INVOICE|BILL|TRX|REF|KODE|PENJUALAN|TRANS(AKSI)?)\b/;
+const PHONE_LINE_RE = /\b(TELP?|TLP|HP|WA|NPWP|PHONE)\b/;
+
+function findEmbeddedDate(lines: Line[], today: string): string | null {
+  for (const line of lines) {
+    if (!RECEIPT_NO_RE.test(line.text) || PHONE_LINE_RE.test(line.text)) continue;
+    for (const [token] of line.text.matchAll(/[A-Z0-9]{10,}/g)) {
+      for (const m of token.matchAll(/(?=(20\d{2})(\d{2})(\d{2}))/g)) {
+        const iso = toIsoDate(+m[1]!, +m[2]!, +m[3]!);
+        if (!iso) continue;
+        const age = daysBetween(iso, today);
+        if (age >= -1 && age <= 365) return iso;
+      }
+    }
+  }
+  return null;
+}
+
+/** Pasangan angka yang sering tertukar oleh OCR pada font struk (mis. 7 terbaca 1). */
+const CONFUSABLE_DIGITS = new Set(['17', '71', '08', '80', '38', '83', '56', '65', '68', '86']);
+
+const differsOnlyByConfusables = (a: string, b: string) =>
+  a.length === b.length && [...a].every((c, i) => c === b[i] || CONFUSABLE_DIGITS.has(c + b[i]));
+
+/** Tanggal tercetak, dicek silang dengan tanggal di nomor struk bila ada. */
+function findDate(lines: Line[], today: string): ReceiptField<string> | null {
+  const printed = findPrintedDate(lines, today);
+  const embedded = findEmbeddedDate(lines, today);
+  if (!embedded || printed?.value === embedded) return printed;
+  if (!printed || differsOnlyByConfusables(printed.value, embedded)) {
+    return { value: embedded, confidence: 'low' };
+  }
+  return { value: printed.value, confidence: 'low' };
 }
 
 const KNOWN_MERCHANTS: Array<[RegExp, string]> = [
@@ -288,24 +324,46 @@ function titleCase(text: string): string {
     .join(' ');
 }
 
+/** Kata yang menandakan nama usaha; dipakai untuk mengalahkan teks logo yang terbaca lebih dulu. */
+const BUSINESS_RE =
+  /\b(TOKO|WARUNG|WARTEG|RM|RUMAH MAKAN|RESTO|RESTORAN|RESTAURANT|KAFE|CAFE|COFFEE|KOPI|BAKERY|ROTI|DONUT|PIZZA|BURGER|CHICKEN|AYAM|BAKSO|MIE|BAKMI|SATE|SEAFOOD|STEAK|DIMSUM|BOBA|TEA|KITCHEN|MART|MINIMARKET|SUPERMARKET|APOTEK|APOTIK|FARMA|LAUNDRY|SALON|BENGKEL|SPBU)\b/;
+/** Kata utuh: ≥ 4 huruf dan ada vokal. Teks logo yang terbaca OCR biasanya potongan 1–3 huruf. */
+const hasRealWord = (text: string) =>
+  text.split(/[\s.,&\-/]+/).some((w) => /^[A-Z']{4,}$/.test(w) && /[AEIOU]/.test(w));
+const MIN_MERCHANT_OCR_CONFIDENCE = 50;
+
+function merchantCandidate(line: Line): string | null {
+  const text = line.text.replace(/^[^A-Z0-9]+|[^A-Z0-9.)']+$/g, '').replace(/\s+/g, ' ');
+  const letters = text.replace(/[^A-Z]/g, '').length;
+  const visible = text.replace(/\s/g, '').length;
+  if (letters < 3 || visible === 0 || letters / visible < 0.7 || text.length > 40) return null;
+  if (text.includes(':') || line.confidence < MIN_MERCHANT_OCR_CONFIDENCE || !hasRealWord(text)) {
+    return null;
+  }
+  if (NOT_MERCHANT_RE.test(text) || DATE_PATTERNS.some(({ re }) => new RegExp(re).test(text))) {
+    return null;
+  }
+  return text;
+}
+
 function findMerchant(lines: Line[]): ReceiptField<string> | null {
-  const head = lines.slice(0, 8);
-  for (const line of head) {
+  const head = lines.slice(0, 10);
+  for (const line of head.slice(0, 8)) {
     for (const [re, name] of KNOWN_MERCHANTS) {
       if (re.test(line.text)) return { value: name, confidence: 'high' };
     }
   }
-  for (const line of head.slice(0, 5)) {
-    const text = line.text.replace(/^[^A-Z0-9]+|[^A-Z0-9.)']+$/g, '').replace(/\s+/g, ' ');
-    const letters = text.replace(/[^A-Z]/g, '').length;
-    const visible = text.replace(/\s/g, '').length;
-    if (letters < 3 || visible === 0 || letters / visible < 0.7 || text.length > 40) continue;
-    if (NOT_MERCHANT_RE.test(text) || DATE_PATTERNS.some(({ re }) => new RegExp(re).test(text))) {
-      continue;
-    }
-    return { value: titleCase(text), confidence: 'low' };
-  }
-  return null;
+  // Nama toko selalu di atas blok data transaksi ("No :", "Tanggal :", "Kasir :").
+  const metaStart = head.findIndex((l) => l.text.includes(':') && NOT_MERCHANT_RE.test(l.text));
+  const candidates = (metaStart >= 0 ? head.slice(0, metaStart) : head.slice(0, 5))
+    .map(merchantCandidate)
+    .filter((text): text is string => text !== null);
+  const first = candidates[0];
+  if (!first) return null;
+  const chosen = BUSINESS_RE.test(first)
+    ? first
+    : (candidates.find((t) => BUSINESS_RE.test(t)) ?? first);
+  return { value: titleCase(chosen), confidence: 'low' };
 }
 
 /** Ambil total, tanggal, dan nama toko dari teks hasil OCR. Tidak pernah melempar error. */
