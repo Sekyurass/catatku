@@ -1,9 +1,16 @@
-import { type BudgetDTO, type BudgetMonthDTO, currentMonth, shiftMonth } from '@catatku/shared';
+import {
+  type BudgetDTO,
+  type BudgetMonthDTO,
+  currentMonth,
+  shiftMonth,
+  type TransactionDTO,
+} from '@catatku/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QuickAddProvider } from '../components/transactions/QuickAdd';
 import { ToastProvider } from '../components/ui/Toast';
 import { BudgetsPage } from './BudgetsPage';
 
@@ -24,6 +31,7 @@ const item = (
   endsThisMonth: false,
   limitAmount,
   spent,
+  txCount: spent > 0 ? 2 : 0,
   remaining: limitAmount - spent,
   ratio: limitAmount > 0 ? spent / limitAmount : 0,
   status,
@@ -40,6 +48,31 @@ const DATA: BudgetMonthDTO = {
   totalLimit: 1_600_000,
   totalSpent: 1_230_000,
 };
+
+const tx = (id: string, amount: number, note: string | null, day: string): TransactionDTO => ({
+  id,
+  type: 'EXPENSE',
+  amount: -amount,
+  date: `${month}-${day}`,
+  note,
+  walletId: 'w1',
+  wallet: { id: 'w1', name: 'Tunai', color: '#0F766E' },
+  categoryId: 'cat_makan',
+  category: { id: 'cat_makan', name: 'Makan', icon: 'utensils', color: '#EA580C' },
+  counterpartWallet: null,
+  transferGroupId: null,
+  recurringRuleId: null,
+  tags: [{ id: 'tg1', name: 'Kantor' }],
+  attachmentCount: 0,
+  deletedAt: null,
+  createdAt: `${month}-${day}T05:00:00.000Z`,
+  updatedAt: `${month}-${day}T05:00:00.000Z`,
+});
+
+const MAKAN_TX = [
+  tx('t1', 47_500, 'Indomaret: Indomie Goreng, Aqua 600ml, Roti Tawar', '05'),
+  tx('t2', 802_500, null, '02'),
+];
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -67,6 +100,9 @@ function setup() {
       const m = url.searchParams.get('month')!;
       return json(m === month ? data : { month: m, items: [], totalLimit: 0, totalSpent: 0 });
     }
+    if (url.pathname.endsWith('/transactions')) {
+      return json({ items: MAKAN_TX, nextCursor: null });
+    }
     return json({ error: { code: 'NOT_FOUND', message: 'x' } }, 404);
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -76,7 +112,9 @@ function setup() {
     >
       <MemoryRouter initialEntries={['/anggaran']}>
         <ToastProvider>
-          <BudgetsPage />
+          <QuickAddProvider>
+            <BudgetsPage />
+          </QuickAddProvider>
         </ToastProvider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -161,6 +199,39 @@ describe('BudgetsPage', () => {
     expect(
       await screen.findByText((t) => t.startsWith('Anggaran Makan khusus')),
     ).toBeInTheDocument();
+  });
+
+  it('rincian pengeluaran per anggaran → detail transaksi → Ubah', async () => {
+    const fetchMock = setup();
+    await screen.findByRole('button', { name: 'Ubah anggaran Makan' });
+    expect(screen.queryAllByText('Belum ada pengeluaran bulan ini')).toHaveLength(0);
+
+    const toggle = screen.getAllByRole('button', { name: /Rincian pengeluaran · 2 transaksi/ })[1]!;
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    const list = await screen.findByRole('list', { name: /^Transaksi Makan/ });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(list).getByText('Tanpa catatan')).toBeInTheDocument();
+    const query = new URL(
+      String(fetchMock.mock.calls.find(([u]) => String(u).includes('/transactions'))![0]),
+      'http://localhost',
+    ).searchParams;
+    expect(query.get('categoryId')).toBe('cat_makan');
+    expect(query.get('type')).toBe('EXPENSE');
+    expect(query.get('from')).toBe(`${month}-01`);
+
+    await userEvent.click(within(list).getByRole('button', { name: /Indomaret/ }));
+    const detail = await screen.findByRole('dialog', { name: 'Detail transaksi' });
+    expect(within(detail).getByText('Rincian dari Indomaret')).toBeInTheDocument();
+    expect(within(detail).getByText('· 3 barang')).toBeInTheDocument();
+    expect(within(detail).getByText('Aqua 600ml')).toBeInTheDocument();
+    expect(within(detail).getByText('#Kantor')).toBeInTheDocument();
+
+    await userEvent.click(within(detail).getByRole('button', { name: 'Ubah' }));
+    expect(await screen.findByRole('dialog', { name: 'Ubah transaksi' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Detail transaksi' })).not.toBeInTheDocument();
   });
 
   it('pindah bulan dan state kosong', async () => {

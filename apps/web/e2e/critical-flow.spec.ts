@@ -60,7 +60,10 @@ test('hapus transaksi lalu urungkan', async ({ page }) => {
   await waitForApp(page);
   const row = page.getByRole('button', { name: /Bakso/ });
   await row.click();
-  await page.getByRole('button', { name: 'Hapus' }).click();
+  const detail = page.getByRole('dialog', { name: 'Detail transaksi' });
+  await expect(detail).toContainText('Bakso');
+  await expect(detail).toContainText('Dompet Harian');
+  await detail.getByRole('button', { name: 'Hapus' }).click();
 
   await expect(page.getByText('Transaksi dihapus')).toBeVisible();
   await expect(row).toHaveCount(0);

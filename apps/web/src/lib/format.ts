@@ -31,6 +31,11 @@ export function formatDayLabel(date: string): string {
   return longDate.format(parse(date));
 }
 
+/** "Senin, 5 Oktober 2026". */
+export function formatLongDate(date: string): string {
+  return longDate.format(parse(date));
+}
+
 export function formatShortDate(date: string): string {
   return shortDate.format(parse(date));
 }

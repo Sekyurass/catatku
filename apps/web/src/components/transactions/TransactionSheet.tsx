@@ -55,6 +55,7 @@ import { AttachmentField, type PendingPhoto } from './AttachmentField';
 import { CategoryPicker } from './CategoryPicker';
 import { ReceiptScanner } from './ReceiptScanner';
 import { TagInput } from './TagInput';
+import { useDeleteTransaction } from './useDeleteTransaction';
 
 export type TransactionKind = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
@@ -265,6 +266,7 @@ function TransactionForm({
 }) {
   const toast = useToast();
   const invalidate = useInvalidateMoney();
+  const deleteTransaction = useDeleteTransaction();
   const warnBudget = useBudgetWarning();
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [formError, setFormError] = useState<string | null>(null);
@@ -535,26 +537,8 @@ function TransactionForm({
     setDeleting(true);
     setFormError(null);
     try {
-      await api(`/transactions/${editing.id}`, { method: 'DELETE' });
-      void invalidate();
+      await deleteTransaction(editing.id);
       onDone();
-      toast({
-        message: 'Transaksi dihapus',
-        tone: 'info',
-        duration: 5000,
-        action: {
-          label: 'Urungkan',
-          onClick: async () => {
-            try {
-              await api(`/transactions/${editing.id}/restore`, { method: 'POST' });
-              void invalidate();
-              toast({ message: 'Transaksi dikembalikan' });
-            } catch {
-              toast({ message: 'Gagal mengurungkan. Coba lagi.', tone: 'error' });
-            }
-          },
-        },
-      });
     } catch (err) {
       setFormError(applyServerErrors(err, setError, FIELD_NAMES));
       setDeleting(false);

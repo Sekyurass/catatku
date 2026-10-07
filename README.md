@@ -367,7 +367,8 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
 - ✅ `GET /reports/summary?month=` (total saldo dompet aktif, pemasukan, pengeluaran, selisih, 5 transaksi terakhir),
   `GET /reports/by-category?month=&type=EXPENSE|INCOME`, `GET /reports/trend?months=6` (1–24, bulan kosong diisi 0)
   - Transfer tidak dihitung sebagai pemasukan/pengeluaran; dashboard < 1 detik untuk 10.000 transaksi (diuji)
-- ✅ `GET /budgets?month=` (semua kategori pengeluaran aktif + anggaran & realisasinya; tanpa anggaran → `id: null`),
+- ✅ `GET /budgets?month=` (semua kategori pengeluaran aktif + anggaran, realisasi `spent`, dan jumlah transaksi
+  `txCount`; tanpa anggaran → `id: null`),
   `PUT /budgets` body `{ month, items: [{ categoryId, limitAmount }] }` (upsert massal; `limitAmount: 0` menghapus; idempoten)
   - Status: `ok` < 80%, `warning` 80–99%, `over` ≥ 100%. Hanya kategori pengeluaran yang aktif yang bisa dianggarkan
   - **Anggaran berlanjut**: baris `Budget(month)` berlaku mulai bulan itu sampai ada baris yang lebih baru

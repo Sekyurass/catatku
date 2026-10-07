@@ -44,7 +44,7 @@ export function TransactionRow({
       type="button"
       onClick={() => onSelect(tx)}
       className="flex min-h-14 w-full items-center gap-3 rounded-control px-2 py-2 text-left hover:bg-surface-muted"
-      aria-label={`${title}${recurring ? ' (berulang)' : ''}, ${amountText}, ${subtitle}${extras.length ? `, ${extras.join(', ')}` : ''}. Ketuk untuk mengubah.`}
+      aria-label={`${title}${recurring ? ' (berulang)' : ''}, ${amountText}, ${subtitle}${extras.length ? `, ${extras.join(', ')}` : ''}. Ketuk untuk melihat detail.`}
     >
       {isTransfer ? (
         <IconBadge icon={TransferIcon} color="#475569" />

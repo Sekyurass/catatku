@@ -31,6 +31,18 @@ async function expectTouchTargets(page: Page) {
       }),
   );
   expect.soft(small, small.join('\n')).toEqual([]);
+  await expectFitsViewport(page);
+}
+
+/** Konten yang lebih lebar dari layar membuat browser HP memperkecil seluruh halaman. */
+async function expectFitsViewport(page: Page) {
+  const viewport = page.viewportSize()!.width;
+  const width = await page.evaluate(() =>
+    Math.max(window.innerWidth, document.documentElement.scrollWidth),
+  );
+  expect
+    .soft(width, `lebar halaman ${width}px > layar ${viewport}px`)
+    .toBeLessThanOrEqual(viewport);
 }
 
 for (const colorScheme of ['light', 'dark'] as const) {
@@ -62,7 +74,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 }
 
 async function auditAppPages(page: Page, browser: Browser) {
-  const { post, get } = await signUpViaApi(page.request);
+  const { post, get, put } = await signUpViaApi(page.request);
   const wallet = await post<{ id: string }>('/wallets', {
     name: 'Tunai',
     type: 'CASH',
@@ -75,7 +87,12 @@ async function auditAppPages(page: Page, browser: Browser) {
     walletId: wallet.id,
     categoryId: 'cat_makan',
     date: today,
+    note: 'Indomaret: Indomie Goreng, Aqua 600ml, Roti Tawar',
     tags: ['Liburan', 'Kantor'],
+  });
+  await put('/budgets', {
+    month: today.slice(0, 7),
+    items: [{ categoryId: 'cat_makan', limitAmount: 500_000 }],
   });
   await post('/transactions', {
     type: 'INCOME',
@@ -134,6 +151,25 @@ async function auditAppPages(page: Page, browser: Browser) {
       await expectTouchTargets(page);
     });
   }
+
+  await page.goto('/anggaran');
+  await waitForApp(page);
+  await page.getByRole('button', { name: /Rincian pengeluaran/ }).click();
+  const budgetList = page.getByRole('list', { name: /^Transaksi Makan/ });
+  await expect(budgetList).toBeVisible();
+  await test.step('/anggaran (rincian dibuka)', async () => {
+    await expectNoViolations(page);
+    await expectTouchTargets(page);
+  });
+  await budgetList.getByRole('button', { name: /Indomaret/ }).click();
+  const detail = page.getByRole('dialog', { name: 'Detail transaksi' });
+  await expect(detail).toContainText('Rincian dari Indomaret');
+  await test.step('detail transaksi', async () => {
+    await expectNoViolations(page);
+    await expectTouchTargets(page);
+  });
+  await detail.getByRole('button', { name: 'Ubah' }).click();
+  await expect(page.getByRole('dialog', { name: 'Ubah transaksi' })).toBeVisible();
 
   if (recurring) {
     await page.goto('/berulang');

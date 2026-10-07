@@ -94,7 +94,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (q: string) =
 
 export function TransactionsPage() {
   const { filters, update, reset } = useFilters();
-  const { openNew, openEdit } = useQuickAdd();
+  const { openNew, openDetail } = useQuickAdd();
   const wallets = useWallets(true);
   const categories = useCategories();
   const tagsOn = useFeature(FEATURE_FLAGS.TAGS);
@@ -348,7 +348,7 @@ export function TransactionsPage() {
                     <li key={tx.id}>
                       <TransactionRow
                         tx={tx}
-                        onSelect={openEdit}
+                        onSelect={openDetail}
                         showTransferSign={Boolean(filters.walletId)}
                       />
                     </li>

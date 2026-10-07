@@ -54,6 +54,7 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
         date: { gte: toDbDate(start), lte: toDbDate(end) },
       },
       _sum: { amount: true },
+      _count: { _all: true },
     }),
     prisma.budget.findMany({
       where: { userId, month: shiftMonth(month, 1) },
@@ -72,7 +73,8 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
     .map((c) => {
       const budget = activeBudget(c.id);
       const limitAmount = toNumber(budget?.limitAmount);
-      const spent = Math.abs(toNumber(spending.find((s) => s.categoryId === c.id)?._sum.amount));
+      const row = spending.find((s) => s.categoryId === c.id);
+      const spent = Math.abs(toNumber(row?._sum.amount));
       return {
         id: budget?.id ?? null,
         categoryId: c.id,
@@ -82,6 +84,7 @@ export async function getBudgets(userId: string, month = currentMonth()): Promis
         endsThisMonth: Boolean(budget && nextRows.some((r) => r.categoryId === c.id)),
         limitAmount,
         spent,
+        txCount: row?._count._all ?? 0,
         remaining: limitAmount - spent,
         ratio: limitAmount > 0 ? spent / limitAmount : 0,
         status: budgetStatus(spent, limitAmount),

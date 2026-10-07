@@ -6,12 +6,14 @@ import {
   currentMonth,
   formatRupiah,
   MONTH_REGEX,
+  monthRange,
 } from '@catatku/shared';
 import { useQueryClient } from '@tanstack/react-query';
-import { PiggyBank, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { ChevronDown, PiggyBank, Trash2 } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { IconBadge } from '../components/IconBadge';
+import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
@@ -26,9 +28,9 @@ import { api } from '../lib/api';
 import { BUDGET_STATUS, budgetPercent, remainingLabel } from '../lib/budget';
 import { cn } from '../lib/cn';
 import { applyServerErrors } from '../lib/forms';
-import { formatMonthLabel } from '../lib/format';
+import { formatMonthLabel, formatShortDate } from '../lib/format';
 import { categoryIcon } from '../lib/icons';
-import { queryKeys, useBudgets } from '../lib/queries';
+import { queryKeys, useBudgets, useTransactions } from '../lib/queries';
 import { FormAlert } from './auth/AuthLayout';
 
 function useMonthParam() {
@@ -86,7 +88,7 @@ export function BudgetsPage() {
                 <h2 id="judul-beranggaran" className="mb-2 px-1 text-sm font-semibold text-muted">
                   Kategori beranggaran
                 </h2>
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
                   {budgeted.map((item) => (
                     <BudgetCard key={item.categoryId} item={item} onEdit={() => setEditing(item)} />
                   ))}
@@ -214,11 +216,144 @@ function TotalCard({ data, count }: { data: BudgetMonthDTO; count: number }) {
 
 function BudgetCard({ item, onEdit }: { item: BudgetDTO; onEdit: () => void }) {
   const meta = BUDGET_STATUS[item.status];
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  return (
+    <div className="flex flex-col rounded-card border border-line bg-surface shadow-card">
+      <BudgetSummaryButton item={item} meta={meta} onEdit={onEdit} />
+      {item.txCount > 0 ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls={panelId}
+            className={cn(
+              'flex min-h-11 items-center justify-between gap-2 border-t border-line px-4 text-sm font-medium text-muted hover:bg-surface-muted/60 hover:text-fg',
+              !open && 'rounded-b-card',
+            )}
+          >
+            <span>
+              Rincian pengeluaran · <span className="tabular">{item.txCount}</span> transaksi
+            </span>
+            <ChevronDown
+              className={cn('size-4 transition-transform', open && 'rotate-180')}
+              aria-hidden
+            />
+          </button>
+          {open && (
+            <BudgetTransactions
+              id={panelId}
+              categoryId={item.categoryId}
+              month={item.month}
+              name={item.category.name}
+            />
+          )}
+        </>
+      ) : (
+        <p className="border-t border-line px-4 py-3 text-sm text-muted">
+          Belum ada pengeluaran bulan ini
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BudgetTransactions({
+  id,
+  categoryId,
+  month,
+  name,
+}: {
+  id: string;
+  categoryId: string;
+  month: string;
+  name: string;
+}) {
+  const { start, end } = monthRange(month);
+  const filters = { categoryId, type: 'EXPENSE', from: start, to: end } as const;
+  const list = useTransactions(filters);
+  const { openDetail } = useQuickAdd();
+  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
+
+  return (
+    <div id={id} className="border-t border-line p-2">
+      {list.isPending ? (
+        <div
+          className="flex flex-col gap-2 p-2"
+          role="status"
+          aria-busy="true"
+          aria-label={`Memuat transaksi ${name}`}
+        >
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+        </div>
+      ) : list.isError ? (
+        <ErrorState message={list.error.message} onRetry={() => void list.refetch()} />
+      ) : (
+        <>
+          <ul aria-label={`Transaksi ${name} ${formatMonthLabel(month)}`}>
+            {items.map((tx) => (
+              <li key={tx.id}>
+                <button
+                  type="button"
+                  onClick={() => openDetail(tx)}
+                  className="flex min-h-12 w-full items-center gap-3 rounded-control px-2 py-2 text-left hover:bg-surface-muted"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2 text-sm font-medium break-words">
+                      {tx.note || 'Tanpa catatan'}
+                    </span>
+                    <span className="block truncate text-xs text-muted">
+                      {formatShortDate(tx.date)} · {tx.wallet.name}
+                    </span>
+                  </span>
+                  <span className="tabular shrink-0 text-sm font-semibold text-expense-text">
+                    {formatRupiah(Math.abs(tx.amount))}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-2 pt-1">
+            {list.hasNextPage ? (
+              <Button
+                variant="ghost"
+                onClick={() => void list.fetchNextPage()}
+                loading={list.isFetchingNextPage}
+              >
+                Muat lagi
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Link
+              to={`/transaksi?${new URLSearchParams({ categoryId, type: 'EXPENSE', from: start, to: end })}`}
+              className="inline-flex min-h-11 items-center text-sm font-medium text-primary hover:underline"
+            >
+              Buka di Transaksi
+            </Link>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BudgetSummaryButton({
+  item,
+  meta,
+  onEdit,
+}: {
+  item: BudgetDTO;
+  meta: (typeof BUDGET_STATUS)[BudgetDTO['status']];
+  onEdit: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onEdit}
-      className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 text-left shadow-card hover:bg-surface-muted/60"
+      className="flex flex-col gap-3 rounded-t-card p-4 text-left hover:bg-surface-muted/60"
       aria-label={`Ubah anggaran ${item.category.name}`}
     >
       <span className="flex items-center gap-3">

@@ -85,7 +85,7 @@ export function HomePage() {
           {templatesOn && <QuickRecordCard />}
           {recurringOn && <PendingRecurringCard />}
           <TrendCard />
-          <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
             <CategoryCard month={month} />
             <RecentCard summary={summary} onAdd={() => openNew()} />
           </div>
@@ -387,7 +387,7 @@ function RecentCard({
   summary: ReturnType<typeof useSummary>;
   onAdd: () => void;
 }) {
-  const { openEdit } = useQuickAdd();
+  const { openDetail } = useQuickAdd();
   const recent: SummaryDTO['recent'] | undefined = summary.data?.recent;
 
   return (
@@ -417,7 +417,7 @@ function RecentCard({
         <ul>
           {recent.map((tx) => (
             <li key={tx.id}>
-              <TransactionRow tx={tx} onSelect={openEdit} />
+              <TransactionRow tx={tx} onSelect={openDetail} />
             </li>
           ))}
         </ul>

@@ -165,7 +165,7 @@ export function AttachmentField({
   );
 }
 
-function PhotoViewer({ url, onClose }: { url: string | null; onClose: () => void }) {
+export function PhotoViewer({ url, onClose }: { url: string | null; onClose: () => void }) {
   // Simpan URL terakhir agar gambar tidak hilang selama dialog menutup.
   const [shown, setShown] = useState(url);
   useEffect(() => {

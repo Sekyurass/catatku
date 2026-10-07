@@ -11,6 +11,7 @@ interface BudgetItem {
   categoryId: string;
   limitAmount: number;
   spent: number;
+  txCount: number;
   remaining: number;
   ratio: number;
   status: string;
@@ -61,9 +62,12 @@ describe('PUT/GET /budgets', () => {
     });
     expect(byCategory(res.body.items, 'cat_transport')).toMatchObject({
       spent: 120_000,
+      txCount: 1,
       remaining: 280_000,
       status: 'ok',
     });
+    expect(byCategory(res.body.items, 'cat_makan').txCount).toBe(1);
+    expect(byCategory(res.body.items, 'cat_belanja').txCount).toBe(0);
     expect(byCategory(res.body.items, 'cat_hiburan')).toMatchObject({
       remaining: -60_000,
       status: 'over',

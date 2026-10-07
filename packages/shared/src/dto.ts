@@ -231,6 +231,8 @@ export interface BudgetDTO {
   endsThisMonth: boolean;
   limitAmount: number;
   spent: number;
+  /** Jumlah transaksi pengeluaran kategori ini di bulan itu. */
+  txCount: number;
   remaining: number;
   /** spent / limitAmount (0 jika limit 0). */
   ratio: number;

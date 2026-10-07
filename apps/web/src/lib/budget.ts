@@ -13,21 +13,21 @@ export const BUDGET_STATUS: Record<
     icon: CircleCheck,
     bar: 'bg-income',
     text: 'text-income-text',
-    badge: 'bg-income/10 text-income-text',
+    badge: 'bg-income/10 text-income-badge',
   },
   warning: {
     label: 'Hampir habis',
     icon: TriangleAlert,
     bar: 'bg-warning',
     text: 'text-warning-text',
-    badge: 'bg-warning/15 text-warning-text',
+    badge: 'bg-warning/15 text-warning-badge',
   },
   over: {
     label: 'Terlampaui',
     icon: OctagonAlert,
     bar: 'bg-expense',
     text: 'text-expense-text',
-    badge: 'bg-expense/10 text-expense-text',
+    badge: 'bg-expense/10 text-expense-badge',
   },
 };
 

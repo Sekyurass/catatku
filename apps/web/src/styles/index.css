@@ -18,6 +18,10 @@
   --toast: #0f172a;
   --warning: #d97706;
   --warning-text: #b45309;
+  /* Teks kecil di atas latar status berwarna tipis (lencana) butuh warna lebih gelap agar ≥ 4,5:1. */
+  --income-badge-text: #166534;
+  --warning-badge-text: #92400e;
+  --expense-badge-text: #b91c1c;
   --bg: #f8fafc;
   --surface: #ffffff;
   --surface-muted: #f1f5f9;
@@ -50,6 +54,9 @@
   --toast: #334155;
   --warning: #fbbf24;
   --warning-text: #fbbf24;
+  --income-badge-text: #4ade80;
+  --warning-badge-text: #fbbf24;
+  --expense-badge-text: #f87171;
   --bg: #0f172a;
   --surface: #1e293b;
   --surface-muted: #334155;
@@ -82,6 +89,9 @@
   --color-toast: var(--toast);
   --color-warning: var(--warning);
   --color-warning-text: var(--warning-text);
+  --color-income-badge: var(--income-badge-text);
+  --color-warning-badge: var(--warning-badge-text);
+  --color-expense-badge: var(--expense-badge-text);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
