@@ -14,9 +14,12 @@ import type {
   TrendDTO,
   WalletDTO,
 } from '@catatku/shared';
+import { currentMonth } from '@catatku/shared';
 import {
+  infiniteQueryOptions,
   keepPreviousData,
   type QueryClient,
+  queryOptions,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
@@ -95,52 +98,69 @@ export function fetchBudgets(month: string, signal?: AbortSignal) {
   return api<BudgetMonthDTO>('/budgets', { query: { month }, signal });
 }
 
-export function useBudgets(month: string) {
-  return useQuery({
+export const budgetsQuery = (month: string) =>
+  queryOptions({
     queryKey: queryKeys.budgets(month),
     queryFn: ({ signal }) => fetchBudgets(month, signal),
-    placeholderData: keepPreviousData,
   });
+
+export function useBudgets(month: string) {
+  return useQuery({ ...budgetsQuery(month), placeholderData: keepPreviousData });
 }
 
-export function useSummary(month: string) {
-  return useQuery({
+export const summaryQuery = (month: string) =>
+  queryOptions({
     queryKey: queryKeys.summary(month),
     queryFn: ({ signal }) => api<SummaryDTO>('/reports/summary', { query: { month }, signal }),
   });
+
+export function useSummary(month: string) {
+  return useQuery(summaryQuery(month));
 }
 
-export function useByCategory(month: string, type: CategoryType) {
-  return useQuery({
+export const byCategoryQuery = (month: string, type: CategoryType) =>
+  queryOptions({
     queryKey: queryKeys.byCategory(month, type),
     queryFn: ({ signal }) =>
       api<CategoryBreakdownDTO>('/reports/by-category', { query: { month, type }, signal }),
-    placeholderData: keepPreviousData,
   });
+
+export function useByCategory(month: string, type: CategoryType) {
+  return useQuery({ ...byCategoryQuery(month, type), placeholderData: keepPreviousData });
 }
 
-export function useTrend(months = 6) {
-  return useQuery({
+export const trendQuery = (months = 6) =>
+  queryOptions({
     queryKey: queryKeys.trend(months),
     queryFn: ({ signal }) => api<TrendDTO>('/reports/trend', { query: { months }, signal }),
   });
+
+export function useTrend(months = 6) {
+  return useQuery(trendQuery(months));
 }
 
-export function useWallets(includeArchived = false) {
-  return useQuery({
+export const walletsQuery = (includeArchived = false) =>
+  queryOptions({
     queryKey: queryKeys.wallets(includeArchived),
     queryFn: ({ signal }) =>
       api<{ items: WalletDTO[] }>('/wallets', { query: { includeArchived }, signal }).then(
         (r) => r.items,
       ),
   });
+
+export function useWallets(includeArchived = false) {
+  return useQuery(walletsQuery(includeArchived));
 }
+
+export const categoriesQuery = queryOptions({
+  queryKey: queryKeys.categories,
+  queryFn: ({ signal }) =>
+    api<{ items: CategoryDTO[] }>('/categories', { signal }).then((r) => r.items),
+});
 
 export function useCategories(type?: CategoryType) {
   return useQuery({
-    queryKey: queryKeys.categories,
-    queryFn: ({ signal }) =>
-      api<{ items: CategoryDTO[] }>('/categories', { signal }).then((r) => r.items),
+    ...categoriesQuery,
     select: type ? (items) => items.filter((c) => c.type === type) : undefined,
   });
 }
@@ -157,8 +177,8 @@ export function useLearnedCategories(enabled: boolean) {
 
 export const PAGE_SIZE = 30;
 
-export function useTransactions(filters: TransactionFilters) {
-  return useInfiniteQuery({
+export const transactionsQuery = (filters: TransactionFilters) =>
+  infiniteQueryOptions({
     queryKey: queryKeys.transactions(filters),
     queryFn: ({ pageParam, signal }) =>
       api<TransactionPage>('/transactions', {
@@ -168,6 +188,32 @@ export function useTransactions(filters: TransactionFilters) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
+
+export function useTransactions(filters: TransactionFilters) {
+  return useInfiniteQuery(transactionsQuery(filters));
+}
+
+/** Data awal tiap menu utama, diambil lebih dulu agar halaman langsung tampil tanpa kerangka. */
+export function prefetchPageData(qc: QueryClient, path: string) {
+  const month = currentMonth();
+  const jobs: Promise<unknown>[] = [];
+  if (path === '/') {
+    jobs.push(
+      qc.prefetchQuery(walletsQuery()),
+      qc.prefetchQuery(summaryQuery(month)),
+      qc.prefetchQuery(byCategoryQuery(month, 'EXPENSE')),
+      qc.prefetchQuery(trendQuery(6)),
+    );
+  } else if (path === '/transaksi') {
+    jobs.push(
+      qc.prefetchInfiniteQuery(transactionsQuery({})),
+      qc.prefetchQuery(walletsQuery()),
+      qc.prefetchQuery(categoriesQuery),
+    );
+  } else if (path === '/anggaran') {
+    jobs.push(qc.prefetchQuery(budgetsQuery(month)));
+  }
+  return Promise.all(jobs);
 }
 
 /**

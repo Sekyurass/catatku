@@ -1,6 +1,7 @@
 import { House, ListOrdered, Loader2, LogOut, PiggyBank, Plus, UserRound } from 'lucide-react';
-import { Suspense, useEffect, useState } from 'react';
-import { NavLink, Outlet, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { Suspense, useEffect, useLayoutEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { Logo } from '../components/Logo';
 import {
@@ -13,7 +14,8 @@ import { Button } from '../components/ui/Button';
 import { PageSkeleton } from '../components/ui/States';
 import { useAuth } from '../lib/auth';
 import { cn } from '../lib/cn';
-import { preloadAppPages } from '../routes/pages';
+import { prefetchPageData } from '../lib/queries';
+import { preloadAppPages, whenIdle } from '../routes/pages';
 
 export const NAV_ITEMS = [
   { to: '/', label: 'Beranda', icon: House, end: true },
@@ -52,9 +54,35 @@ function useQuickAddDeepLink() {
  * md–lg (tablet / HP landscape): rail ikon 80px.
  * ≥ lg (desktop): sidebar penuh 240px. Konten maks 1100px.
  */
+/** Menu utama yang datanya diambil saat browser senggang. */
+const PREFETCH_PATHS = NAV_ITEMS.map((i) => i.to);
+
+function usePrefetchNav() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    preloadAppPages();
+    whenIdle(() => PREFETCH_PATHS.forEach((p) => void prefetchPageData(qc, p)));
+  }, [qc]);
+  return (path: string) => void prefetchPageData(qc, path);
+}
+
+/** Halaman baru masuk dengan pudar-geser singkat; pindah menu (bukan Kembali) mulai dari atas. */
+function RouteView() {
+  const { pathname } = useLocation();
+  const navType = useNavigationType();
+  useLayoutEffect(() => {
+    if (navType !== 'POP') window.scrollTo(0, 0);
+  }, [pathname, navType]);
+  return (
+    <div key={pathname} className="animate-page-in">
+      <Outlet />
+    </div>
+  );
+}
+
 function Shell() {
   const { openNew } = useQuickAdd();
-  useEffect(preloadAppPages, []);
+  const prefetch = usePrefetchNav();
   useQuickAddDeepLink();
   return (
     <div
@@ -92,7 +120,7 @@ function Shell() {
           </Button>
           <nav aria-label="Navigasi utama" className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => (
-              <SideLink key={item.to} item={item} />
+              <SideLink key={item.to} item={item} onIntent={prefetch} />
             ))}
           </nav>
           <SideBell />
@@ -109,7 +137,7 @@ function Shell() {
         )}
       >
         <Suspense fallback={<PageSkeleton />}>
-          <Outlet />
+          <RouteView />
         </Suspense>
       </main>
 
@@ -122,7 +150,7 @@ function Shell() {
       >
         <ul className="mx-auto grid max-w-lg grid-cols-5">
           {NAV_ITEMS.slice(0, 2).map((item) => (
-            <BottomLink key={item.to} item={item} />
+            <BottomLink key={item.to} item={item} onIntent={prefetch} />
           ))}
           <li className="flex items-start justify-center">
             <button
@@ -135,7 +163,7 @@ function Shell() {
             </button>
           </li>
           {NAV_ITEMS.slice(2).map((item) => (
-            <BottomLink key={item.to} item={item} />
+            <BottomLink key={item.to} item={item} onIntent={prefetch} />
           ))}
         </ul>
       </nav>
@@ -143,11 +171,20 @@ function Shell() {
   );
 }
 
-function SideLink({ item: { to, label, icon: Icon, end } }: { item: NavItem }) {
+type NavLinkProps = { item: NavItem; onIntent: (path: string) => void };
+
+/** Arahkan kursor, fokus, atau sentuh: data halaman tujuan mulai diambil sebelum diklik. */
+function intentHandlers(to: string, onIntent: (path: string) => void) {
+  const run = () => onIntent(to);
+  return { onPointerEnter: run, onFocus: run, onTouchStart: run };
+}
+
+function SideLink({ item: { to, label, icon: Icon, end }, onIntent }: NavLinkProps) {
   return (
     <NavLink
       to={to}
       end={end}
+      {...intentHandlers(to, onIntent)}
       className={({ isActive }) =>
         cn(
           'flex min-h-11 flex-col items-center justify-center gap-1 rounded-control px-1 py-2 text-[11px] font-medium',
@@ -202,7 +239,7 @@ function SideLogout() {
   );
 }
 
-function BottomLink({ item: { to, label, icon: Icon, end } }: { item: NavItem }) {
+function BottomLink({ item: { to, label, icon: Icon, end }, onIntent }: NavLinkProps) {
   const { user } = useAuth();
   const { unread } = useNotificationCenter();
   const photoUser = to === '/profil' && user?.avatarUpdatedAt ? user : null;
@@ -213,6 +250,7 @@ function BottomLink({ item: { to, label, icon: Icon, end } }: { item: NavItem })
       <NavLink
         to={to}
         end={end}
+        {...intentHandlers(to, onIntent)}
         className={({ isActive }) =>
           cn(
             'flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium',

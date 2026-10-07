@@ -58,9 +58,12 @@ const APP_PAGES = [
   AuthPage,
 ];
 
-/** Unduh chunk halaman aplikasi saat browser senggang supaya pindah menu tidak menunggu jaringan. */
-export function preloadAppPages() {
-  const run = () => APP_PAGES.forEach((p) => void p.preload().catch(() => undefined));
+export function whenIdle(run: () => void) {
   if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 3000 });
   else setTimeout(run, 1500);
+}
+
+/** Unduh chunk halaman aplikasi saat browser senggang supaya pindah menu tidak menunggu jaringan. */
+export function preloadAppPages() {
+  whenIdle(() => APP_PAGES.forEach((p) => void p.preload().catch(() => undefined)));
 }
