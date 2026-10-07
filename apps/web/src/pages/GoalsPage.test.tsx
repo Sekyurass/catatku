@@ -80,6 +80,7 @@ function setup({ enabled = true, goals = GOALS } = {}) {
       return json({ ...g, saved: g.saved + body.amount });
     }
     if (contrib) return json({ items: [] }, 200);
+    if (init?.method === 'DELETE') return new Response(null, { status: 204 });
     if (url.pathname.endsWith('/goals')) return json({ items: goals }, 200);
     return json({ error: { code: 'NOT_FOUND', message: 'x' } }, 404);
   });
@@ -231,6 +232,33 @@ describe('GoalsPage', () => {
     await userEvent.type(within(dialog).getByLabelText('Nominal'), '2600000');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Simpan setoran' }));
     expect(await screen.findByText('Selamat! Target Liburan tercapai')).toBeInTheDocument();
+  });
+
+  it('hapus target langsung dari detail, dengan info uang yang tersisa di dompet tabungan', async () => {
+    const fetchMock = setup();
+    await userEvent.click(await screen.findByRole('button', { name: 'Lihat target Liburan' }));
+    const detail = await screen.findByRole('dialog', { name: 'Liburan' });
+    await userEvent.click(within(detail).getByRole('button', { name: 'Hapus target' }));
+
+    const confirm = await screen.findByRole('dialog', { name: 'Hapus target "Liburan"?' });
+    expect(
+      within(confirm).getByText((t) =>
+        t.includes('Uang Rp 1.000.000 tetap ada di dompet Tabungan'),
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Hapus' }));
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([u, init]) => init?.method === 'DELETE' && String(u).endsWith('/goals/g1'),
+        ),
+      ).toBe(true),
+    );
+    expect(await screen.findByText('Target Liburan dihapus')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Liburan' })).not.toBeInTheDocument(),
+    );
   });
 
   it('flag mati: dialihkan ke halaman anggaran', async () => {

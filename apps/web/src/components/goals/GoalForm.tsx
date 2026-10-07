@@ -7,7 +7,6 @@ import {
   MAX_AMOUNT,
 } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -20,7 +19,7 @@ import { FormAlert } from '../../pages/auth/AuthLayout';
 import { IconBadge } from '../IconBadge';
 import { Button } from '../ui/Button';
 import { ChoiceGrid } from '../ui/ChoiceGrid';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { DeleteGoalButton } from './DeleteGoalButton';
 import { DatePicker } from '../ui/DatePicker';
 import { Field, Input } from '../ui/Field';
 import { RupiahInput } from '../ui/RupiahInput';
@@ -78,8 +77,6 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
   const invalidate = useInvalidateMoney();
   const wallets = useWallets();
   const [formError, setFormError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const {
     control,
@@ -155,21 +152,6 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
       setFormError(applyServerErrors(err, setError, FIELD_NAMES));
     }
   });
-
-  const onDelete = async () => {
-    if (!goal) return;
-    setDeleting(true);
-    try {
-      await api(`/goals/${goal.id}`, { method: 'DELETE' });
-      void invalidate();
-      toast({ message: `Target ${goal.name} dihapus`, tone: 'info' });
-      onDone();
-    } catch (err) {
-      setConfirming(false);
-      setDeleting(false);
-      setFormError(applyServerErrors(err, setError, []));
-    }
-  };
 
   const walletHint =
     goal?.walletId && goal.walletId !== walletId && goal.contributionCount > 0
@@ -279,30 +261,11 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
       />
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        {goal && (
-          <Button
-            variant="ghost"
-            className="text-expense-text"
-            onClick={() => setConfirming(true)}
-            icon={<Trash2 className="size-4" aria-hidden />}
-          >
-            Hapus
-          </Button>
-        )}
+        {goal && <DeleteGoalButton goal={goal} onDeleted={onDone} />}
         <Button type="submit" size="lg" loading={isSubmitting} className="min-w-32 flex-1">
           Simpan
         </Button>
       </div>
-
-      <ConfirmDialog
-        open={confirming}
-        onClose={() => setConfirming(false)}
-        onConfirm={onDelete}
-        loading={deleting}
-        title={`Hapus target "${goal?.name ?? ''}"?`}
-        description="Riwayat setorannya ikut terhapus. Transfer yang sudah tercatat tetap ada di Transaksi."
-        confirmLabel="Hapus"
-      />
     </form>
   );
 }

@@ -11,6 +11,7 @@ import { ArrowDownToLine, ArrowUpFromLine, Goal, Pencil, Plus, Trash2 } from 'lu
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { ContributionForm } from '../components/goals/ContributionForm';
+import { DeleteGoalButton } from '../components/goals/DeleteGoalButton';
 import { GoalForm } from '../components/goals/GoalForm';
 import { IconBadge } from '../components/IconBadge';
 import { PlanHeader } from '../components/plan/PlanHeader';
@@ -132,6 +133,7 @@ export function GoalsPage() {
             goal={current}
             onContribute={(type) => setView({ kind: 'contribute', id: current.id, type })}
             onEdit={() => setView({ kind: 'edit', id: current.id })}
+            onDeleted={close}
           />
         )}
       </Dialog>
@@ -277,10 +279,12 @@ function GoalDetail({
   goal,
   onContribute,
   onEdit,
+  onDeleted,
 }: {
   goal: GoalDTO;
   onContribute: (type: GoalContributionType) => void;
   onEdit: () => void;
+  onDeleted: () => void;
 }) {
   const p = progressOf(goal);
   return (
@@ -334,6 +338,12 @@ function GoalDetail({
       </div>
 
       <History goal={goal} />
+
+      <DeleteGoalButton
+        goal={goal}
+        onDeleted={onDeleted}
+        className="self-start text-expense-text"
+      />
     </div>
   );
 }
