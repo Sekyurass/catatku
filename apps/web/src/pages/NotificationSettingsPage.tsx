@@ -84,7 +84,12 @@ function SettingsContent() {
   const settings = useNotificationSettings();
   if (settings.isPending) {
     return (
-      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat pengaturan">
+      <div
+        className="flex flex-col gap-4"
+        role="status"
+        aria-busy="true"
+        aria-label="Memuat pengaturan"
+      >
         <Skeleton className="h-64" />
         <Skeleton className="h-40" />
       </div>

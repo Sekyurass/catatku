@@ -261,6 +261,24 @@ async function seedDemo() {
     })),
   });
 
+  const templates: Array<[string, string, string, number | null]> = [
+    ['Kopi susu', gopay.id, kopi.id, 25_000],
+    ['Gojek ke kantor', gopay.id, 'cat_transport', 15_000],
+    ['Makan siang', tunai.id, 'cat_makan', null],
+    ['Parkir', tunai.id, 'cat_transport', 5_000],
+  ];
+  await prisma.transactionTemplate.createMany({
+    data: templates.map(([name, walletId, categoryId, amount], sortOrder) => ({
+      userId: user.id,
+      type: 'EXPENSE' as const,
+      name,
+      walletId,
+      categoryId,
+      amount: amount === null ? null : BigInt(amount),
+      sortOrder,
+    })),
+  });
+
   return { email: DEMO_EMAIL, password: DEMO_PASSWORD, transactions: rows.length };
 }
 

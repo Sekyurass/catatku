@@ -25,6 +25,7 @@ import { Link } from 'react-router-dom';
 import { IconBadge } from '../components/IconBadge';
 import { BellButton } from '../components/notifications/NotificationCenter';
 import { PendingRecurringCard } from '../components/recurring/PendingRecurringCard';
+import { QuickRecordCard } from '../components/templates/QuickRecordCard';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { TransactionRow } from '../components/transactions/TransactionRow';
 import { AutoHeight } from '../components/ui/AutoHeight';
@@ -53,6 +54,7 @@ export function HomePage() {
   const summary = useSummary(month);
   const { openNew } = useQuickAdd();
   const recurringOn = useFeature('recurring_transactions');
+  const templatesOn = useFeature('templates');
 
   const noWallets = wallets.isSuccess && wallets.data.length === 0;
 
@@ -79,6 +81,7 @@ export function HomePage() {
       ) : (
         <>
           <SummaryCards summary={summary} />
+          {templatesOn && <QuickRecordCard />}
           {recurringOn && <PendingRecurringCard />}
           <TrendCard />
           <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
@@ -129,6 +132,7 @@ function SummaryCards({ summary }: { summary: ReturnType<typeof useSummary> }) {
     return (
       <div
         className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6"
+        role="status"
         aria-busy="true"
         aria-label="Memuat ringkasan"
       >
@@ -252,6 +256,7 @@ function CategoryCard({ month, className }: { month: string; className?: string 
             {report.isPending ? (
               <div
                 className="flex flex-col items-center gap-4"
+                role="status"
                 aria-busy="true"
                 aria-label="Memuat kategori"
               >
@@ -417,7 +422,12 @@ function RecentCard({
         }
       />
       {summary.isPending ? (
-        <div className="flex flex-col gap-3 p-2" aria-busy="true" aria-label="Memuat transaksi">
+        <div
+          className="flex flex-col gap-3 p-2"
+          role="status"
+          aria-busy="true"
+          aria-label="Memuat transaksi"
+        >
           {Array.from({ length: 3 }, (_, i) => (
             <Skeleton key={i} className="h-12" />
           ))}

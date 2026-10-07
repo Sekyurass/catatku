@@ -12,6 +12,7 @@ import {
   Tags,
   Trash2,
   WalletMinimal,
+  Zap,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -54,6 +55,13 @@ const RECURRING_LINK = {
   icon: Repeat,
 };
 
+const TEMPLATE_LINK = {
+  to: '/template',
+  label: 'Template cepat catat',
+  description: 'Transaksi yang sering dicatat, cukup satu tap',
+  icon: Zap,
+};
+
 const REMINDER_LINK = {
   to: '/pengingat',
   label: 'Pengingat & notifikasi',
@@ -71,6 +79,7 @@ export function ProfilePage() {
   const close = () => setDialog(null);
   const recurringOn = useFeature('recurring_transactions');
   const remindersOn = useFeature('reminders');
+  const templatesOn = useFeature('templates');
 
   return (
     <div className="flex flex-col gap-4">
@@ -106,6 +115,7 @@ export function ProfilePage() {
           {[
             ...LINKS,
             ...(recurringOn ? [RECURRING_LINK] : []),
+            ...(templatesOn ? [TEMPLATE_LINK] : []),
             ...(remindersOn ? [REMINDER_LINK] : []),
           ].map(({ to, label, description, icon: Icon }) => (
             <li key={to}>

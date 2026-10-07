@@ -12,7 +12,7 @@ export function Skeleton({ className }: { className?: string }) {
 /** Placeholder halaman selama chunk rute diunduh. */
 export function PageSkeleton() {
   return (
-    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat halaman">
+    <div className="flex flex-col gap-4" role="status" aria-busy="true" aria-label="Memuat halaman">
       <Skeleton className="h-8 w-40" />
       <Skeleton className="h-28" />
       <Skeleton className="h-16" />

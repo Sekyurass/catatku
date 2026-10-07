@@ -13,5 +13,6 @@ export * from './schemas/budget';
 export * from './schemas/report';
 export * from './schemas/event';
 export * from './schemas/recurring';
+export * from './schemas/template';
 export * from './schemas/notification';
 export * from './dto';

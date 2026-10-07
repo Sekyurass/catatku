@@ -39,6 +39,9 @@ export type AvatarMimeType = (typeof AVATAR_MIME_TYPES)[number];
 /** Foto struk dibaca di perangkat dan tidak pernah diunggah; batas ini menjaga memori HP. */
 export const RECEIPT_MAX_BYTES = 15 * 1024 * 1024;
 
+/** Template "Cepat catat" per pengguna; chip lebih dari ini tidak lagi cepat dipindai mata. */
+export const MAX_TEMPLATES = 20;
+
 /** Kunci feature flag untuk fase berikutnya. Semua nonaktif di Fase 0. */
 export const FEATURE_FLAGS = {
   RECURRING_TRANSACTIONS: 'recurring_transactions',

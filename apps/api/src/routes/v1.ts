@@ -11,6 +11,7 @@ import { createFeaturesRouter } from '../modules/features/features.routes';
 import { createNotificationsRouter } from '../modules/notifications/notification.routes';
 import { createRecurringRouter } from '../modules/recurring/recurring.routes';
 import { createReportsRouter } from '../modules/reports/report.routes';
+import { createTemplatesRouter } from '../modules/templates/template.routes';
 import { createTransactionsRouter } from '../modules/transactions/transaction.routes';
 import { createWalletsRouter } from '../modules/wallets/wallet.routes';
 
@@ -35,5 +36,6 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/events', createEventsRouter());
   router.use('/recurring', createRecurringRouter());
   router.use('/notifications', createNotificationsRouter());
+  router.use('/templates', createTemplatesRouter());
   return router;
 }

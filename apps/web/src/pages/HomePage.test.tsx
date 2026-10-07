@@ -7,6 +7,7 @@ import {
   type PendingOccurrenceDTO,
   type SummaryDTO,
   type TransactionDTO,
+  type TransactionTemplateDTO,
   type TrendDTO,
   type WalletDTO,
 } from '@catatku/shared';
@@ -156,6 +157,42 @@ const NOTIFICATIONS: NotificationDTO[] = [
   },
 ];
 
+const TEMPLATES: TransactionTemplateDTO[] = [
+  {
+    id: 'tpl1',
+    name: 'Kopi susu',
+    type: 'EXPENSE',
+    amount: 25_000,
+    walletId: 'w1',
+    wallet: { id: 'w1', name: 'Tunai', color: '#0F766E' },
+    categoryId: 'cat_makan',
+    category: { id: 'cat_makan', name: 'Makan', icon: 'utensils', color: '#EA580C' },
+    usable: true,
+  },
+  {
+    id: 'tpl2',
+    name: 'Makan siang',
+    type: 'EXPENSE',
+    amount: null,
+    walletId: 'w1',
+    wallet: { id: 'w1', name: 'Tunai', color: '#0F766E' },
+    categoryId: 'cat_makan',
+    category: { id: 'cat_makan', name: 'Makan', icon: 'utensils', color: '#EA580C' },
+    usable: true,
+  },
+  {
+    id: 'tpl3',
+    name: 'Dompet lama',
+    type: 'EXPENSE',
+    amount: 10_000,
+    walletId: 'w9',
+    wallet: { id: 'w9', name: 'Arsip', color: '#000000' },
+    categoryId: 'cat_makan',
+    category: { id: 'cat_makan', name: 'Makan', icon: 'utensils', color: '#EA580C' },
+    usable: false,
+  },
+];
+
 function LocationProbe() {
   const location = useLocation();
   return <output data-testid="location">{location.pathname + location.search}</output>;
@@ -166,16 +203,22 @@ function setup({
   recurring = false,
   reminders = false,
   pending = [PENDING],
+  templates = false,
 }: {
   wallets?: WalletDTO[];
   recurring?: boolean;
   reminders?: boolean;
   pending?: PendingOccurrenceDTO[];
+  templates?: boolean;
 } = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     if (url.pathname.endsWith('/features'))
-      return json({ flags: { recurring_transactions: recurring, reminders } });
+      return json({ flags: { recurring_transactions: recurring, reminders, templates } });
+    if (url.pathname.endsWith('/templates')) return json({ items: TEMPLATES });
+    if (init?.method === 'POST' && url.pathname.endsWith('/use')) return json({ id: 't7' });
+    if (init?.method === 'DELETE' && url.pathname.includes('/transactions/'))
+      return new Response(null, { status: 204 });
     if (url.pathname.endsWith('/notifications/unread-count')) return json({ count: 1 });
     if (url.pathname.endsWith('/notifications'))
       return json({ items: NOTIFICATIONS, nextCursor: null, unreadCount: 1 });
@@ -341,6 +384,51 @@ describe('HomePage (dashboard)', () => {
         fetchMock.mock.calls.some(([u]) => String(u).includes('/notifications/read-all')),
       ).toBe(true),
     );
+  });
+
+  it('tidak menampilkan cepat catat bila fitur template mati', async () => {
+    const { fetchMock } = setup();
+    await screen.findByRole('region', { name: 'Ringkasan bulan ini' });
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/features'))).toBe(true),
+    );
+    expect(screen.queryByRole('group', { name: 'Cepat catat' })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/templates'))).toBe(false);
+  });
+
+  it('satu tap template mencatat hari ini dan bisa diurungkan', async () => {
+    const { fetchMock } = setup({ templates: true });
+    const chips = within(await screen.findByRole('group', { name: 'Cepat catat' }));
+    expect(chips.queryByRole('button', { name: /Dompet lama/ })).not.toBeInTheDocument();
+
+    await userEvent.click(chips.getByRole('button', { name: /Kopi susu/ }));
+    expect(
+      await screen.findByText(`Kopi susu ${formatRupiah(25_000)} tercatat`),
+    ).toBeInTheDocument();
+    const [, init] = fetchMock.mock.calls.find(([u]) => String(u).includes('/templates/tpl1/use'))!;
+    expect(JSON.parse(String(init!.body))).toEqual({
+      date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
+    expect((init!.headers as Record<string, string>)['Idempotency-Key']).toMatch(/^[\w-]{8,}$/);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Urungkan' }));
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([u, i]) => String(u).includes('/transactions/t7') && i?.method === 'DELETE',
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it('template tanpa nominal membuka form yang sudah terisi', async () => {
+    const { fetchMock } = setup({ templates: true });
+    const chips = within(await screen.findByRole('group', { name: 'Cepat catat' }));
+    await userEvent.click(chips.getByRole('button', { name: /Makan siang/ }));
+
+    const dialog = within(await screen.findByRole('dialog', { name: 'Catat transaksi' }));
+    expect(await dialog.findByLabelText('Catatan (opsional)')).toHaveValue('Makan siang');
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/use'))).toBe(false);
   });
 
   it('melewati kejadian berulang', async () => {

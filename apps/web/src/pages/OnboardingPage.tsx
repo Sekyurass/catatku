@@ -178,7 +178,12 @@ function WalletStep({ onNext }: { onNext: () => void }) {
 
   if (wallets.isPending) {
     return (
-      <div className="flex flex-col gap-3" aria-busy="true" aria-label="Memuat dompet">
+      <div
+        className="flex flex-col gap-3"
+        role="status"
+        aria-busy="true"
+        aria-label="Memuat dompet"
+      >
         <Skeleton className="h-11" />
         <Skeleton className="h-11" />
         <Skeleton className="h-11" />
@@ -318,7 +323,7 @@ function FirstTransactionStep({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted">Coba catat pengeluaran terakhirmu, misalnya makan siang tadi.</p>
-      <TransactionFormPanel onDone={onDone} initialKind="EXPENSE" />
+      <TransactionFormPanel onDone={onDone} initialKind="EXPENSE" withTemplates={false} />
       <Button variant="ghost" onClick={onLater}>
         Nanti saja
       </Button>

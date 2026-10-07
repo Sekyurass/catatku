@@ -54,7 +54,12 @@ export function WalletsPage() {
       </header>
 
       {wallets.isPending ? (
-        <div className="flex flex-col gap-3" aria-busy="true" aria-label="Memuat dompet">
+        <div
+          className="flex flex-col gap-3"
+          role="status"
+          aria-busy="true"
+          aria-label="Memuat dompet"
+        >
           <Skeleton className="h-24" />
           <Skeleton className="h-16" />
           <Skeleton className="h-16" />

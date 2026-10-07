@@ -119,7 +119,12 @@ function RecurringFormPanel({
 
   if (wallets.isPending || categories.isPending) {
     return (
-      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat formulir">
+      <div
+        className="flex flex-col gap-4"
+        role="status"
+        aria-busy="true"
+        aria-label="Memuat formulir"
+      >
         <Skeleton className="h-12" />
         <Skeleton className="h-14" />
         <Skeleton className="h-32" />

@@ -1,10 +1,12 @@
-import type { TransactionDTO } from '@catatku/shared';
+import type { TransactionDTO, TransactionTemplateDTO } from '@catatku/shared';
 import { createContext, type ReactNode, useContext, useMemo, useState } from 'react';
 import { type TransactionKind, TransactionSheet } from './TransactionSheet';
 
 interface QuickAddApi {
   openNew: (kind?: TransactionKind) => void;
   openEdit: (tx: TransactionDTO) => void;
+  /** Form baru yang sudah terisi dari template (mis. template tanpa nominal). */
+  openFromTemplate: (template: TransactionTemplateDTO) => void;
 }
 
 const QuickAddContext = createContext<QuickAddApi | null>(null);
@@ -15,12 +17,14 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
     open: boolean;
     editing?: TransactionDTO;
     kind?: TransactionKind;
+    template?: TransactionTemplateDTO;
   }>({ open: false });
 
   const value = useMemo<QuickAddApi>(
     () => ({
       openNew: (kind) => setState({ open: true, kind }),
       openEdit: (editing) => setState({ open: true, editing }),
+      openFromTemplate: (template) => setState({ open: true, template }),
     }),
     [],
   );
@@ -32,6 +36,7 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
         open={state.open}
         editing={state.editing}
         initialKind={state.kind}
+        template={state.template}
         onClose={() => setState((s) => ({ ...s, open: false }))}
       />
     </QuickAddContext.Provider>

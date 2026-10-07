@@ -60,6 +60,7 @@ export function RecurringPage() {
       ) : rules.isPending ? (
         <div
           className="flex flex-col gap-3"
+          role="status"
           aria-busy="true"
           aria-label="Memuat transaksi berulang"
         >

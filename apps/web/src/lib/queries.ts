@@ -8,6 +8,7 @@ import type {
   RecurringRuleDTO,
   SummaryDTO,
   TransactionPage,
+  TransactionTemplateDTO,
   TrendDTO,
   WalletDTO,
 } from '@catatku/shared';
@@ -34,7 +35,17 @@ export const queryKeys = {
   budgets: (month: string) => ['budgets', month] as const,
   recurring: ['recurring', 'rules'] as const,
   recurringPending: ['recurring', 'pending'] as const,
+  templates: ['templates'] as const,
 };
+
+export function useTemplates(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.templates,
+    queryFn: ({ signal }) =>
+      api<{ items: TransactionTemplateDTO[] }>('/templates', { signal }).then((r) => r.items),
+    enabled,
+  });
+}
 
 export function useRecurringRules(enabled = true) {
   return useQuery({
@@ -123,10 +134,13 @@ export function useTransactions(filters: TransactionFilters) {
   });
 }
 
-/** Semua data yang ikut berubah saat uang bergerak: saldo, riwayat, laporan, anggaran, berulang. */
+/**
+ * Semua data yang ikut berubah saat uang bergerak: saldo, riwayat, laporan, anggaran, berulang,
+ * dan template (status dompet/kategori diarsipkan).
+ */
 export function invalidateMoney(qc: QueryClient) {
   return Promise.all(
-    ['wallets', 'transactions', 'reports', 'budgets', 'recurring'].map((key) =>
+    ['wallets', 'transactions', 'reports', 'budgets', 'recurring', 'templates'].map((key) =>
       qc.invalidateQueries({ queryKey: [key] }),
     ),
   );

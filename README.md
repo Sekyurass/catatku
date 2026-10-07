@@ -60,7 +60,8 @@ npm run dev                              # API :4000 + web :5173
 
 Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12345**
 (sudah berisi 3 dompet, transaksi 6 bulan, transfer, anggaran berlanjut, dan 4 transaksi berulang:
-gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini).
+gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini; plus 4 template cepat catat:
+kopi susu, Gojek ke kantor, parkir, dan makan siang tanpa nominal).
 
 Fitur Fase 1 dan pindai struk (Fase 3.1) berada di balik feature flag yang **nonaktif** setelah seed.
 Untuk menyalakannya:
@@ -68,10 +69,10 @@ Untuk menyalakannya:
 ```sql
 -- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
 UPDATE "FeatureFlag" SET enabled = true
-WHERE key IN ('recurring_transactions', 'reminders', 'receipt_ocr');
+WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'receipt_ocr');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,receipt_ocr:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,receipt_ocr:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan. Akun baru dari halaman **Daftar**
 langsung diarahkan ke onboarding 3 langkah di `/mulai`: sambutan → dompet pertama → transaksi pertama
 (bisa dilewati kapan saja).
@@ -186,6 +187,18 @@ Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Sup
     resmi (Google, Mozilla, Apple, Microsoft; HTTPS) untuk mencegah SSRF; maks. 10 perangkat per akun;
     langganan yang ditolak layanan (404/410) dihapus otomatis; logout melepas langganan perangkat itu.
   - Keterbatasan: di iPhone/iPad push hanya jalan bila Catatku dipasang ke Layar Utama (iOS 16.4+).
+- **Template / cepat catat** (Fase 1.3, flag `templates`): tabel `TransactionTemplate` (nama, jenis,
+  nominal opsional, kategori, dompet, `sortOrder`), maks. 20 per pengguna.
+  - **Beranda**: kartu **Cepat catat** berisi chip template. Template bernominal langsung dicatat hari ini
+    lewat `POST /templates/:id/use` dengan `Idempotency-Key` (tap ganda tidak mencatat dobel) dan toast
+    **Urungkan**; template tanpa nominal membuka form yang sudah terisi supaya nominal diisi dulu.
+  - **Form catat**: chip **Isi dari template** hanya mengisi form (nominal tetap bisa diubah sebelum Simpan),
+    dan centang **Simpan juga sebagai template** membuat template dari transaksi yang baru disimpan
+    (nama = catatan, atau nama kategori bila catatan kosong). Tidak menambah langkah pada alur catat biasa.
+  - **Halaman `/template`** (dari Profil): tambah, ubah, hapus, dan urutkan dengan tombol naik/turun.
+    Transaksi hasil template berdiri sendiri: mengubah/menghapus template tidak mengubah riwayat.
+  - Dompet/kategori yang diarsipkan membuat template `usable: false`: disembunyikan dari chip dan ditandai
+    di halaman Template sampai diganti ke yang aktif.
 - **Pindai struk** (Fase 3.1, flag `receipt_ocr`): tombol **Pindai struk** di form pengeluaran baru. OCR
   berjalan **di perangkat** dengan Tesseract.js (WebAssembly), jadi foto tidak pernah dikirim ke server
   atau pihak ketiga. Hasilnya hanya **mengisi** form (nominal, tanggal, catatan = nama toko); pengguna
@@ -267,6 +280,12 @@ interval?: 1–99, startDate, endDate?: string|null, autoPost?: boolean }`; `PAT
     (0 = Minggu; minimal satu hari bila aktif); respons juga berisi `push: { available, publicKey }`
   - `POST /notifications/push-subscriptions` (body = `PushSubscription.toJSON()`) → 204,
     `DELETE /notifications/push-subscriptions` `{ endpoint }` → 204, `POST /notifications/push-test` → `{ sent }`
+- ✅ `templates`: `GET/POST /templates`, `PATCH/DELETE /templates/:id`
+  - Body: `{ name: 1–40 karakter, type: INCOME|EXPENSE, amount: number|null, walletId, categoryId }`;
+    template ke-21 → 409
+  - `PUT /templates/order` `{ ids }` (harus berisi semua template milik pengguna, tanpa duplikat) → `{ items }`
+  - `POST /templates/:id/use` `{ date, amount? }` → transaksi (201, catatan = nama template); mendukung
+    `Idempotency-Key`; template tanpa nominal wajib `amount`; dompet/kategori diarsipkan → 400
 
 ## Event analitik & gerbang fase
 
@@ -280,6 +299,8 @@ interval?: 1–99, startDate, endDate?: string|null, autoPost?: boolean }`; `PAT
 | `password_reset_requested`, `password_reset` | API auth               | –                                |
 | `recurring_rule_created`                     | API                    | `frequency`, `autoPost`          |
 | `reminder_sent`, `push_subscribed`           | API                    | –                                |
+| `template_created`                           | API                    | `type`, `fixedAmount`            |
+| `template_used`                              | API                    | `type`, `amountChanged`          |
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                     |
 | `receipt_scanned`                            | Klien (`POST /events`) | `fields` (0–3 kolom terbaca)     |
 

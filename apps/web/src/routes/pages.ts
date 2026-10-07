@@ -33,6 +33,9 @@ export const CategoriesPage = page(() =>
 export const RecurringPage = page(() =>
   import('../pages/RecurringPage').then((m) => m.RecurringPage),
 );
+export const TemplatesPage = page(() =>
+  import('../pages/TemplatesPage').then((m) => m.TemplatesPage),
+);
 export const NotificationSettingsPage = page(() =>
   import('../pages/NotificationSettingsPage').then((m) => m.NotificationSettingsPage),
 );
@@ -46,6 +49,7 @@ const APP_PAGES = [
   WalletsPage,
   CategoriesPage,
   RecurringPage,
+  TemplatesPage,
   NotificationSettingsPage,
   ProfilePage,
   // Sesi bisa berakhir kapan saja (kedaluwarsa); halaman masuk sudah siap tanpa layar memuat.

@@ -66,7 +66,12 @@ export function CategoriesPage() {
       <Segmented label="Jenis kategori" value={type} onChange={setType} options={TYPE_OPTIONS} />
 
       {categories.isPending ? (
-        <div className="flex flex-col gap-2" aria-busy="true" aria-label="Memuat kategori">
+        <div
+          className="flex flex-col gap-2"
+          role="status"
+          aria-busy="true"
+          aria-label="Memuat kategori"
+        >
           {Array.from({ length: 5 }, (_, i) => (
             <Skeleton key={i} className="h-14" />
           ))}

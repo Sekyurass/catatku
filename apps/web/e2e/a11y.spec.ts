@@ -54,7 +54,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     });
 
     test('halaman aplikasi lolos axe (WCAG 2.1 AA)', async ({ page, browser }) => {
-      test.slow();
+      // Belasan halaman + OCR sungguhan, tiap query ke DB jarak jauh ±600 ms.
+      test.setTimeout(360_000);
       await auditAppPages(page, browser);
     });
   });
@@ -103,6 +104,11 @@ async function auditAppPages(page: Page, browser: Browser) {
       note: 'Internet',
     });
   }
+  if (flags.templates) {
+    const tpl = { type: 'EXPENSE', walletId: wallet.id, categoryId: 'cat_makan' };
+    await post('/templates', { ...tpl, name: 'Kopi susu', amount: 25_000 });
+    await post('/templates', { ...tpl, name: 'Makan siang', amount: null });
+  }
 
   for (const path of [
     '/',
@@ -111,6 +117,7 @@ async function auditAppPages(page: Page, browser: Browser) {
     '/dompet',
     '/kategori',
     '/berulang',
+    '/template',
     '/pengingat',
     '/profil',
     '/mulai',
@@ -132,6 +139,18 @@ async function auditAppPages(page: Page, browser: Browser) {
     await expect(page.getByRole('dialog', { name: 'Transaksi berulang baru' })).toBeVisible();
     await waitForApp(page);
     await test.step('/berulang (form)', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+  }
+
+  if (flags.templates) {
+    await page.goto('/template');
+    await waitForApp(page);
+    await page.getByRole('button', { name: /^Kopi susu/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Ubah template' })).toBeVisible();
+    await waitForApp(page);
+    await test.step('/template (form)', async () => {
       await expectNoViolations(page);
       await expectTouchTargets(page);
     });

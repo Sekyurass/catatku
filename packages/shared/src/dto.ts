@@ -95,6 +95,20 @@ export interface RecurringRuleDTO {
   createdAt: string;
 }
 
+export interface TransactionTemplateDTO {
+  id: string;
+  name: string;
+  type: 'INCOME' | 'EXPENSE';
+  /** Selalu positif; null = nominal diisi setiap kali dipakai. */
+  amount: number | null;
+  walletId: string;
+  wallet: Ref;
+  categoryId: string;
+  category: CategoryRef;
+  /** false bila dompet atau kategorinya sudah diarsipkan; chip disembunyikan sampai diperbaiki. */
+  usable: boolean;
+}
+
 /** Kejadian aturan "minta konfirmasi dulu" yang sudah jatuh tempo. */
 export interface NotificationDTO {
   id: string;

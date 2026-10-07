@@ -60,18 +60,19 @@ model User {
   /// null = belum ada foto profil. Juga dipakai klien sebagai versi cache foto.
   avatarUpdatedAt DateTime?
 
-  avatar          UserAvatar?
-  wallets         Wallet[]
-  categories      Category[]
-  transactions    Transaction[]
-  budgets         Budget[]
-  refreshTokens   RefreshToken[]
-  resetTokens     PasswordResetToken[]
-  idempotencyKeys IdempotencyKey[]
-  events          AnalyticsEvent[]
-  recurringRules  RecurringRule[]
-  occurrences     RecurringOccurrence[]
-  notifications   Notification[]
+  avatar              UserAvatar?
+  wallets             Wallet[]
+  categories          Category[]
+  transactions        Transaction[]
+  budgets             Budget[]
+  refreshTokens       RefreshToken[]
+  resetTokens         PasswordResetToken[]
+  idempotencyKeys     IdempotencyKey[]
+  events              AnalyticsEvent[]
+  recurringRules      RecurringRule[]
+  occurrences         RecurringOccurrence[]
+  templates           TransactionTemplate[]
+  notifications       Notification[]
   notificationSetting NotificationSetting?
   pushSubscriptions   PushSubscription[]
 }
@@ -127,9 +128,10 @@ model Wallet {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions   Transaction[]
   recurringRules RecurringRule[]
+  templates      TransactionTemplate[]
 
   @@index([userId])
 }
@@ -146,10 +148,11 @@ model Category {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
-  user           User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions   Transaction[]
   budgets        Budget[]
   recurringRules RecurringRule[]
+  templates      TransactionTemplate[]
 
   @@index([userId])
 }
@@ -215,6 +218,27 @@ model RecurringRule {
 
   @@index([userId])
   @@index([nextRunAt])
+}
+
+/// Fase 1.3. Chip "Cepat catat"; `name` juga menjadi catatan transaksi yang dibuat darinya.
+model TransactionTemplate {
+  id         String          @id @default(cuid())
+  userId     String
+  walletId   String
+  categoryId String
+  type       TransactionType
+  name       String
+  /// Rupiah utuh, selalu positif. null = nominal diisi setiap kali dipakai.
+  amount     BigInt?
+  sortOrder  Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet   Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sortOrder])
 }
 
 /// Satu baris per (aturan, tanggal): kunci idempotensi scheduler sekaligus antrean konfirmasi.

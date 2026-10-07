@@ -11,6 +11,8 @@ export type EventName =
   | 'wallet_created'
   | 'transaction_created'
   | 'recurring_rule_created'
+  | 'template_created'
+  | 'template_used'
   | 'reminder_sent'
   | 'push_subscribed'
   | 'budget_saved'

@@ -57,7 +57,12 @@ export function BudgetsPage() {
       </header>
 
       {budgets.isPending ? (
-        <div className="flex flex-col gap-3" aria-busy="true" aria-label="Memuat anggaran">
+        <div
+          className="flex flex-col gap-3"
+          role="status"
+          aria-busy="true"
+          aria-label="Memuat anggaran"
+        >
           <Skeleton className="h-32" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />

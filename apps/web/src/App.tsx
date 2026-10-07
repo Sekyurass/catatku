@@ -14,6 +14,7 @@ import {
   OnboardingPage,
   ProfilePage,
   RecurringPage,
+  TemplatesPage,
   ResetPasswordPage,
   TransactionsPage,
   WalletsPage,
@@ -69,6 +70,7 @@ export function App() {
           <Route path="dompet" element={<WalletsPage />} />
           <Route path="kategori" element={<CategoriesPage />} />
           <Route path="berulang" element={<RecurringPage />} />
+          <Route path="template" element={<TemplatesPage />} />
           <Route path="pengingat" element={<NotificationSettingsPage />} />
           <Route path="profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFoundPage />} />

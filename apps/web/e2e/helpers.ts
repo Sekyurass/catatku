@@ -43,7 +43,7 @@ export async function waitForApp(page: Page) {
   await expect(page.getByRole('status', { name: 'Memuat Catatku' })).toHaveCount(0, {
     timeout: 30_000,
   });
-  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 20_000 });
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');

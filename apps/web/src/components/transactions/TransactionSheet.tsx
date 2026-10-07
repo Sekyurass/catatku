@@ -4,11 +4,13 @@ import {
   FEATURE_FLAGS,
   formatRupiah,
   MAX_AMOUNT,
+  MAX_TEMPLATES,
   type TransactionDTO,
+  type TransactionTemplateDTO,
   type WalletDTO,
 } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, WalletMinimal } from 'lucide-react';
+import { Check, Trash2, WalletMinimal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
@@ -25,8 +27,10 @@ import {
   pickDefaultWallet,
   useCategories,
   useInvalidateMoney,
+  useTemplates,
   useWallets,
 } from '../../lib/queries';
+import { TemplateChips } from '../templates/TemplateChips';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { DatePicker } from '../ui/DatePicker';
@@ -94,15 +98,22 @@ export function TransactionSheet({
   onClose,
   editing,
   initialKind,
+  template,
 }: {
   open: boolean;
   onClose: () => void;
   editing?: TransactionDTO;
   initialKind?: TransactionKind;
+  template?: TransactionTemplateDTO;
 }) {
   return (
     <Dialog open={open} onClose={onClose} title={editing ? 'Ubah transaksi' : 'Catat transaksi'}>
-      <TransactionFormPanel onDone={onClose} editing={editing} initialKind={initialKind} />
+      <TransactionFormPanel
+        onDone={onClose}
+        editing={editing}
+        initialKind={initialKind}
+        template={template}
+      />
     </Dialog>
   );
 }
@@ -112,17 +123,27 @@ export function TransactionFormPanel({
   onDone,
   editing,
   initialKind,
+  template,
+  withTemplates = true,
 }: {
   onDone: () => void;
   editing?: TransactionDTO;
   initialKind?: TransactionKind;
+  template?: TransactionTemplateDTO;
+  /** Chip template dan opsi "simpan sebagai template"; dimatikan di onboarding agar tetap ringkas. */
+  withTemplates?: boolean;
 }) {
   const wallets = useWallets();
   const categories = useCategories();
 
   if (wallets.isPending || categories.isPending) {
     return (
-      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat formulir">
+      <div
+        className="flex flex-col gap-4"
+        role="status"
+        aria-busy="true"
+        aria-label="Memuat formulir"
+      >
         <Skeleton className="h-12" />
         <Skeleton className="h-14" />
         <Skeleton className="h-32" />
@@ -163,6 +184,8 @@ export function TransactionFormPanel({
       categories={categories.data}
       editing={editing}
       initialKind={initialKind}
+      template={template}
+      withTemplates={withTemplates}
       onDone={onDone}
     />
   );
@@ -172,7 +195,20 @@ function defaultValues(
   wallets: WalletDTO[],
   editing?: TransactionDTO,
   initialKind: TransactionKind = 'EXPENSE',
+  template?: TransactionTemplateDTO,
 ): FormValues {
+  if (template) {
+    const walletActive = wallets.some((w) => w.id === template.walletId && !w.archivedAt);
+    return {
+      kind: template.type,
+      amount: template.amount,
+      walletId: walletActive ? template.walletId : (pickDefaultWallet(wallets)?.id ?? ''),
+      toWalletId: '',
+      categoryId: template.categoryId,
+      date: today(),
+      note: template.name,
+    };
+  }
   if (!editing) {
     return {
       kind: initialKind,
@@ -202,12 +238,16 @@ function TransactionForm({
   categories,
   editing,
   initialKind,
+  template,
+  withTemplates,
   onDone,
 }: {
   wallets: WalletDTO[];
   categories: CategoryDTO[];
   editing?: TransactionDTO;
   initialKind?: TransactionKind;
+  template?: TransactionTemplateDTO;
+  withTemplates: boolean;
   onDone: () => void;
 }) {
   const toast = useToast();
@@ -218,6 +258,9 @@ function TransactionForm({
   const [deleting, setDeleting] = useState(false);
   const ocrOn = useFeature(FEATURE_FLAGS.RECEIPT_OCR);
   const [scanned, setScanned] = useState<ScannedValues>({});
+  const templatesOn = useFeature(FEATURE_FLAGS.TEMPLATES) && withTemplates && !editing;
+  const templates = useTemplates(templatesOn);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
 
   const {
     control,
@@ -231,7 +274,7 @@ function TransactionForm({
     formState: { errors, isSubmitting, dirtyFields },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: defaultValues(wallets, editing, initialKind),
+    defaultValues: defaultValues(wallets, editing, initialKind, template),
   });
 
   // Form baru muncul setelah dompet & kategori termuat, jadi fokus awal dialog belum mengenai nominal.
@@ -267,6 +310,42 @@ function TransactionForm({
   const scanHint = (field: ReceiptField<unknown> | undefined, value: unknown) => {
     if (!field || field.value !== value) return undefined;
     return field.confidence === 'low' ? 'Dari struk, kurang yakin. Cek lagi.' : 'Dari struk';
+  };
+
+  // Mengisi form, bukan langsung menyimpan: di sini pengguna masih bisa mengubah nominal.
+  const applyTemplate = (t: TransactionTemplateDTO) => {
+    const opts = { shouldDirty: true, shouldValidate: true };
+    if (t.amount !== null) setValue('amount', t.amount, opts);
+    setValue('categoryId', t.categoryId, opts);
+    if (wallets.some((w) => w.id === t.walletId && !w.archivedAt)) {
+      setValue('walletId', t.walletId, opts);
+    }
+    setValue('note', t.name, opts);
+    setSaveAsTemplate(false);
+    setFocus('amount');
+  };
+  const templateItems = templates.data ?? [];
+  const kindTemplates = templateItems.filter((t) => t.usable && t.type === kind);
+  const canSaveTemplate =
+    templatesOn && templates.isSuccess && templateItems.length < MAX_TEMPLATES;
+
+  const createTemplateFrom = async (v: FormValues) => {
+    const categoryName = categories.find((c) => c.id === v.categoryId)?.name ?? 'Template';
+    try {
+      await api('/templates', {
+        method: 'POST',
+        body: {
+          name: (v.note.trim() || categoryName).slice(0, 40),
+          type: v.kind,
+          amount: v.amount,
+          walletId: v.walletId,
+          categoryId: v.categoryId,
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const onSubmit = handleSubmit(async (v) => {
@@ -322,8 +401,22 @@ function TransactionForm({
           },
         });
       }
+      const templateSaved =
+        saveAsTemplate && canSaveTemplate && v.kind !== 'TRANSFER'
+          ? await createTemplateFrom(v)
+          : null;
       void invalidate();
-      toast({ message: editing ? 'Perubahan tersimpan' : 'Transaksi tersimpan' });
+      if (templateSaved === false) {
+        toast({ message: 'Transaksi tersimpan, tapi template gagal dibuat.', tone: 'warning' });
+      } else {
+        toast({
+          message: editing
+            ? 'Perubahan tersimpan'
+            : templateSaved
+              ? 'Transaksi & template tersimpan'
+              : 'Transaksi tersimpan',
+        });
+      }
       if (!editing && v.kind === 'EXPENSE') void warnBudget(v.categoryId, v.date);
       onDone();
     } catch (err) {
@@ -414,6 +507,10 @@ function TransactionForm({
           setValue('categoryId', '', { shouldDirty: true });
         }}
       />
+
+      {templatesOn && !isTransfer && kindTemplates.length > 0 && (
+        <TemplateChips templates={kindTemplates} onPick={applyTemplate} label="Isi dari template" />
+      )}
 
       {ocrOn && !editing && kind === 'EXPENSE' && (
         <ReceiptScanner today={today()} onScanned={applyScan} onCleared={() => setScanned({})} />
@@ -521,6 +618,32 @@ function TransactionForm({
           />
         )}
       </Field>
+
+      {canSaveTemplate && !isTransfer && (
+        <label
+          className={cn(
+            'group flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-1 text-sm',
+            'has-focus-visible:outline-2 has-focus-visible:outline-primary',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={saveAsTemplate}
+            onChange={(e) => setSaveAsTemplate(e.target.checked)}
+            className="sr-only"
+          />
+          <span
+            aria-hidden
+            className="flex size-5 shrink-0 items-center justify-center rounded-md border-2 border-line text-on-primary transition-colors group-has-checked:border-primary group-has-checked:bg-primary"
+          >
+            <Check className="size-3.5 opacity-0 group-has-checked:opacity-100" strokeWidth={3} />
+          </span>
+          <span>
+            <span className="block font-medium">Simpan juga sebagai template</span>
+            <span className="block text-muted">Lain kali cukup satu tap dari Beranda.</span>
+          </span>
+        </label>
+      )}
 
       <div className="flex items-center gap-2 pt-1">
         {editing && (
