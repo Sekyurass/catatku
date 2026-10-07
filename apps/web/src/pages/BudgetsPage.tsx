@@ -127,7 +127,7 @@ export function BudgetsPage() {
                             : 'Belum ada pengeluaran'}
                         </span>
                       </span>
-                      <span className="shrink-0 rounded-full bg-primary-soft px-3 py-1 text-sm font-semibold text-primary">
+                      <span className="shrink-0 rounded-full bg-primary-soft px-4 py-2 text-sm font-semibold text-primary">
                         Atur
                       </span>
                     </button>
@@ -167,7 +167,7 @@ function MonthSwitcher({ month, onChange }: { month: string; onChange: (m: strin
         type="button"
         onClick={() => onChange(currentMonth())}
         disabled={isCurrent}
-        className="min-h-11 min-w-36 rounded-control px-2 text-sm font-semibold enabled:hover:bg-surface-muted"
+        className="min-h-11 min-w-36 rounded-control px-3 text-sm font-semibold enabled:hover:bg-surface-muted"
         title={isCurrent ? undefined : 'Kembali ke bulan ini'}
         aria-live="polite"
       >

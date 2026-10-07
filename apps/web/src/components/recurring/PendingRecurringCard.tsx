@@ -50,7 +50,7 @@ export function PendingRecurringCard() {
         action={
           <Link
             to="/berulang"
-            className="inline-flex min-h-11 items-center gap-1 rounded-control px-2 text-sm font-semibold text-primary hover:bg-primary-soft"
+            className="inline-flex min-h-11 items-center gap-1 rounded-control px-3 text-sm font-semibold text-primary hover:bg-primary-soft"
           >
             Atur
             <ChevronRight className="size-4" aria-hidden />

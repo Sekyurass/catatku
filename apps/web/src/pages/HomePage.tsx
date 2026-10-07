@@ -46,7 +46,7 @@ const CategoryDonut = lazy(() => import('../components/charts/CategoryDonut'));
 const TrendChart = lazy(() => import('../components/charts/TrendChart'));
 
 const linkClass =
-  'inline-flex min-h-11 items-center gap-1 rounded-control px-2 text-sm font-semibold text-primary hover:bg-primary-soft';
+  'inline-flex min-h-11 items-center gap-1 rounded-control px-3 text-sm font-semibold text-primary hover:bg-primary-soft';
 
 export function HomePage() {
   const { user } = useAuth();
@@ -72,7 +72,7 @@ export function HomePage() {
             action={
               <Link
                 to="/mulai?langkah=2"
-                className="inline-flex min-h-11 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary hover:bg-primary-hover"
+                className="inline-flex min-h-11 items-center rounded-control bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-hover"
               >
                 Buat dompet
               </Link>

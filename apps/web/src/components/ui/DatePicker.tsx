@@ -214,7 +214,7 @@ export function DatePicker({
                 focusGrid.current = true;
                 mark(todayStr);
               }}
-              className="min-h-11 shrink-0 rounded-control px-3 text-sm font-semibold text-primary hover:bg-primary-soft disabled:opacity-40"
+              className="min-h-11 shrink-0 rounded-control px-4 text-sm font-semibold text-primary hover:bg-primary-soft disabled:opacity-40"
             >
               Hari ini
             </button>
@@ -307,7 +307,7 @@ export function DatePicker({
               <button
                 type="button"
                 onClick={() => commit('')}
-                className="min-h-11 rounded-control px-3 text-sm font-medium text-muted hover:bg-surface-muted hover:text-fg"
+                className="min-h-11 rounded-control px-4 text-sm font-medium text-muted hover:bg-surface-muted hover:text-fg"
               >
                 Hapus
               </button>

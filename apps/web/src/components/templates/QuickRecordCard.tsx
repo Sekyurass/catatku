@@ -12,7 +12,7 @@ import { useToast } from '../ui/Toast';
 import { TemplateChips } from './TemplateChips';
 
 const linkClass =
-  'inline-flex min-h-11 items-center gap-1 rounded-control px-2 text-sm font-semibold text-primary hover:bg-primary-soft';
+  'inline-flex min-h-11 items-center gap-1 rounded-control px-3 text-sm font-semibold text-primary hover:bg-primary-soft';
 
 /**
  * Chip "Cepat catat" di Beranda. Template bernominal langsung dicatat hari ini (bisa diurungkan);

@@ -151,7 +151,7 @@ function RecurringFormPanel({
           <Link
             to="/dompet"
             onClick={onDone}
-            className="inline-flex min-h-11 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary hover:bg-primary-hover"
+            className="inline-flex min-h-11 items-center rounded-control bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-hover"
           >
             Buat dompet
           </Link>

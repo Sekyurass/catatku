@@ -80,7 +80,7 @@ export function ToastProvider({ children, resetKey }: { children: ReactNode; res
               {t.action && (
                 <button
                   type="button"
-                  className="min-h-11 rounded-control px-2 font-semibold text-teal-300 hover:text-teal-200"
+                  className="min-h-11 rounded-control px-3 font-semibold text-teal-300 hover:text-teal-200"
                   onClick={() => {
                     t.action!.onClick();
                     dismiss(t.id);

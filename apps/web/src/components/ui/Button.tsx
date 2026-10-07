@@ -13,8 +13,8 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  md: 'min-h-11 px-4 text-sm',
-  lg: 'min-h-12 px-5 text-base',
+  md: 'min-h-11 px-5 text-sm',
+  lg: 'min-h-12 px-6 text-base',
   icon: 'size-11 justify-center',
 };
 
