@@ -1,8 +1,9 @@
 import { config } from 'dotenv';
 import { defineConfig } from 'vitest/config';
+import { withConnectionDefaults } from './src/lib/dbConnection';
 
 config({ quiet: true });
-const testUrl = process.env.TEST_DATABASE_URL ?? '';
+const testUrl = withConnectionDefaults(process.env.TEST_DATABASE_URL ?? '');
 
 export default defineConfig({
   test: {

@@ -192,8 +192,12 @@ export async function createTransaction(
   userId: string,
   data: z.output<typeof createTransactionSchema>,
 ): Promise<TransactionDTO> {
-  await findActiveWallet(userId, data.walletId);
-  await findUsableCategory(userId, data.categoryId, data.type);
+  // Tiap kueri = satu perjalanan ke database jarak jauh: validasi berjalan paralel, dan dompet/kategori
+  // yang sudah diambil dipakai ulang alih-alih `include` (yang memakai BEGIN + 3 SELECT + COMMIT).
+  const [wallet, category] = await allInOrder([
+    findActiveWallet(userId, data.walletId),
+    findUsableCategory(userId, data.categoryId, data.type),
+  ]);
   const row = await prisma.transaction.create({
     data: {
       userId,
@@ -204,11 +208,23 @@ export async function createTransaction(
       date: toDbDate(data.date),
       note: data.note,
     },
-    include,
   });
   track(userId, 'transaction_created', { type: data.type });
   learnCategoryInBackground(userId, data.note, data.categoryId, data.type);
-  return toDTO(row);
+  return toDTO({
+    ...row,
+    wallet: { id: wallet.id, name: wallet.name, color: wallet.color },
+    category: { id: category.id, name: category.name, icon: category.icon, color: category.color },
+  });
+}
+
+/** Seperti Promise.all, tapi bila beberapa gagal yang dilempar selalu yang pertama di daftar. */
+async function allInOrder<T extends readonly unknown[]>(
+  promises: readonly [...{ [K in keyof T]: Promise<T[K]> }],
+): Promise<T> {
+  const results = await Promise.allSettled(promises);
+  for (const r of results) if (r.status === 'rejected') throw r.reason;
+  return results.map((r) => (r as PromiseFulfilledResult<unknown>).value) as unknown as T;
 }
 
 /** PATCH satu endpoint: skema mengikuti jenis transaksi yang diedit. */

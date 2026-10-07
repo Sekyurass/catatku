@@ -100,6 +100,24 @@ Di Supabase Dashboard → _Connect_ → _ORMs/Prisma_ (atau Project Settings →
 
 Hanya database Supabase yang dipakai; autentikasi tetap JWT milik API (bukan Supabase Auth).
 
+**Ketahanan koneksi** (`apps/api/src/lib/dbConnection.ts`):
+
+- Bila belum ditulis di URL, API (dan tes) menambah `connect_timeout=15&pool_timeout=20` (bawaan Prisma
+  5/10 detik terlalu ketat: membuka koneksi ke region lain saja ±1 detik). Jangan menurunkan
+  `connection_limit` tes: dengan 5 koneksi, tes impor 2× lebih lambat dan sesekali timeout.
+- Operasi **baca** yang gagal mendapat koneksi (P1001/P1002/P2024, artinya kueri belum sempat jalan)
+  diulang otomatis 2× (jeda 0,3 dtk lalu 1 dtk). Penulisan tidak diulang per operasi karena bisa berada di
+  dalam batch `$transaction`; bila tetap gagal API membalas **503 `SERVICE_UNAVAILABLE`** + `Retry-After`
+  (bukan 500), lalu klien mengulang kueri; pembuatan data dilindungi `Idempotency-Key`.
+- Flag fitur dan paket pengguna di-cache 30 detik di memori (mati saat tes), jadi rute ber-flag tidak
+  menambah 2 kueri per request. Mengubah flag lewat SQL berlaku paling lambat 30 detik kemudian.
+- Kecepatan ditentukan jumlah perjalanan ke database, bukan beratnya kueri. Dengan `pgbouncer=true`
+  (transaction pooler 6543) Prisma membungkus **setiap** kueri dengan `BEGIN; DEALLOCATE ALL; …; COMMIT`
+  (4 perjalanan); di session pooler 5432 cukup 1. Terukur dari Indonesia ke `ap-south-1`: GET biasa
+  ±620–970 ms (6543) vs ±125–260 ms (5432). Untuk satu server Node yang berjalan terus (bukan serverless),
+  session pooler lebih cocok; transaction pooler perlu untuk banyak instans/serverless. Hindari juga
+  `include` pada `create` di jalur yang sering dipakai (BEGIN + INSERT + 1 SELECT per relasi + COMMIT).
+
 ### Alternatif lokal
 
 `docker compose up -d db` lalu pakai URL lokal yang dikomentari di `.env.example`.

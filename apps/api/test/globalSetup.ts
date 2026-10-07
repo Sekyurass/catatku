@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
 import { config } from 'dotenv';
 import { seedDefaults } from '../src/db/defaults';
+import { withConnectionDefaults } from '../src/lib/dbConnection';
 
 export default async function setup() {
   config({ quiet: true });
@@ -18,7 +19,7 @@ export default async function setup() {
     env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url },
   });
 
-  const prisma = new PrismaClient({ datasourceUrl: url });
+  const prisma = new PrismaClient({ datasourceUrl: withConnectionDefaults(url) });
   try {
     await seedDefaults(prisma);
   } finally {

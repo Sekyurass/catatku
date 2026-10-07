@@ -2,6 +2,7 @@ import type { ApiErrorBody } from '@catatku/shared';
 import { Prisma } from '@prisma/client';
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { dbErrorCode, isTransientDbError } from '../lib/dbConnection';
 import { AppError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { zodFields } from '../lib/validate';
@@ -34,6 +35,20 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
         code: 'VALIDATION_ERROR',
         message: 'Periksa kembali isian kamu',
         fields: zodFields(err.issues),
+      },
+    });
+  }
+
+  if (isTransientDbError(err)) {
+    logger.warn(
+      { code: dbErrorCode(err), path: req.path, method: req.method },
+      'Database tak terjangkau',
+    );
+    res.setHeader('Retry-After', '3');
+    return send(res, 503, {
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Koneksi ke database sedang terganggu. Coba lagi sebentar lagi.',
       },
     });
   }

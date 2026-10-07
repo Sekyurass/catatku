@@ -27,11 +27,49 @@ export function evaluateFlag(
   return user.plan === flag.plan;
 }
 
+/**
+ * Flag dan paket pengguna dicek di banyak request (setiap rute ber-flag + /features), padahal jarang
+ * berubah. Disimpan sebentar di memori agar tiap request tidak menambah 2 kueri ke database jarak
+ * jauh. Tes mengubah flag di tengah jalan, jadi cache mati saat NODE_ENV=test.
+ */
+const CACHE_MS = env.isTest ? 0 : 30_000;
+const MAX_CACHED_USERS = 1_000;
+
+type FlagRow = Pick<FeatureFlag, 'key' | 'enabled' | 'plan' | 'userIds'>;
+let flagCache: { until: number; rows: Promise<FlagRow[]> } | null = null;
+const planCache = new Map<string, { until: number; plan: Promise<Plan> }>();
+
+function loadFlags(): Promise<FlagRow[]> {
+  const now = Date.now();
+  if (flagCache && flagCache.until > now) return flagCache.rows;
+  const rows = Promise.resolve(
+    prisma.featureFlag.findMany({
+      select: { key: true, enabled: true, plan: true, userIds: true },
+    }),
+  );
+  flagCache = { until: now + CACHE_MS, rows };
+  rows.catch(() => (flagCache = null));
+  return rows;
+}
+
+function loadPlan(userId: string): Promise<Plan> {
+  const now = Date.now();
+  const hit = planCache.get(userId);
+  if (hit && hit.until > now) return hit.plan;
+  const plan = prisma.user
+    .findUniqueOrThrow({ where: { id: userId }, select: { plan: true } })
+    .then((u) => u.plan);
+  if (CACHE_MS > 0) {
+    if (planCache.size >= MAX_CACHED_USERS) planCache.clear();
+    planCache.set(userId, { until: now + CACHE_MS, plan });
+    plan.catch(() => planCache.delete(userId));
+  }
+  return plan;
+}
+
 export async function getFlagsForUser(userId: string): Promise<Record<FeatureFlagKey, boolean>> {
-  const [user, flags] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, plan: true } }),
-    prisma.featureFlag.findMany(),
-  ]);
+  const [plan, flags] = await Promise.all([loadPlan(userId), loadFlags()]);
+  const user = { id: userId, plan };
   const byKey = new Map(flags.map((f) => [f.key, f]));
   const result = {} as Record<FeatureFlagKey, boolean>;
   for (const key of Object.values(FEATURE_FLAGS)) {
