@@ -59,6 +59,7 @@ export function LoginForm() {
               {...a}
               autoComplete="current-password"
               icon={LockKeyhole}
+              placeholder="Masukkan kata sandi"
               className="min-h-12"
               {...register('password')}
             />

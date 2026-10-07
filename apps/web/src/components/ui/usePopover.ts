@@ -16,7 +16,10 @@ const MARGIN = 8;
  * pemicu (bukan portal) karena konten di luar <dialog> modal tidak bisa diklik, dan fixed
  * tidak ikut terpotong oleh `overflow` sheet. Membalik ke atas bila ruang di bawah kurang.
  */
-export function usePopover<A extends HTMLElement>({ matchWidth = false } = {}) {
+export function usePopover<A extends HTMLElement>({
+  matchWidth = false,
+  align = 'start',
+}: { matchWidth?: boolean; align?: 'start' | 'end' } = {}) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<A>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -39,9 +42,10 @@ export function usePopover<A extends HTMLElement>({ matchWidth = false } = {}) {
       const height = popup.scrollHeight;
       const flip = height > below && above > below;
       const width = matchWidth ? a.width : popup.offsetWidth;
+      const left = align === 'end' ? a.right - width : a.left;
       setStyle({
         position: 'fixed',
-        left: Math.max(MARGIN, Math.min(a.left, vw - width - MARGIN)),
+        left: Math.max(MARGIN, Math.min(left, vw - width - MARGIN)),
         ...(flip ? { bottom: vh - a.top + GAP } : { top: a.bottom + GAP }),
         ...(matchWidth && { width: a.width }),
         maxHeight: Math.max(160, flip ? above : below),
@@ -61,7 +65,7 @@ export function usePopover<A extends HTMLElement>({ matchWidth = false } = {}) {
       window.removeEventListener('scroll', schedule, true);
       window.visualViewport?.removeEventListener('resize', schedule);
     };
-  }, [open, matchWidth]);
+  }, [open, matchWidth, align]);
 
   useEffect(() => {
     if (!open) return;

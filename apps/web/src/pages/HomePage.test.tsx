@@ -295,15 +295,21 @@ describe('HomePage (dashboard)', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    const list = within(summary.getByRole('list'));
-    expect(list.getByText('BCA')).toBeInTheDocument();
-    expect(list.getByText(formatRupiah(0))).toBeInTheDocument();
-    expect(summary.getByRole('link', { name: /Kelola dompet/ })).toHaveAttribute('href', '/dompet');
+    const panel = within(summary.getByRole('dialog', { name: 'Saldo per dompet' }));
+    expect(panel.getByText('BCA')).toBeInTheDocument();
+    expect(panel.getByText(formatRupiah(0))).toBeInTheDocument();
+    expect(panel.getByRole('link', { name: /Kelola dompet/ })).toHaveAttribute('href', '/dompet');
+    await userEvent.keyboard('{Escape}');
+    expect(summary.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(toggle).toHaveFocus();
 
     await userEvent.click(summary.getByRole('button', { name: 'Sembunyikan saldo' }));
     expect(summary.queryByText(formatRupiah(1_410_000))).not.toBeInTheDocument();
-    expect(summary.getAllByText('Rp ••••••').length).toBeGreaterThanOrEqual(3);
     expect(localStorage.getItem('catatku_hide_balance')).toBe('1');
+    await userEvent.click(toggle);
+    expect(
+      within(summary.getByRole('dialog', { name: 'Saldo per dompet' })).getAllByText('Rp ••••••'),
+    ).toHaveLength(2);
 
     await userEvent.click(summary.getByRole('button', { name: 'Tampilkan saldo' }));
     expect(summary.getAllByText(formatRupiah(1_410_000)).length).toBeGreaterThan(0);

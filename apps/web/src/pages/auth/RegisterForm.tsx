@@ -50,7 +50,7 @@ export function RegisterForm() {
               {...a}
               autoComplete="given-name"
               icon={UserRound}
-              placeholder="Mis. Dina"
+              placeholder="Mis. Dina atau Budi"
               className="min-h-12"
               {...register('name')}
             />
@@ -76,6 +76,7 @@ export function RegisterForm() {
               {...a}
               autoComplete="new-password"
               icon={LockKeyhole}
+              placeholder="Buat kata sandi"
               className="min-h-12"
               {...register('password')}
             />
@@ -87,6 +88,7 @@ export function RegisterForm() {
               {...a}
               autoComplete="new-password"
               icon={ShieldCheck}
+              placeholder="Ketik ulang kata sandi"
               className="min-h-12"
               {...register('confirmPassword')}
             />
