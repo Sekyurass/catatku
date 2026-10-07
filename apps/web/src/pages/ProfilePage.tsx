@@ -4,6 +4,7 @@ import {
   BellRing,
   Camera,
   ChevronRight,
+  FileUp,
   ImageUp,
   KeyRound,
   LogOut,
@@ -62,6 +63,13 @@ const TEMPLATE_LINK = {
   icon: Zap,
 };
 
+const IMPORT_LINK = {
+  to: '/impor',
+  label: 'Impor CSV',
+  description: 'Pindahkan catatan dari Excel atau aplikasi lain',
+  icon: FileUp,
+};
+
 const REMINDER_LINK = {
   to: '/pengingat',
   label: 'Pengingat & notifikasi',
@@ -80,6 +88,7 @@ export function ProfilePage() {
   const recurringOn = useFeature('recurring_transactions');
   const remindersOn = useFeature('reminders');
   const templatesOn = useFeature('templates');
+  const importOn = useFeature('csv_import');
 
   return (
     <div className="flex flex-col gap-4">
@@ -116,6 +125,7 @@ export function ProfilePage() {
             ...LINKS,
             ...(recurringOn ? [RECURRING_LINK] : []),
             ...(templatesOn ? [TEMPLATE_LINK] : []),
+            ...(importOn ? [IMPORT_LINK] : []),
             ...(remindersOn ? [REMINDER_LINK] : []),
           ].map(({ to, label, description, icon: Icon }) => (
             <li key={to}>

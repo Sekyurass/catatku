@@ -42,6 +42,17 @@ export const RECEIPT_MAX_BYTES = 15 * 1024 * 1024;
 /** Template "Cepat catat" per pengguna; chip lebih dari ini tidak lagi cepat dipindai mata. */
 export const MAX_TEMPLATES = 20;
 
+/** Impor CSV: ukuran file dan jumlah baris data maksimal per impor. */
+export const IMPORT_MAX_BYTES = 1024 * 1024;
+export const IMPORT_MAX_ROWS = 5000;
+/** Di atas jumlah baris ini impor diproses di latar belakang dan statusnya dipantau. */
+export const IMPORT_SYNC_ROWS = 300;
+/** Daftar baris bermasalah yang disimpan/ditampilkan dipotong agar respons tetap ringan. */
+export const IMPORT_MAX_ISSUES = 100;
+
+export const IMPORT_STATUSES = ['PROCESSING', 'COMPLETED', 'FAILED', 'ROLLED_BACK'] as const;
+export type ImportStatus = (typeof IMPORT_STATUSES)[number];
+
 /** Kunci feature flag untuk fase berikutnya. Semua nonaktif di Fase 0. */
 export const FEATURE_FLAGS = {
   RECURRING_TRANSACTIONS: 'recurring_transactions',

@@ -1,5 +1,6 @@
 import type {
   CategoryType,
+  ImportStatus,
   NotificationType,
   Plan,
   RecurrenceFrequency,
@@ -107,6 +108,33 @@ export interface TransactionTemplateDTO {
   category: CategoryRef;
   /** false bila dompet atau kategorinya sudah diarsipkan; chip disembunyikan sampai diperbaiki. */
   usable: boolean;
+}
+
+/** Baris yang tidak diimpor beserta alasannya. `line` = nomor baris di file. */
+export interface ImportIssue {
+  line: number;
+  kind: 'DUPLICATE' | 'INVALID';
+  message: string;
+}
+
+/** Hasil uji coba impor (belum ada yang disimpan). */
+export interface ImportPreviewDTO {
+  stats: { total: number; ready: number; duplicates: number; failed: number };
+  /** Maksimal IMPORT_MAX_ISSUES; urut sesuai baris. */
+  issues: ImportIssue[];
+}
+
+export interface ImportBatchDTO {
+  id: string;
+  filename: string;
+  status: ImportStatus;
+  walletId: string;
+  wallet: Ref;
+  /** skipped = duplikat yang dilewati; failed = baris tidak valid. */
+  stats: { total: number; imported: number; skipped: number; failed: number };
+  issues: ImportIssue[];
+  createdAt: string;
+  rolledBackAt: string | null;
 }
 
 /** Kejadian aturan "minta konfirmasi dulu" yang sudah jatuh tempo. */

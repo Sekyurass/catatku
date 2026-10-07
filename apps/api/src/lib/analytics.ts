@@ -13,6 +13,8 @@ export type EventName =
   | 'recurring_rule_created'
   | 'template_created'
   | 'template_used'
+  | 'import_completed'
+  | 'import_rolled_back'
   | 'reminder_sent'
   | 'push_subscribed'
   | 'budget_saved'

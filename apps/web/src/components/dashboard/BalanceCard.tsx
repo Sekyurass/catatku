@@ -59,7 +59,7 @@ export function BalanceCard({ totalBalance, net }: { totalBalance: number; net: 
             aria-controls={panelId}
             aria-haspopup="dialog"
             className={cn(
-              'inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 py-2 pr-3 pl-4 text-sm font-semibold text-white transition-colors hover:bg-white/25 focus-visible:outline-white',
+              'inline-flex min-h-11 items-center gap-1.5 rounded-full bg-black/15 py-2 pr-3 pl-4 text-sm font-semibold text-white transition-colors hover:bg-black/25 focus-visible:outline-white',
               open && 'bg-white/25',
             )}
           >

@@ -8,6 +8,7 @@ import { createCategoriesRouter } from '../modules/categories/category.routes';
 import { createEventsRouter } from '../modules/events/events.routes';
 import { createExportRouter } from '../modules/export/export.routes';
 import { createFeaturesRouter } from '../modules/features/features.routes';
+import { createImportsRouter } from '../modules/imports/import.routes';
 import { createNotificationsRouter } from '../modules/notifications/notification.routes';
 import { createRecurringRouter } from '../modules/recurring/recurring.routes';
 import { createReportsRouter } from '../modules/reports/report.routes';
@@ -37,5 +38,6 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/recurring', createRecurringRouter());
   router.use('/notifications', createNotificationsRouter());
   router.use('/templates', createTemplatesRouter());
+  router.use('/imports', createImportsRouter());
   return router;
 }

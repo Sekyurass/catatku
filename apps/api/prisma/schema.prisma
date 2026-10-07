@@ -49,6 +49,13 @@ enum NotificationType {
   RECURRING_POSTED
 }
 
+enum ImportStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+  ROLLED_BACK
+}
+
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
@@ -72,6 +79,7 @@ model User {
   recurringRules      RecurringRule[]
   occurrences         RecurringOccurrence[]
   templates           TransactionTemplate[]
+  importBatches       ImportBatch[]
   notifications       Notification[]
   notificationSetting NotificationSetting?
   pushSubscriptions   PushSubscription[]
@@ -132,6 +140,7 @@ model Wallet {
   transactions   Transaction[]
   recurringRules RecurringRule[]
   templates      TransactionTemplate[]
+  importBatches  ImportBatch[]
 
   @@index([userId])
 }
@@ -171,6 +180,8 @@ model Transaction {
   transferGroupId String?
   /// Diisi bila dibuat oleh aturan berulang. Aturan dihapus -> null, transaksinya tetap ada.
   recurringRuleId String?
+  /// Diisi bila berasal dari impor CSV; membatalkan impor menghapus semua transaksinya.
+  importBatchId   String?
   deletedAt       DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -179,12 +190,36 @@ model Transaction {
   wallet        Wallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
   category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+  importBatch   ImportBatch?   @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   @@index([userId, date(sort: Desc), createdAt(sort: Desc)])
   @@index([userId, walletId])
   @@index([userId, categoryId])
   @@index([transferGroupId])
   @@index([recurringRuleId])
+  @@index([importBatchId])
+}
+
+/// Fase 1.4. Satu kali impor CSV ke satu dompet.
+model ImportBatch {
+  id           String       @id @default(cuid())
+  userId       String
+  walletId     String
+  filename     String
+  status       ImportStatus @default(PROCESSING)
+  /// { total, imported, skipped, failed }
+  stats        Json
+  /// Baris yang dilewati/gagal beserta alasannya (maks. IMPORT_MAX_ISSUES).
+  issues       Json         @default("[]")
+  rolledBackAt DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet       Wallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 /// Fase 1.1. Jadwal dihitung dari startDate + indeks kejadian (lihat shared/recurrence.ts).

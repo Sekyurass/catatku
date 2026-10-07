@@ -17,6 +17,8 @@ export function createApp(opts: V1Options = {}) {
   app.use(helmet());
   app.use(cors({ origin: env.corsOrigins, credentials: true }));
   app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
+  // Impor CSV mengirim isi file utuh (maks. 1 MB, membengkak saat di-escape JSON).
+  app.use('/api/v1/imports', express.json({ limit: '3mb' }));
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 

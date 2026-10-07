@@ -36,6 +36,8 @@ export const RecurringPage = page(() =>
 export const TemplatesPage = page(() =>
   import('../pages/TemplatesPage').then((m) => m.TemplatesPage),
 );
+/** Jarang dibuka, jadi tidak ikut diunduh di muka. */
+export const ImportPage = page(() => import('../pages/ImportPage').then((m) => m.ImportPage));
 export const NotificationSettingsPage = page(() =>
   import('../pages/NotificationSettingsPage').then((m) => m.NotificationSettingsPage),
 );

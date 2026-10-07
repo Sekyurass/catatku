@@ -3,6 +3,7 @@ import type {
   CategoryBreakdownDTO,
   CategoryDTO,
   CategoryType,
+  ImportBatchDTO,
   ListTransactionsQuery,
   PendingOccurrenceDTO,
   RecurringRuleDTO,
@@ -36,7 +37,30 @@ export const queryKeys = {
   recurring: ['recurring', 'rules'] as const,
   recurringPending: ['recurring', 'pending'] as const,
   templates: ['templates'] as const,
+  imports: ['imports'] as const,
+  importBatch: (id: string) => ['imports', id] as const,
 };
+
+export function useImports(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.imports,
+    queryFn: ({ signal }) =>
+      api<{ items: ImportBatchDTO[] }>('/imports', { signal }).then((r) => r.items),
+    enabled,
+    refetchInterval: (q) => (q.state.data?.some((b) => b.status === 'PROCESSING') ? 3000 : false),
+  });
+}
+
+/** Dipantau berkala selama impor besar masih diproses di server. */
+export function useImportBatch(initial: ImportBatchDTO) {
+  return useQuery({
+    queryKey: queryKeys.importBatch(initial.id),
+    queryFn: ({ signal }) => api<ImportBatchDTO>(`/imports/${initial.id}`, { signal }),
+    initialData: initial,
+    enabled: initial.status === 'PROCESSING',
+    refetchInterval: (q) => (q.state.data?.status === 'PROCESSING' ? 1500 : false),
+  });
+}
 
 export function useTemplates(enabled = true) {
   return useQuery({

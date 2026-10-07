@@ -118,6 +118,7 @@ async function auditAppPages(page: Page, browser: Browser) {
     '/kategori',
     '/berulang',
     '/template',
+    '/impor',
     '/pengingat',
     '/profil',
     '/mulai',
@@ -151,6 +152,32 @@ async function auditAppPages(page: Page, browser: Browser) {
     await expect(page.getByRole('dialog', { name: 'Ubah template' })).toBeVisible();
     await waitForApp(page);
     await test.step('/template (form)', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+  }
+
+  if (flags.csv_import) {
+    await page.goto('/impor');
+    await waitForApp(page);
+    await page.getByLabel(/Pilih file CSV/).setInputFiles({
+      name: 'mutasi.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(
+        `Tanggal;Keterangan;Jumlah\n01/10/2026;Kopi;-18.000\nkemarin;Roti;-9.000\n`,
+      ),
+    });
+    await expect(page.getByRole('heading', { name: 'Cocokkan kolom' })).toBeVisible();
+    await waitForApp(page);
+    await test.step('/impor (pemetaan)', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+    await page.getByRole('button', { name: 'Periksa data' }).click();
+    await expect(page.getByRole('heading', { name: 'Periksa sebelum impor' })).toBeVisible({
+      timeout: 30_000,
+    });
+    await test.step('/impor (periksa)', async () => {
       await expectNoViolations(page);
       await expectTouchTargets(page);
     });

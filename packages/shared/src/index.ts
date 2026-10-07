@@ -1,5 +1,6 @@
 export * from './budget';
 export * from './constants';
+export * from './csvImport';
 export * from './errors';
 export * from './money';
 export * from './month';
@@ -14,5 +15,6 @@ export * from './schemas/report';
 export * from './schemas/event';
 export * from './schemas/recurring';
 export * from './schemas/template';
+export * from './schemas/import';
 export * from './schemas/notification';
 export * from './dto';
