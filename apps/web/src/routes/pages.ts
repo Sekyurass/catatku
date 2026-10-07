@@ -26,6 +26,7 @@ export const TransactionsPage = page(() =>
   import('../pages/TransactionsPage').then((m) => m.TransactionsPage),
 );
 export const BudgetsPage = page(() => import('../pages/BudgetsPage').then((m) => m.BudgetsPage));
+export const GoalsPage = page(() => import('../pages/GoalsPage').then((m) => m.GoalsPage));
 export const WalletsPage = page(() => import('../pages/WalletsPage').then((m) => m.WalletsPage));
 export const CategoriesPage = page(() =>
   import('../pages/CategoriesPage').then((m) => m.CategoriesPage),
@@ -49,6 +50,7 @@ const APP_PAGES = [
   HomePage,
   TransactionsPage,
   BudgetsPage,
+  GoalsPage,
   WalletsPage,
   CategoriesPage,
   RecurringPage,

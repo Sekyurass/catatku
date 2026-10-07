@@ -54,6 +54,12 @@ export const TAG_NAME_MAX = 30;
 /** Template "Cepat catat" per pengguna; chip lebih dari ini tidak lagi cepat dipindai mata. */
 export const MAX_TEMPLATES = 20;
 
+/** Target tabungan per pengguna dan panjang namanya. */
+export const MAX_GOALS = 20;
+export const GOAL_NAME_MAX = 40;
+export const GOAL_CONTRIBUTION_TYPES = ['DEPOSIT', 'WITHDRAW'] as const;
+export type GoalContributionType = (typeof GOAL_CONTRIBUTION_TYPES)[number];
+
 /** Impor CSV: ukuran file dan jumlah baris data maksimal per impor. */
 export const IMPORT_MAX_BYTES = 1024 * 1024;
 export const IMPORT_MAX_ROWS = 5000;
@@ -77,6 +83,7 @@ export const FEATURE_FLAGS = {
   TAGS: 'tags',
   /** Juga butuh penyimpanan objek (STORAGE_S3_*) di server; tanpa itu dianggap nonaktif. */
   ATTACHMENTS: 'attachments',
+  SAVINGS_GOALS: 'savings_goals',
 } as const;
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
 

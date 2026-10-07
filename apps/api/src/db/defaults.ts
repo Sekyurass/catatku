@@ -57,6 +57,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   [FEATURE_FLAGS.AUTO_CATEGORY]: 'Fase 3.2 — saran kategori otomatis',
   [FEATURE_FLAGS.TAGS]: 'Fase 2.5 — tag transaksi + filter & laporan per tag',
   [FEATURE_FLAGS.ATTACHMENTS]: 'Fase 2.5 — lampiran foto (butuh STORAGE_S3_* di server)',
+  [FEATURE_FLAGS.SAVINGS_GOALS]: 'Fase 2.1 — target tabungan + tab Rencana',
 };
 
 /** Kategori default + baris feature flag (nonaktif). Aman dijalankan berulang. */

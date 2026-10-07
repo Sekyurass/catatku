@@ -63,17 +63,17 @@ Buka http://localhost:5173 dan masuk dengan akun demo **demo@catatku.id / demo12
 gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini; plus 4 template cepat catat:
 kopi susu, Gojek ke kantor, parkir, dan makan siang tanpa nominal).
 
-Fitur Fase 1, tag & lampiran (Fase 2.5), pindai struk (Fase 3.1), dan saran kategori (Fase 3.2) berada
-di balik feature flag yang **nonaktif** setelah seed. Untuk menyalakannya:
+Fitur Fase 1, target tabungan (Fase 2.1), tag & lampiran (Fase 2.5), pindai struk (Fase 3.1), dan saran
+kategori (Fase 3.2) berada di balik feature flag yang **nonaktif** setelah seed. Untuk menyalakannya:
 
 ```sql
 -- Untuk semua pengguna (SQL editor Supabase / psql). Baris flag dibuat oleh `npm run db:seed`.
 UPDATE "FeatureFlag" SET enabled = true
 WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category',
-              'tags', 'attachments');
+              'tags', 'attachments', 'savings_goals');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan.
 Lampiran foto butuh `STORAGE_S3_*` (lihat [Lampiran foto](#lampiran-foto-supabase-storage)); tanpa itu flag
 `attachments` selalu dianggap mati. Akun baru dari halaman **Daftar**
@@ -342,6 +342,22 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     foto** (kamera) dan **Dari galeri**.
   - **Pembersihan**: menghapus lampiran menghapus objeknya lebih dulu. Lampiran yang transaksinya terhapus
     permanen (mis. impor dibatalkan) menjadi yatim dan dibersihkan penjadwal tiap jam.
+- **Target tabungan** (Fase 2.1, flag `savings_goals`): menu **Anggaran** berganti nama menjadi **Rencana**
+  dengan sub-tab **Anggaran** (`/anggaran`) dan **Target** (`/anggaran/target`). Flag mati → menu tetap
+  "Anggaran" dan `/anggaran/target` dialihkan.
+  - **Model**: `SavingsGoal (name, targetAmount, deadline?, icon, color, walletId?)` dan `GoalContribution`
+    (nominal bertanda: + setor, − tarik). Maks. 20 target per pengguna.
+  - **Setor/tarik eksplisit**: target tanpa dompet → setoran hanya dicatat sebagai uang yang disisihkan.
+    Target dengan dompet tabungan → setor membuat transfer dompet asal → dompet tabungan (tarik sebaliknya)
+    dalam satu transaksi DB. Setoran tertaut memakai nominal & tanggal transfernya: transfer diubah di
+    Transaksi → progres ikut; transfer dihapus → tidak dihitung, diurungkan → kembali. Menghapus setoran
+    menghapus transfernya; menghapus target membiarkan transfer yang sudah ada.
+  - **Rumus** (`goalProgress` di `packages/shared/src/goal.ts`): bulan tersisa = bulan kalender sampai
+    tenggat termasuk bulan ini; saran per bulan = kekurangan di awal bulan ini ÷ bulan tersisa (dibulatkan
+    ke atas ke Rp1.000) sehingga tidak mengecil setelah menyetor, yang berkurang adalah "bulan ini kurang".
+    **Sesuai rencana** bila terkumpul ≥ jalur lurus dari bulan dibuat sampai bulan tenggat (per bulan penuh
+    yang lewat; bulan pertama selalu sesuai), **Tertinggal** bila kurang atau tenggat lewat, **Tercapai**
+    bila terkumpul ≥ target. Bilah progres beranimasi singkat (dimatikan oleh `prefers-reduced-motion`).
 
 ## API (Fase 0)
 
@@ -422,6 +438,16 @@ defaultType?: SIGN|EXPENSE|INCOME, skipDuplicates?: boolean (default true) }`
   `{ items: [{ id, transactionId, mimeType, size, createdAt, url, expiresAt }] }`,
   `POST /transactions/:id/attachments` berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`, maks.
   4 MB) → 201 lampiran (400 bila sudah 5), `DELETE /attachments/:id` → 204
+- ✅ `savings_goals`: `GET /goals` → `{ items: [{ id, name, targetAmount, deadline, icon, color, walletId,
+wallet, saved, savedThisMonth, contributionCount, createdAt }] }`, `POST /goals` (target ke-21 → 409),
+  `PATCH /goals/:id`, `DELETE /goals/:id` → 204
+  - Body: `{ name: 1–40, targetAmount, deadline?: "YYYY-MM-DD"|null (tidak boleh lampau), icon?, color?,
+walletId?: string|null }`
+  - `GET /goals/:id/contributions` → `{ items: [{ id, type: DEPOSIT|WITHDRAW, amount, date, note,
+transferGroupId, wallet }] }`; `POST /goals/:id/contributions` `{ type, amount, date, note?, walletId? }`
+    → target terbaru (201, mendukung `Idempotency-Key`). `walletId` (dompet asal/tujuan) wajib bila target
+    punya dompet tabungan dan ditolak bila tidak; tarik melebihi yang terkumpul → 400
+  - `DELETE /goals/contributions/:id` → 204 (transfer tertaut ikut dihapus)
 
 ### Fase 3 (di balik feature flag; flag mati → 404)
 
@@ -444,6 +470,8 @@ defaultType?: SIGN|EXPENSE|INCOME, skipDuplicates?: boolean (default true) }`
 | `reminder_sent`, `push_subscribed`           | API                    | –                                             |
 | `template_created`                           | API                    | `type`, `fixedAmount`                         |
 | `template_used`                              | API                    | `type`, `amountChanged`                       |
+| `goal_created`                               | API                    | `hasDeadline`, `hasWallet`                    |
+| `goal_contribution`                          | API                    | `type` (DEPOSIT/WITHDRAW), `transfer`         |
 | `import_completed`                           | API                    | `imported`, `skipped`, `failed`, `background` |
 | `import_rolled_back`                         | API                    | `removed`                                     |
 | `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                                  |

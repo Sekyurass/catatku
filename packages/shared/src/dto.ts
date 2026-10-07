@@ -1,5 +1,7 @@
 import type {
+  CategoryIcon,
   CategoryType,
+  GoalContributionType,
   ImportStatus,
   NotificationType,
   Plan,
@@ -144,6 +146,39 @@ export interface TransactionTemplateDTO {
   category: CategoryRef;
   /** false bila dompet atau kategorinya sudah diarsipkan; chip disembunyikan sampai diperbaiki. */
   usable: boolean;
+}
+
+export interface GoalDTO {
+  id: string;
+  name: string;
+  targetAmount: number;
+  deadline: string | null;
+  icon: CategoryIcon;
+  color: string;
+  walletId: string | null;
+  /** archivedAt diisi bila dompet tabungannya diarsipkan; setor/tarik lewat dompet itu ditolak. */
+  wallet: (Ref & { archivedAt: string | null }) | null;
+  /** Total setoran dikurangi penarikan. Setoran yang transfernya dihapus tidak dihitung. */
+  saved: number;
+  /** Bagian dari `saved` yang bertanggal di bulan berjalan (zona Asia/Jakarta). */
+  savedThisMonth: number;
+  contributionCount: number;
+  createdAt: string;
+}
+
+export interface GoalContributionDTO {
+  id: string;
+  goalId: string;
+  type: GoalContributionType;
+  /** Selalu positif; arah dibaca dari `type`. */
+  amount: number;
+  date: string;
+  note: string | null;
+  /** Diisi bila tercatat sebagai transfer; transaksinya bisa dibuka dari riwayat. */
+  transferGroupId: string | null;
+  /** Dompet asal (setor) atau tujuan (tarik) dari transfer tersebut. */
+  wallet: Ref | null;
+  createdAt: string;
 }
 
 /** Baris yang tidak diimpor beserta alasannya. `line` = nomor baris di file. */

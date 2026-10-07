@@ -4,6 +4,7 @@ import {
   type BudgetScope,
   budgetStatus,
   currentMonth,
+  FEATURE_FLAGS,
   formatRupiah,
   MONTH_REGEX,
   monthRange,
@@ -13,6 +14,7 @@ import { ChevronDown, PiggyBank, Trash2 } from 'lucide-react';
 import { useId, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { IconBadge } from '../components/IconBadge';
+import { PlanHeader } from '../components/plan/PlanHeader';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -27,6 +29,7 @@ import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
 import { BUDGET_STATUS, budgetPercent, remainingLabel } from '../lib/budget';
 import { cn } from '../lib/cn';
+import { useFeature } from '../lib/features';
 import { applyServerErrors } from '../lib/forms';
 import { formatMonthLabel, formatShortDate } from '../lib/format';
 import { categoryIcon } from '../lib/icons';
@@ -46,17 +49,23 @@ export function BudgetsPage() {
   const [month, setMonth] = useMonthParam();
   const budgets = useBudgets(month);
   const [editing, setEditing] = useState<BudgetDTO | null>(null);
+  const goals = useFeature(FEATURE_FLAGS.SAVINGS_GOALS);
 
   const items = budgets.data?.items ?? [];
   const budgeted = items.filter((i) => i.id !== null);
   const unbudgeted = items.filter((i) => i.id === null);
+  const switcher = <MonthSwitcher month={month} onChange={setMonth} />;
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Anggaran</h1>
-        <MonthSwitcher month={month} onChange={setMonth} />
-      </header>
+      {goals ? (
+        <PlanHeader action={switcher} />
+      ) : (
+        <header className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">Anggaran</h1>
+          {switcher}
+        </header>
+      )}
 
       {budgets.isPending ? (
         <div

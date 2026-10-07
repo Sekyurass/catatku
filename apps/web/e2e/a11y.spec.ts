@@ -127,6 +127,28 @@ async function auditAppPages(page: Page, browser: Browser) {
     await post('/templates', { ...tpl, name: 'Kopi susu', amount: 25_000 });
     await post('/templates', { ...tpl, name: 'Makan siang', amount: null });
   }
+  if (flags.savings_goals) {
+    const goal = await post<{ id: string }>('/goals', {
+      name: 'Liburan',
+      targetAmount: 3_000_000,
+      deadline: `${Number(today.slice(0, 4)) + 1}-06-30`,
+      icon: 'plane',
+    });
+    await post(`/goals/${goal.id}/contributions`, {
+      type: 'DEPOSIT',
+      amount: 250_000,
+      date: today,
+      note: 'Sisa gaji',
+    });
+    await post('/goals', { name: 'Dana darurat', targetAmount: 100_000 });
+    const done = await get<{ items: { id: string; name: string }[] }>('/goals');
+    const darurat = done.items.find((g) => g.name === 'Dana darurat')!;
+    await post(`/goals/${darurat.id}/contributions`, {
+      type: 'DEPOSIT',
+      amount: 100_000,
+      date: today,
+    });
+  }
 
   for (const path of [
     '/',
@@ -170,6 +192,30 @@ async function auditAppPages(page: Page, browser: Browser) {
   });
   await detail.getByRole('button', { name: 'Ubah' }).click();
   await expect(page.getByRole('dialog', { name: 'Ubah transaksi' })).toBeVisible();
+
+  if (flags.savings_goals) {
+    await page.goto('/anggaran/target');
+    await waitForApp(page);
+    await expect(page.getByRole('heading', { level: 1, name: 'Rencana' })).toBeVisible();
+    await test.step('/anggaran/target', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+    await page.getByRole('button', { name: 'Lihat target Liburan' }).click();
+    const goalDetail = page.getByRole('dialog', { name: 'Liburan' });
+    await expect(goalDetail.getByText('Sisa gaji')).toBeVisible();
+    await test.step('detail target', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+    await goalDetail.getByRole('button', { name: 'Setor', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Simpan setoran' })).toBeVisible();
+    await waitForApp(page);
+    await test.step('form setor target', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+  }
 
   if (recurring) {
     await page.goto('/berulang');

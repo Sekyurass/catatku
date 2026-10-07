@@ -5,6 +5,8 @@ import type {
   CategoryDTO,
   CategoryMapDTO,
   CategoryType,
+  GoalContributionDTO,
+  GoalDTO,
   ImportBatchDTO,
   ListTransactionsQuery,
   PendingOccurrenceDTO,
@@ -50,7 +52,28 @@ export const queryKeys = {
   tags: ['tags'] as const,
   byTag: (month: string, type: CategoryType) => ['reports', 'by-tag', month, type] as const,
   attachments: (transactionId: string) => ['attachments', transactionId] as const,
+  goals: ['goals'] as const,
+  goalContributions: (goalId: string) => ['goals', goalId, 'contributions'] as const,
 };
+
+export function useGoals(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.goals,
+    queryFn: ({ signal }) => api<{ items: GoalDTO[] }>('/goals', { signal }).then((r) => r.items),
+    enabled,
+  });
+}
+
+export function useGoalContributions(goalId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.goalContributions(goalId ?? ''),
+    queryFn: ({ signal }) =>
+      api<{ items: GoalContributionDTO[] }>(`/goals/${goalId}/contributions`, { signal }).then(
+        (r) => r.items,
+      ),
+    enabled: !!goalId,
+  });
+}
 
 export function useTags(enabled = true) {
   return useQuery({
@@ -256,13 +279,21 @@ export function prefetchPageData(qc: QueryClient, path: string) {
 
 /**
  * Semua data yang ikut berubah saat uang bergerak: saldo, riwayat, laporan, anggaran, berulang,
- * template (status dompet/kategori diarsipkan), dan jumlah pemakaian tag.
+ * template (status dompet/kategori diarsipkan), jumlah pemakaian tag, dan progres target (setoran
+ * tertaut transfer mengikuti transaksinya).
  */
 export function invalidateMoney(qc: QueryClient) {
   return Promise.all(
-    ['wallets', 'transactions', 'reports', 'budgets', 'recurring', 'templates', 'tags'].map((key) =>
-      qc.invalidateQueries({ queryKey: [key] }),
-    ),
+    [
+      'wallets',
+      'transactions',
+      'reports',
+      'budgets',
+      'recurring',
+      'templates',
+      'tags',
+      'goals',
+    ].map((key) => qc.invalidateQueries({ queryKey: [key] })),
   );
 }
 

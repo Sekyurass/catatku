@@ -1,4 +1,14 @@
-import { House, ListOrdered, Loader2, LogOut, PiggyBank, Plus, UserRound } from 'lucide-react';
+import { FEATURE_FLAGS } from '@catatku/shared';
+import {
+  House,
+  ListOrdered,
+  Loader2,
+  LogOut,
+  type LucideIcon,
+  PiggyBank,
+  Plus,
+  UserRound,
+} from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
@@ -14,17 +24,30 @@ import { Button } from '../components/ui/Button';
 import { PageSkeleton } from '../components/ui/States';
 import { useAuth } from '../lib/auth';
 import { cn } from '../lib/cn';
+import { useFeature } from '../lib/features';
 import { prefetchPageData } from '../lib/queries';
 import { preloadAppPages, whenIdle } from '../routes/pages';
 
-export const NAV_ITEMS = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  end: boolean;
+}
+
+const NAV_ITEMS: readonly NavItem[] = [
   { to: '/', label: 'Beranda', icon: House, end: true },
   { to: '/transaksi', label: 'Transaksi', icon: ListOrdered, end: false },
   { to: '/anggaran', label: 'Anggaran', icon: PiggyBank, end: false },
   { to: '/profil', label: 'Profil', icon: UserRound, end: false },
-] as const;
+];
 
-type NavItem = (typeof NAV_ITEMS)[number];
+/** Dengan target tabungan, menu Anggaran menjadi "Rencana" (Anggaran | Target di /anggaran/*). */
+function useNavItems(): readonly NavItem[] {
+  const goals = useFeature(FEATURE_FLAGS.SAVINGS_GOALS);
+  if (!goals) return NAV_ITEMS;
+  return NAV_ITEMS.map((i) => (i.to === '/anggaran' ? { ...i, label: 'Rencana' } : i));
+}
 
 export function AppLayout() {
   return (
@@ -83,6 +106,7 @@ function RouteView() {
 function Shell() {
   const { openNew } = useQuickAdd();
   const prefetch = usePrefetchNav();
+  const navItems = useNavItems();
   useQuickAddDeepLink();
   return (
     <div
@@ -119,7 +143,7 @@ function Shell() {
             <span className="max-lg:sr-only">Catat transaksi</span>
           </Button>
           <nav aria-label="Navigasi utama" className="flex flex-col gap-1">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <SideLink key={item.to} item={item} onIntent={prefetch} />
             ))}
           </nav>
@@ -149,7 +173,7 @@ function Shell() {
         )}
       >
         <ul className="mx-auto grid max-w-lg grid-cols-5">
-          {NAV_ITEMS.slice(0, 2).map((item) => (
+          {navItems.slice(0, 2).map((item) => (
             <BottomLink key={item.to} item={item} onIntent={prefetch} />
           ))}
           <li className="flex items-start justify-center">
@@ -162,7 +186,7 @@ function Shell() {
               <Plus className="size-7" aria-hidden />
             </button>
           </li>
-          {NAV_ITEMS.slice(2).map((item) => (
+          {navItems.slice(2).map((item) => (
             <BottomLink key={item.to} item={item} onIntent={prefetch} />
           ))}
         </ul>

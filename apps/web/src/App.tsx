@@ -6,6 +6,7 @@ import { GuestOnly, RequireAuth } from './routes/guards';
 import {
   AuthPage,
   BudgetsPage,
+  GoalsPage,
   CategoriesPage,
   ForgotPasswordPage,
   HomePage,
@@ -69,6 +70,7 @@ export function App() {
           <Route index element={<HomePage />} />
           <Route path="transaksi" element={<TransactionsPage />} />
           <Route path="anggaran" element={<BudgetsPage />} />
+          <Route path="anggaran/target" element={<GoalsPage />} />
           <Route path="dompet" element={<WalletsPage />} />
           <Route path="kategori" element={<CategoriesPage />} />
           <Route path="berulang" element={<RecurringPage />} />

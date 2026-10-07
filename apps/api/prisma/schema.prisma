@@ -86,6 +86,8 @@ model User {
   categoryMaps        MerchantCategoryMap[]
   tags                Tag[]
   attachments         Attachment[]
+  savingsGoals        SavingsGoal[]
+  goalContributions   GoalContribution[]
 }
 
 /// Tautan "lupa kata sandi": sekali pakai, umur pendek, hanya hash yang disimpan.
@@ -144,6 +146,7 @@ model Wallet {
   recurringRules RecurringRule[]
   templates      TransactionTemplate[]
   importBatches  ImportBatch[]
+  savingsGoals   SavingsGoal[]
 
   @@index([userId])
 }
@@ -345,6 +348,49 @@ model TransactionTemplate {
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@index([userId, sortOrder])
+}
+
+/// Fase 2.1. Target tabungan; progres = jumlah setoran (lihat GoalContribution).
+model SavingsGoal {
+  id           String    @id @default(cuid())
+  userId       String
+  name         String
+  /// Rupiah utuh, positif.
+  targetAmount BigInt
+  deadline     DateTime? @db.Date
+  icon         String
+  color        String
+  /// Dompet tabungan; bila diisi, setor/tarik dicatat sebagai transfer ke/dari dompet ini.
+  walletId     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet        Wallet?            @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  contributions GoalContribution[]
+
+  @@index([userId])
+}
+
+/// Setoran (+) atau penarikan (−) ke target. Bila `transferGroupId` diisi, nominal dan tanggal
+/// mengikuti transfernya, dan setoran tidak dihitung selama transfer itu terhapus.
+model GoalContribution {
+  id              String   @id @default(cuid())
+  goalId          String
+  userId          String
+  /// Rupiah utuh, BERTANDA: + setor, − tarik.
+  amount          BigInt
+  date            DateTime @db.Date
+  note            String?
+  transferGroupId String?
+  createdAt       DateTime @default(now())
+
+  goal SavingsGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, date(sort: Desc)])
+  @@index([userId])
+  @@index([transferGroupId])
 }
 
 /// Satu baris per (aturan, tanggal): kunci idempotensi scheduler sekaligus antrean konfirmasi.
