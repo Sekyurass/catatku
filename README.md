@@ -395,9 +395,9 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
   - **Tahunan**: total setahun, rata-rata pengeluaran per bulan yang sudah berjalan, grafik 12 bulan, ringkasan
     per bulan (ketuk → laporan bulan itu), 5 kategori pengeluaran terbesar.
   - **Unduh PDF** (A4, satu halaman): ringkasan, grafik harian, per kategori, 5 pengeluaran terbesar. Dibuat
-    di server dengan `pdfkit` (font bawaan Helvetica, tanpa browser headless). Antivirus dengan web shield
-    (mis. 360 Total Security) bisa memblokir PDF ke browser; aplikasi lalu menampilkan pesan "File tidak
-    sampai ke browser" alih-alih menyimpan file kosong.
+    di server dengan `pdfkit` (font bawaan Helvetica, tanpa browser headless). Pengelola unduhan seperti IDM
+    (atau antivirus) bisa mengambil alih PDF sehingga browser hanya menerima respons kosong; aplikasi lalu
+    menampilkan pesan "File diambil alih aplikasi lain" alih-alih menyimpan file kosong.
   - Transfer antardompet (termasuk setoran target) tidak dihitung, sama seperti dashboard.
 
 ## API (Fase 0)

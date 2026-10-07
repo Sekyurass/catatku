@@ -54,8 +54,8 @@ test('laporan: bulanan dibanding bulan lalu → unduh PDF → tahunan → buka b
   await expect(compare.getByText('baru')).toBeVisible();
   await expect(page.getByText('Sepatu lari')).toBeVisible();
 
-  // Isi PDF dicek dari Node: antivirus dengan web shield (mis. 360) mengganti respons PDF ke
-  // browser dengan 204 kosong, dan aplikasi lalu menampilkan pesan "diblokir".
+  // Isi PDF dicek dari Node: pengelola unduhan (mis. IDM) mengambil alih respons PDF ke browser
+  // dan memberi 204 kosong, dan aplikasi lalu menampilkan pesan "diambil alih".
   const { accessToken } = (await (await page.request.post('/api/v1/auth/refresh')).json()) as {
     accessToken: string;
   };
@@ -69,7 +69,7 @@ test('laporan: bulanan dibanding bulan lalu → unduh PDF → tahunan → buka b
   await page.getByRole('button', { name: 'Unduh PDF' }).click();
   expect(new URL((await pdfRequest).url()).searchParams.get('month')).toBe(month);
   await expect(
-    page.getByText(/Laporan PDF sudah diunduh|File tidak sampai ke browser/),
+    page.getByText(/Laporan PDF sudah diunduh|File diambil alih aplikasi lain/),
   ).toBeVisible();
 
   await page.goto(`/laporan?periode=tahunan&tahun=${month.slice(0, 4)}`);

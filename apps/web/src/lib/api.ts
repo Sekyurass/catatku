@@ -123,12 +123,12 @@ export async function fetchBlob(path: string, query?: Query): Promise<Blob> {
 /** Unduh file yang butuh Authorization (mis. ekspor CSV). */
 export async function downloadFile(path: string, query: Query, filename: string) {
   const blob = await fetchBlob(path, query);
-  // Antivirus/ekstensi yang memblokir unduhan bisa mengganti respons dengan 204 kosong.
+  // Pengelola unduhan (mis. IDM) atau antivirus bisa mengambil alih respons dan memberi browser 204 kosong.
   if (blob.size === 0) {
     throw new ApiError(
       0,
       'BLOCKED',
-      'File tidak sampai ke browser. Mungkin diblokir antivirus atau ekstensi—izinkan Catatku lalu coba lagi.',
+      'File diambil alih aplikasi lain (mis. IDM) atau diblokir antivirus. Cek folder unduhan aplikasi itu.',
     );
   }
   const url = URL.createObjectURL(blob);
