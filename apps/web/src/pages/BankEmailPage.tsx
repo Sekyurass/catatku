@@ -8,8 +8,8 @@ import {
   formatRupiah,
 } from '@catatku/shared';
 import { useQueryClient } from '@tanstack/react-query';
-import { Copy, FileUp, Inbox, KeyRound, Mail, RefreshCw } from 'lucide-react';
-import { type ChangeEvent, useId, useRef, useState } from 'react';
+import { Copy, FileUp, Inbox, KeyRound, Loader2, Mail, MailCheck, RefreshCw } from 'lucide-react';
+import { type ChangeEvent, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
@@ -225,6 +225,24 @@ function SetupCard({ inbox }: { inbox: BankEmailInboxDTO }) {
             </div>
           </div>
 
+          <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm">
+            <li>
+              Di Gmail (versi web): <strong>Setelan</strong> â†’{' '}
+              <strong>Penerusan dan POP/IMAP</strong> â†’{' '}
+              <strong>Tambahkan alamat penerusan</strong>, lalu tempel alamat di atas.
+            </li>
+            <li>
+              Tekan <strong>Saya sudah menambahkan alamat</strong> di bawah. Kode konfirmasi dari
+              Gmail muncul di halaman ini; masukkan kode itu di Gmail.
+            </li>
+            <li>
+              Buat filter: <strong>Dari</strong> berisi alamat bank (mis. <code>bca.co.id</code>)
+              â†’ <strong>Teruskan ke</strong> alamat di atas. Email lain tidak ikut terkirim.
+            </li>
+          </ol>
+
+          {inbox.receiving && <ForwardingCheck inbox={inbox} />}
+
           {inbox.forwardingCode && (
             <div className="flex items-start gap-3 rounded-control border border-primary/40 bg-primary-soft p-3">
               <KeyRound className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
@@ -240,21 +258,6 @@ function SetupCard({ inbox }: { inbox: BankEmailInboxDTO }) {
               </div>
             </div>
           )}
-
-          <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm">
-            <li>
-              Di Gmail (versi web): <strong>Setelan</strong> â†’{' '}
-              <strong>Penerusan dan POP/IMAP</strong> â†’{' '}
-              <strong>Tambahkan alamat penerusan</strong>, lalu tempel alamat di atas.
-            </li>
-            <li>
-              Kode konfirmasi dari Gmail akan muncul di halaman ini. Masukkan kode itu di Gmail.
-            </li>
-            <li>
-              Buat filter: <strong>Dari</strong> berisi alamat bank (mis. <code>bca.co.id</code>)
-              â†’ <strong>Teruskan ke</strong> alamat di atas. Email lain tidak ikut terkirim.
-            </li>
-          </ol>
 
           <Field label="Dompet bawaan" hint="Dipakai saat mencatat; tetap bisa diganti.">
             {(a) => (
@@ -290,6 +293,91 @@ function SetupCard({ inbox }: { inbox: BankEmailInboxDTO }) {
         }}
       />
     </Card>
+  );
+}
+
+const CHECK_EVERY_MS = 5000;
+const CHECK_FOR_MS = 3 * 60 * 1000;
+
+/** Periksa kotak masuk berkala sampai kode konfirmasi penerusan Gmail yang baru masuk. */
+function ForwardingCheck({ inbox }: { inbox: BankEmailInboxDTO }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [waiting, setWaiting] = useState<{ baseline: string | null } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!waiting) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
+    const tick = async () => {
+      try {
+        const next = await api<BankEmailInboxDTO>('/bank-email/check', { method: 'POST' });
+        if (cancelled) return;
+        queryClient.setQueryData(queryKeys.bankEmail, next);
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 429) {
+          setWaiting(null);
+          setNotice(err.message);
+          return;
+        }
+      }
+      if (Date.now() - startedAt >= CHECK_FOR_MS) {
+        setWaiting(null);
+        setNotice(
+          'Kode belum datang. Pastikan alamat sudah ditambahkan di Gmail dan tekan Lanjutkan di sana, lalu coba lagi.',
+        );
+        return;
+      }
+      timer = setTimeout(() => void tick(), CHECK_EVERY_MS);
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [waiting, queryClient]);
+
+  useEffect(() => {
+    if (waiting && inbox.forwardingCodeAt !== waiting.baseline) {
+      setWaiting(null);
+      toast({ message: 'Kode konfirmasi Gmail sudah masuk.' });
+    }
+  }, [waiting, inbox.forwardingCodeAt, toast]);
+
+  if (waiting) {
+    return (
+      <div
+        role="status"
+        className="flex flex-wrap items-center gap-3 rounded-control bg-surface-muted p-3 text-sm"
+      >
+        <Loader2 className="size-5 shrink-0 animate-spin text-primary" aria-hidden />
+        <p className="min-w-0 flex-1">
+          Menunggu kode dari Gmail… Biasanya kurang dari satu menit setelah kamu menambahkan alamat.
+        </p>
+        <Button variant="ghost" onClick={() => setWaiting(null)}>
+          Berhenti
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Button
+        variant="secondary"
+        className="w-fit"
+        icon={<MailCheck className="size-4" aria-hidden />}
+        onClick={() => {
+          setNotice(null);
+          setWaiting({ baseline: inbox.forwardingCodeAt });
+        }}
+      >
+        Saya sudah menambahkan alamat
+      </Button>
+      {notice && <p className="text-sm text-muted">{notice}</p>}
+    </div>
   );
 }
 

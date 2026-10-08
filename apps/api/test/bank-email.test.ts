@@ -139,6 +139,18 @@ describe('email bank: pengaturan', () => {
 
     await authed(user).put('/api/v1/bank-email').send({}).expect(400);
   });
+
+  it('periksa kode konfirmasi: mengembalikan keadaan kotak masuk terbaru', async () => {
+    const user = await newUser();
+    const off = (await authed(user).post('/api/v1/bank-email/check').expect(200))
+      .body as BankEmailInboxDTO;
+    expect(off).toMatchObject({ enabled: false, forwardingCode: null });
+
+    const on = await enable(user);
+    const checked = (await authed(user).post('/api/v1/bank-email/check').expect(200))
+      .body as BankEmailInboxDTO;
+    expect(checked).toMatchObject({ enabled: true, address: on.address, forwardingCode: null });
+  });
 });
 
 describe('email bank: unggah .eml', () => {

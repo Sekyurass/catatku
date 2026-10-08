@@ -7,8 +7,10 @@ import {
   updateBankEmailSchema,
 } from '@catatku/shared';
 import express, { type NextFunction, type Request, type Response, Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { env } from '../../config/env';
 import { notFound, unauthorized } from '../../lib/errors';
+import { logger } from '../../lib/logger';
 import { parse } from '../../lib/validate';
 import { currentUserId } from '../../middleware/auth';
 import { requireFeature } from '../features/features.routes';
@@ -16,6 +18,7 @@ import * as service from './bankEmail.service';
 import { pollImap } from './imap';
 
 const rawEmail = express.raw({ type: () => true, limit: BANK_EMAIL_MAX_BYTES });
+const CHECK_MIN_INTERVAL_MS = 4000;
 
 /** Pengaturan, unggah .eml, dan antrean konfirmasi. Dipasang di belakang requireAuth. */
 export function createBankEmailRouter() {
@@ -33,6 +36,33 @@ export function createBankEmailRouter() {
 
   router.post('/address', async (req, res) => {
     res.json(await service.rotateAddress(currentUserId(req)));
+  });
+
+  // Dipanggil berkala oleh halaman selama pengguna menunggu kode konfirmasi penerusan Gmail.
+  const checkLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    limit: 60,
+    keyGenerator: (req) => currentUserId(req),
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (_req, res) => {
+      res.status(429).json({
+        error: { code: 'RATE_LIMITED', message: 'Terlalu sering memeriksa. Coba lagi nanti.' },
+      });
+    },
+  });
+
+  router.post('/check', checkLimiter, async (req, res) => {
+    const userId = currentUserId(req);
+    const inbox = await service.getInbox(userId);
+    if (inbox.enabled && inbox.receiving) {
+      await pollImap({ minIntervalMs: CHECK_MIN_INTERVAL_MS }).catch((err: unknown) =>
+        logger.error({ err }, 'Gagal memeriksa kotak masuk IMAP'),
+      );
+      res.json(await service.getInbox(userId));
+      return;
+    }
+    res.json(inbox);
   });
 
   router.post('/upload', rawEmail, async (req, res) => {

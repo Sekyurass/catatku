@@ -8,15 +8,22 @@ const MAX_PER_POLL = 50;
 export const isImapConfigured = () => env.INBOUND_IMAP_HOST !== '';
 
 let running: Promise<number> | null = null;
+let lastStartedAt = 0;
 
 /**
  * Baca email belum dibaca di kotak masuk server (mis. Gmail khusus Catatku + app password),
  * proses, lalu hapus: isi email tidak disimpan di mana pun. Email yang gagal diproses dibiarkan
  * agar dicoba lagi pada putaran berikutnya; yang sama tidak tercatat dua kali (kunci anti-ganda).
+ *
+ * `minIntervalMs`: lewati bila putaran terakhir dimulai kurang dari selang ini, supaya banyak
+ * pengguna yang menunggu kode konfirmasi bersamaan tidak membuka koneksi IMAP berulang-ulang.
  */
-export function pollImap(): Promise<number> {
+export function pollImap({ minIntervalMs = 0 } = {}): Promise<number> {
   if (!isImapConfigured()) return Promise.resolve(0);
-  running ??= poll().finally(() => (running = null));
+  if (running) return running;
+  if (Date.now() - lastStartedAt < minIntervalMs) return Promise.resolve(0);
+  lastStartedAt = Date.now();
+  running = poll().finally(() => (running = null));
   return running;
 }
 

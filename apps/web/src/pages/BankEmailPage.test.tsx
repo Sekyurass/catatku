@@ -83,15 +83,20 @@ const PENDING: BankEmailPendingDTO = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-function setup({ enabled = true } = {}) {
+function setup({
+  enabled = true,
+  inbox = INBOX,
+  checked = INBOX,
+}: { enabled?: boolean; inbox?: BankEmailInboxDTO; checked?: BankEmailInboxDTO } = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.includes('/features')) return json({ flags: { bank_email: enabled } });
+    if (url.endsWith('/bank-email/check')) return json(checked);
     if (url.includes('/bank-email/pending/') && init?.method === 'POST') {
       return new Response(null, { status: 204 });
     }
     if (url.endsWith('/bank-email/pending')) return json({ items: [PENDING] });
-    if (url.endsWith('/bank-email')) return json(INBOX);
+    if (url.endsWith('/bank-email')) return json(inbox);
     if (url.includes('/wallets')) return json({ items: WALLETS });
     if (url.includes('/categories')) return json({ items: CATEGORIES });
     if (url.includes('/transactions') && init?.method === 'POST') return json({ id: 't1' }, 201);
@@ -135,6 +140,18 @@ describe('BankEmailPage', () => {
     expect(screen.getByText('123456789')).toBeInTheDocument();
     expect(screen.getByText(/Untuk budi@gmail\.com/)).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Terima email bank otomatis' })).toBeChecked();
+  });
+
+  it('Saya sudah menambahkan alamat: memeriksa kotak masuk sampai kode baru muncul', async () => {
+    const noCode = { ...INBOX, sourceEmail: null, forwardingCode: null, forwardingCodeAt: null };
+    const { posts } = setup({ inbox: noCode, checked: INBOX });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Saya sudah menambahkan alamat' }),
+    );
+    expect(await screen.findByText('123456789')).toBeInTheDocument();
+    expect(posts().map((p) => p.url)).toContainEqual(expect.stringMatching(/\/bank-email\/check$/));
+    expect(await screen.findByText('Kode konfirmasi Gmail sudah masuk.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Saya sudah menambahkan alamat' })).toBeVisible();
   });
 
   it('Catat membuka form terisi; setelah disimpan, transaksi ditautkan ke email', async () => {
