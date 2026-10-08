@@ -66,7 +66,7 @@ const wallet = (id: string, name: string): WalletDTO => ({
 const json = (body: unknown, status = 201) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-function setup({ path = '/utang', debts = DEBTS } = {}) {
+function setup({ path = '/anggaran/utang', debts = DEBTS } = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     if (url.pathname.endsWith('/features')) return json({ flags: { debts: true } }, 200);
@@ -115,7 +115,7 @@ function setup({ path = '/utang', debts = DEBTS } = {}) {
       <MemoryRouter initialEntries={[path]}>
         <ToastProvider>
           <Routes>
-            <Route path="/utang" element={<DebtsPage />} />
+            <Route path="/anggaran/utang" element={<DebtsPage />} />
           </Routes>
         </ToastProvider>
       </MemoryRouter>
@@ -138,9 +138,11 @@ describe('DebtsPage', () => {
 
   it('ringkasan sisa utang & piutang; tab memisahkan arah', async () => {
     setup();
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'Utang & piutang' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rencana' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Utang' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     expect((await screen.findByText('Sisa utang')).nextElementSibling).toHaveTextContent(
       'Rp 440.000',
     );
@@ -160,7 +162,7 @@ describe('DebtsPage', () => {
   });
 
   it('?debt= membuka detail dengan jadwal cicilan', async () => {
-    setup({ path: '/utang?debt=d1' });
+    setup({ path: '/anggaran/utang?debt=d1' });
     const dialog = await screen.findByRole('dialog', { name: 'Utang ke Budi' });
     expect(within(dialog).getByText('Jadwal cicilan')).toBeInTheDocument();
     expect(within(dialog).getAllByText('Rp 220.000')).toHaveLength(3);

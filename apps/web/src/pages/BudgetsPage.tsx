@@ -15,7 +15,7 @@ import { useId, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CustomBudgetForm } from '../components/budgets/CustomBudgetForm';
 import { IconBadge } from '../components/IconBadge';
-import { PlanHeader } from '../components/plan/PlanHeader';
+import { PlanHeader, usePlanTabs } from '../components/plan/PlanHeader';
 import { SavingsThisMonthCard } from '../components/plan/SavingsThisMonthCard';
 import { useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
@@ -53,6 +53,7 @@ export function BudgetsPage() {
   const [editing, setEditing] = useState<BudgetDTO | null>(null);
   const [creating, setCreating] = useState(false);
   const goals = useFeature(FEATURE_FLAGS.SAVINGS_GOALS);
+  const planTabs = usePlanTabs();
   // Data setoran target hanya tersedia untuk bulan berjalan.
   const goalList = useGoals(goals && month === currentMonth());
   const goalItems = goals && month === currentMonth() ? (goalList.data ?? []) : [];
@@ -64,7 +65,7 @@ export function BudgetsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {goals ? (
+      {planTabs.length > 1 ? (
         <PlanHeader action={switcher} />
       ) : (
         <header className="flex items-center justify-between gap-2">

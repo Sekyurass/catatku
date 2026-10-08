@@ -70,7 +70,7 @@ const REPORTS_LINK = {
 };
 
 const DEBTS_LINK = {
-  to: '/utang',
+  to: '/anggaran/utang',
   label: 'Utang & piutang',
   description: 'Pinjaman, cicilan, dan pengingat jatuh tempo',
   icon: HandCoins,

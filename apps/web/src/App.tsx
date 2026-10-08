@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { SplashScreen } from './components/SplashScreen';
 import { AppLayout } from './layouts/AppLayout';
 import { PrivacyGate } from './pages/privacy/PrivacyGate';
@@ -35,6 +35,12 @@ function GuestAuthPage() {
       <AuthPage />
     </GuestOnly>
   );
+}
+
+/** Tautan lama (notifikasi yang sudah terkirim) memakai /utang?debt=id. */
+function LegacyDebtsRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/anggaran/utang${search}`} replace />;
 }
 
 export function App() {
@@ -86,7 +92,8 @@ export function App() {
           <Route path="transaksi" element={<TransactionsPage />} />
           <Route path="anggaran" element={<BudgetsPage />} />
           <Route path="anggaran/target" element={<GoalsPage />} />
-          <Route path="utang" element={<DebtsPage />} />
+          <Route path="anggaran/utang" element={<DebtsPage />} />
+          <Route path="utang" element={<LegacyDebtsRedirect />} />
           <Route path="dompet" element={<WalletsPage />} />
           <Route path="kategori" element={<CategoriesPage />} />
           <Route path="berulang" element={<RecurringPage />} />

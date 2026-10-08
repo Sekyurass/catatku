@@ -236,7 +236,7 @@ describe('utang-piutang', () => {
       'Utang segera jatuh tempo',
       'Utang lewat jatuh tempo',
     ]);
-    expect(notes[0]!.link).toBe(`/utang?debt=${debt.id}`);
+    expect(notes[0]!.link).toBe(`/anggaran/utang?debt=${debt.id}`);
     expect(notes[0]!.body).toContain('cicilan 1/2');
 
     // Sebelum jam 08.00 WIB tidak mengirim apa pun.

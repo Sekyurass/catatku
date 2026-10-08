@@ -515,7 +515,7 @@ export async function runDebtReminders(now: Date = new Date()): Promise<number> 
         const created = await notify(debt.userId, {
           type: 'DEBT_DUE',
           ...reminderText(debt, reminder),
-          link: `/utang?debt=${debt.id}`,
+          link: `/anggaran/utang?debt=${debt.id}`,
           dedupeKey: `debt:${debt.id}:${key}`,
         });
         if (created) sent++;

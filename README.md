@@ -486,7 +486,9 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     **Sesuai rencana** bila terkumpul ≥ jalur lurus dari bulan dibuat sampai bulan tenggat (per bulan penuh
     yang lewat; bulan pertama selalu sesuai), **Tertinggal** bila kurang atau tenggat lewat, **Tercapai**
     bila terkumpul ≥ target. Bilah progres beranimasi singkat (dimatikan oleh `prefers-reduced-motion`).
-- **Utang & piutang** (Fase 4.3, flag `debts`): halaman `/utang` (dari Profil). Tab **Utang saya** /
+- **Utang & piutang** (Fase 4.3, flag `debts`): sub-tab **Utang** di menu **Rencana**
+  (`/anggaran/utang`, juga dari Profil; tautan lama `/utang` dialihkan). Flag `debts` saja sudah cukup
+  untuk mengubah menu Anggaran menjadi Rencana. Tab **Utang saya** /
   **Piutang saya**, ringkasan sisa, kartu per pihak dengan progres pelunasan dan angsuran berikutnya.
   - **Model**: `Debt (direction PAYABLE|RECEIVABLE, counterparty, principal, interest, startDate, dueDate?,
 installments?, firstDueDate?, walletId?, settledAt?)` dan `DebtPayment`. Maks. 100 yang belum lunas.
@@ -507,7 +509,7 @@ installments?, firstDueDate?, walletId?, settledAt?)` dan `DebtPayment`. Maks. 1
     pokok menyesuaikan transaksi pinjaman awal; total tidak boleh di bawah yang sudah dibayar.
   - **Pengingat** (butuh flag `reminders` juga): putaran pengingat tiap jam, mulai 08.00 WIB, mengirim satu
     notifikasi "segera jatuh tempo" (≤ 3 hari) dan satu "lewat jatuh tempo" per angsuran (`Debt.lastReminder`
-    diklaim dulu + `dedupeKey`, aman diulang). Tautan membuka `/utang?debt=id`.
+    diklaim dulu + `dedupeKey`, aman diulang). Tautan membuka `/anggaran/utang?debt=id`.
 - **Insight otomatis** (Fase 2.3, flag `insights`): bagian **Insight untukmu** di Beranda, maks. 3 kartu yang
   bisa digeser (di layar lebar jadi 3 kolom) plus **Lihat semua**. Tiap kartu membuka detail berisi angka
   pendukung, "Cara menghitung", dan langkah lanjutan; tombol × menyembunyikannya (bisa diurungkan).

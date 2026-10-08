@@ -1,15 +1,28 @@
-import { Goal, PiggyBank } from 'lucide-react';
+import { FEATURE_FLAGS } from '@catatku/shared';
+import { Goal, HandCoins, PiggyBank } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/cn';
+import { useFeature } from '../../lib/features';
 
-const TABS = [
-  { to: '/anggaran', label: 'Anggaran', icon: PiggyBank },
-  { to: '/anggaran/target', label: 'Target', icon: Goal },
-] as const;
+const BUDGET_TAB = { to: '/anggaran', label: 'Anggaran', icon: PiggyBank };
+const GOALS_TAB = { to: '/anggaran/target', label: 'Target', icon: Goal };
+const DEBTS_TAB = { to: '/anggaran/utang', label: 'Utang', icon: HandCoins };
 
-/** Judul tab "Rencana" dengan sub-tab Anggaran | Target. `action` tampil di kanan judul. */
+/**
+ * Sub-tab Rencana yang aktif; hanya Anggaran = tidak perlu header Rencana. Tab halaman yang sedang
+ * dibuka selalu ikut tampil supaya tidak berkedip selama flag dimuat.
+ */
+export function usePlanTabs() {
+  const { pathname } = useLocation();
+  const goals = useFeature(FEATURE_FLAGS.SAVINGS_GOALS) || pathname === GOALS_TAB.to;
+  const debts = useFeature(FEATURE_FLAGS.DEBTS) || pathname === DEBTS_TAB.to;
+  return [BUDGET_TAB, ...(goals ? [GOALS_TAB] : []), ...(debts ? [DEBTS_TAB] : [])];
+}
+
+/** Judul tab "Rencana" dengan sub-tab Anggaran | Target | Utang. `action` tampil di kanan judul. */
 export function PlanHeader({ action }: { action?: ReactNode }) {
+  const tabs = usePlanTabs();
   return (
     <header className="flex flex-col gap-3">
       <div className="flex min-h-[54px] items-center justify-between gap-2">
@@ -17,8 +30,13 @@ export function PlanHeader({ action }: { action?: ReactNode }) {
         {action}
       </div>
       <nav aria-label="Bagian rencana">
-        <ul className="grid grid-cols-2 gap-1 rounded-control bg-surface-muted p-1 md:max-w-sm">
-          {TABS.map(({ to, label, icon: Icon }) => (
+        <ul
+          className={cn(
+            'grid gap-1 rounded-control bg-surface-muted p-1',
+            tabs.length === 3 ? 'grid-cols-3 md:max-w-md' : 'grid-cols-2 md:max-w-sm',
+          )}
+        >
+          {tabs.map(({ to, label, icon: Icon }) => (
             <li key={to}>
               <NavLink
                 to={to}

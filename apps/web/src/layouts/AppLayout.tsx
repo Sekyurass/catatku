@@ -1,4 +1,3 @@
-import { FEATURE_FLAGS } from '@catatku/shared';
 import {
   House,
   ListOrdered,
@@ -19,12 +18,12 @@ import {
   SideBell,
   useNotificationCenter,
 } from '../components/notifications/NotificationCenter';
+import { usePlanTabs } from '../components/plan/PlanHeader';
 import { QuickAddProvider, useQuickAdd } from '../components/transactions/QuickAdd';
 import { Button } from '../components/ui/Button';
 import { PageSkeleton } from '../components/ui/States';
 import { useAuth } from '../lib/auth';
 import { cn } from '../lib/cn';
-import { useFeature } from '../lib/features';
 import { prefetchPageData } from '../lib/queries';
 import { preloadAppPages, whenIdle } from '../routes/pages';
 
@@ -42,10 +41,10 @@ const NAV_ITEMS: readonly NavItem[] = [
   { to: '/profil', label: 'Profil', icon: UserRound, end: false },
 ];
 
-/** Dengan target tabungan, menu Anggaran menjadi "Rencana" (Anggaran | Target di /anggaran/*). */
+/** Dengan target tabungan atau utang, menu Anggaran menjadi "Rencana" (sub-tab di /anggaran/*). */
 function useNavItems(): readonly NavItem[] {
-  const goals = useFeature(FEATURE_FLAGS.SAVINGS_GOALS);
-  if (!goals) return NAV_ITEMS;
+  const tabs = usePlanTabs();
+  if (tabs.length === 1) return NAV_ITEMS;
   return NAV_ITEMS.map((i) => (i.to === '/anggaran' ? { ...i, label: 'Rencana' } : i));
 }
 

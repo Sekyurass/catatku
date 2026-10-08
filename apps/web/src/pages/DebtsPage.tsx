@@ -8,11 +8,12 @@ import {
 } from '@catatku/shared';
 import { CircleCheck, HandCoins, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { DebtForm } from '../components/debts/DebtForm';
 import { DebtPaymentForm } from '../components/debts/DebtPaymentForm';
 import { SplitBillForm } from '../components/debts/SplitBillForm';
 import { IconBadge } from '../components/IconBadge';
+import { PlanHeader } from '../components/plan/PlanHeader';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -66,31 +67,34 @@ export function DebtsPage() {
   const shown = items.filter((d) => d.direction === tab);
   const active = shown.filter((d) => !d.settledAt);
   const settled = shown.filter((d) => d.settledAt);
-  const unavailable = features.isSuccess && !enabled;
+
+  if (features.isSuccess && !enabled) return <Navigate to="/anggaran" replace />;
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Utang & piutang</h1>
-        {enabled && items.length > 0 && (
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              icon={<Users className="size-4" aria-hidden />}
-              onClick={() => setView({ kind: 'split' })}
-            >
-              Bagi tagihan
-            </Button>
-            <Button
-              icon={<Plus className="size-4" aria-hidden />}
-              onClick={() => setView({ kind: 'new' })}
-            >
-              Catat
-            </Button>
-          </div>
-        )}
-      </header>
-      <p className="-mt-2 text-sm text-muted">
+      <PlanHeader
+        action={
+          enabled &&
+          items.length > 0 && (
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                icon={<Users className="size-4" aria-hidden />}
+                onClick={() => setView({ kind: 'split' })}
+              >
+                Bagi tagihan
+              </Button>
+              <Button
+                icon={<Plus className="size-4" aria-hidden />}
+                onClick={() => setView({ kind: 'new' })}
+              >
+                Catat
+              </Button>
+            </div>
+          )
+        }
+      />
+      <p className="text-sm text-muted">
         Pinjaman dan cicilan tidak dihitung sebagai pemasukan atau pengeluaran, tapi saldo dompet
         tetap ikut bergerak.
       </p>
@@ -98,22 +102,6 @@ export function DebtsPage() {
       {features.isError ? (
         <Card>
           <ErrorState message={features.error.message} onRetry={() => void features.refetch()} />
-        </Card>
-      ) : unavailable ? (
-        <Card>
-          <EmptyState
-            icon={HandCoins}
-            title="Fitur belum tersedia"
-            description="Pencatatan utang & piutang belum aktif untuk akunmu."
-            action={
-              <Link
-                to="/"
-                className="inline-flex min-h-11 items-center rounded-control bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-hover"
-              >
-                Kembali ke Beranda
-              </Link>
-            }
-          />
         </Card>
       ) : !enabled || debts.isPending ? (
         <div

@@ -183,7 +183,7 @@ function DetailBody({
             hapus lewat halaman Utang supaya sisa tagihannya tetap cocok.
           </p>
           <Link
-            to={tx.debtId ? `/utang?debt=${tx.debtId}` : '/utang'}
+            to={tx.debtId ? `/anggaran/utang?debt=${tx.debtId}` : '/anggaran/utang'}
             onClick={onClose}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-control bg-primary px-4 font-semibold text-on-primary"
             data-autofocus
