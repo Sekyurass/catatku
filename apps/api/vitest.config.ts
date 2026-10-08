@@ -23,6 +23,8 @@ export default defineConfig({
       INBOUND_EMAIL_ADDRESS: 'catat@masuk.contoh.id',
       INBOUND_EMAIL_SECRET: 'rahasia-inbound-khusus-tes-123',
       INBOUND_IMAP_HOST: '',
+      INBOUND_IMAP_USER: '',
+      INBOUND_IMAP_PASS: '',
     },
   },
 });

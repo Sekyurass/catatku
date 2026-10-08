@@ -280,11 +280,24 @@ export async function ingestEmail(userId: string, raw: Buffer): Promise<BankEmai
 
   if (from === GMAIL_FORWARDING_SENDER) {
     const subject = mail.subject ?? '';
+    const body = mail.text || (typeof mail.html === 'string' ? htmlToText(mail.html) : '');
     const code =
-      subject.match(/\(#(\d{6,12})\)/)?.[1] ??
-      (mail.text ?? '').match(/(?:confirmation code|kode konfirmasi)\s*:?\s*(\d{6,12})/i)?.[1];
-    const source = subject.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0]?.toLowerCase() ?? null;
-    if (!code || !inbox) return done('unrecognized');
+      subject.match(/#\s*(\d{6,12})/)?.[1] ??
+      body.match(
+        /(?:confirmation code|verification code|kode (?:konfirmasi|verifikasi))\D{0,20}(\d{6,12})/i,
+      )?.[1];
+    const inboundLocal = env.INBOUND_EMAIL_ADDRESS.split('@')[0]?.toLowerCase() ?? '';
+    const source =
+      [
+        ...(subject.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []),
+        ...(body.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []),
+      ]
+        .map((a) => a.toLowerCase())
+        .find((a) => a.split(/[+@]/)[0] !== inboundLocal && !a.endsWith('@google.com')) ?? null;
+    if (!code || !inbox) {
+      logger.warn({ subject, hasInbox: !!inbox }, 'Email penerusan Gmail tanpa kode terbaca');
+      return done('unrecognized');
+    }
     await prisma.emailInbox.update({
       where: { userId },
       data: { forwardingCode: code, forwardingCodeAt: new Date(), sourceEmail: source },
