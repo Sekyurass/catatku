@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+import { DEFAULT_DESCRIPTION, INDEXABLE_PATHS } from './src/lib/pageMeta';
 
 // Pustaka inti dipisah dari kode aplikasi supaya tetap ter-cache antar-rilis.
 const VENDOR_CHUNKS: Record<string, string[]> = {
@@ -72,8 +73,74 @@ function tesseractAssets(): Plugin {
   };
 }
 
+/**
+ * robots.txt, sitemap.xml, serta tag yang wajib URL absolut (canonical, og:url, og:image, JSON-LD).
+ * Alamat situs: VITE_SITE_URL, atau domain produksi yang disediakan Vercel saat build. Tanpa
+ * keduanya hanya robots.txt yang dibuat (tanpa baris Sitemap).
+ */
+function seoFiles(): Plugin {
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const siteUrl = (
+    process.env.VITE_SITE_URL || (vercelHost ? `https://${vercelHost}` : '')
+  ).replace(/\/$/, '');
+
+  return {
+    name: 'catatku-seo',
+    config: () => ({
+      define: { 'import.meta.env.VITE_SITE_URL': JSON.stringify(siteUrl) },
+    }),
+    transformIndexHtml() {
+      if (!siteUrl) return [];
+      const meta = (property: string, content: string) => ({
+        tag: 'meta',
+        attrs: { property, content },
+        injectTo: 'head' as const,
+      });
+      const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'WebApplication',
+        name: 'Catatku',
+        url: `${siteUrl}/`,
+        description: DEFAULT_DESCRIPTION,
+        applicationCategory: 'FinanceApplication',
+        operatingSystem: 'Web',
+        inLanguage: 'id-ID',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'IDR' },
+      };
+      return [
+        { tag: 'link', attrs: { rel: 'canonical', href: `${siteUrl}/daftar` }, injectTo: 'head' },
+        meta('og:url', `${siteUrl}/daftar`),
+        meta('og:image', `${siteUrl}/og-image.png`),
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:image', content: `${siteUrl}/og-image.png` },
+          injectTo: 'head',
+        },
+        {
+          tag: 'script',
+          attrs: { type: 'application/ld+json' },
+          children: JSON.stringify(jsonLd),
+          injectTo: 'head',
+        },
+      ];
+    },
+    generateBundle() {
+      const robots = ['User-agent: *', 'Allow: /', 'Disallow: /api/'];
+      if (siteUrl) robots.push('', `Sitemap: ${siteUrl}/sitemap.xml`);
+      this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `${robots.join('\n')}\n` });
+      if (!siteUrl) return;
+      const urls = INDEXABLE_PATHS.map((p) => `  <url><loc>${siteUrl}${p}</loc></url>`).join('\n');
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sitemap.xml',
+        source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tesseractAssets()],
+  plugins: [react(), tailwindcss(), tesseractAssets(), seoFiles()],
   // Diimpor dinamis; tanpa ini Vite dev me-reload halaman saat pindaian pertama.
   optimizeDeps: { include: ['tesseract.js'] },
   build: {

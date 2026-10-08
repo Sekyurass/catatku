@@ -235,6 +235,12 @@ pembersihan) lewat `runInBackground` (`lib/background.ts`) yang mendaftarkannya 
 tidak terpotong saat fungsi dibekukan. Batasan: body maks. 4,5 MB (lampiran dibatasi 4 MB), rate limit
 login disimpan di memori per instans (lebih longgar di serverless).
 
+**SEO.** Hanya `/masuk`, `/daftar`, dan `/privasi` yang boleh diindeks; halaman lain diberi
+`noindex` oleh `PageMeta` (judul, deskripsi, robots, canonical per rute di `src/lib/pageMeta.ts`). Saat
+build, plugin `seoFiles` di `vite.config.ts` membuat `robots.txt` + `sitemap.xml` dan menyuntikkan
+canonical, Open Graph (`public/og-image.png`), serta JSON-LD. Domain diambil dari `VITE_SITE_URL`, atau
+otomatis dari `VERCEL_PROJECT_PRODUCTION_URL` di Vercel; isi `VITE_SITE_URL` bila memakai domain sendiri.
+
 ## Skrip
 
 | Perintah                                 | Fungsi                                                       |
