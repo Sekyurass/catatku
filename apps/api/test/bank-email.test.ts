@@ -397,12 +397,19 @@ describe('email bank: konfirmasi', () => {
 });
 
 describe('email bank: ringkasan harian antrean', () => {
+  afterAll(async () => {
+    await prisma.featureFlag.update({
+      where: { key: FEATURE_FLAGS.REMINDERS },
+      data: { enabled: false, plan: null, userIds: [] },
+    });
+  });
+
   it('sekali sehari mulai 19.00, hanya untuk antrean yang sudah lewat 3 jam', async () => {
     const user = await newUser();
     await prisma.featureFlag.upsert({
       where: { key: FEATURE_FLAGS.REMINDERS },
-      create: { key: FEATURE_FLAGS.REMINDERS, enabled: true, userIds: [user.id] },
-      update: { enabled: true, userIds: { push: user.id } },
+      create: { key: FEATURE_FLAGS.REMINDERS, enabled: true, plan: 'PREMIUM', userIds: [user.id] },
+      update: { enabled: true, plan: 'PREMIUM', userIds: { push: user.id } },
     });
     const first = (await upload(user, await signed({ to: user.email })).expect(200)).body
       .pending as BankEmailPendingDTO;
