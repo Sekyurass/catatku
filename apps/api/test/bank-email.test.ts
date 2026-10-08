@@ -4,7 +4,10 @@ import { dkimSign } from 'mailauth';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/lib/prisma';
-import { setDnsResolverForTests } from '../src/modules/bankEmail/bankEmail.service';
+import {
+  runPendingDigest,
+  setDnsResolverForTests,
+} from '../src/modules/bankEmail/bankEmail.service';
 import { app, authed, createWallet, registerUser, type TestUser } from './helpers';
 
 const KEY = FEATURE_FLAGS.BANK_EMAIL;
@@ -391,4 +394,53 @@ describe('email bank: konfirmasi', () => {
       .body as BankEmailInboxDTO;
     expect(inbox.pendingCount).toBe(0);
   });
+});
+
+describe('email bank: ringkasan harian antrean', () => {
+  it('sekali sehari mulai 19.00, hanya untuk antrean yang sudah lewat 3 jam', async () => {
+    const user = await newUser();
+    await prisma.featureFlag.upsert({
+      where: { key: FEATURE_FLAGS.REMINDERS },
+      create: { key: FEATURE_FLAGS.REMINDERS, enabled: true, userIds: [user.id] },
+      update: { enabled: true, userIds: { push: user.id } },
+    });
+    const first = (await upload(user, await signed({ to: user.email })).expect(200)).body
+      .pending as BankEmailPendingDTO;
+    await upload(user, await signed({ to: user.email })).expect(200);
+    const digests = () =>
+      prisma.notification.findMany({
+        where: { userId: user.id, dedupeKey: { startsWith: 'bank-pending:' } },
+      });
+
+    const evening = new Date('2026-10-08T13:00:00Z'); // 20.00 WIB
+    await prisma.inboundTransaction.updateMany({
+      where: { userId: user.id },
+      data: { createdAt: new Date(evening.getTime() - 60 * 60 * 1000) },
+    });
+    await runPendingDigest(evening);
+    expect(await digests()).toHaveLength(0);
+
+    await prisma.inboundTransaction.updateMany({
+      where: { userId: user.id },
+      data: { createdAt: new Date(evening.getTime() - 4 * 60 * 60 * 1000) },
+    });
+    await runPendingDigest(new Date('2026-10-08T11:00:00Z')); // 18.00 WIB
+    expect(await digests()).toHaveLength(0);
+
+    await runPendingDigest(evening);
+    await runPendingDigest(new Date('2026-10-08T14:00:00Z'));
+    const rows = await digests();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      title: '2 transaksi dari email BCA menunggu dicek',
+      link: '/email-bank',
+      dedupeKey: 'bank-pending:2026-10-08',
+    });
+
+    await authed(user).post(`/api/v1/bank-email/pending/${first.id}/dismiss`).expect(204);
+    await runPendingDigest(new Date('2026-10-09T13:00:00Z'));
+    expect((await digests()).map((n) => n.title)).toContain(
+      '1 transaksi dari email BCA menunggu dicek',
+    );
+  }, 60_000);
 });

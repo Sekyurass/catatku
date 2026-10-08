@@ -438,6 +438,10 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     `htmlToText`; status gagal diabaikan, berita transfer masuk catatan). Format baru: tambah contoh
     tersamarkan ke `bank-email-parsers.test.ts`. Jangan commit file `.eml` asli.
   - **Anti-ganda**: unik `(userId, source, reference)`; tanpa nomor referensi dipakai hash Message-ID.
+  - **Notifikasi** (butuh flag `reminders`): tiap email terbaca langsung memberi kabar. Bila antrean masih
+    ada, ringkasan "N transaksi dari email bank menunggu dicek" dikirim sekali sehari mulai 19.00 waktu
+    pengguna (`runPendingDigest` di putaran pengingat tiap jam, `dedupeKey` per tanggal). Email yang masuk
+    kurang dari 3 jam sebelumnya tidak dihitung karena sudah diberi tahu satu per satu.
 - **Perkiraan akhir bulan** (Fase 2.4, flag `forecast`): kartu di Beranda di bawah ringkasan. Perkiraan
   saldo akhir bulan = saldo sekarang − rata-rata pengeluaran harian × sisa hari − tagihan berulang yang
   akan datang + pemasukan terjadwal, ditampilkan sebagai **rentang pesimis–optimis**, plus rincian dan

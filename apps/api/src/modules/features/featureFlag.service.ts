@@ -84,3 +84,17 @@ export async function getFlagsForUser(userId: string): Promise<Record<FeatureFla
 export async function isFeatureEnabled(key: FeatureFlagKey, userId: string): Promise<boolean> {
   return (await getFlagsForUser(userId))[key];
 }
+
+/** Versi massal untuk job latar: satu kueri flag untuk semua pengguna, bukan dua per pengguna. */
+export async function filterUsersWithFeatures<U extends { id: string; plan: Plan }>(
+  users: U[],
+  keys: FeatureFlagKey[],
+): Promise<U[]> {
+  const flags = await loadFlags();
+  const byKey = new Map(flags.map((f) => [f.key, f]));
+  return users.filter((user) =>
+    keys.every((key) =>
+      evaluateFlag(byKey.get(key) ?? { key, enabled: false, plan: null, userIds: [] }, user),
+    ),
+  );
+}

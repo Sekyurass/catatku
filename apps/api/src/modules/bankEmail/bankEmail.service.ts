@@ -9,6 +9,7 @@ import {
   type BankEmailUploadDTO,
   FEATURE_FLAGS,
   formatRupiah,
+  TIME_ZONES,
   toDateString,
   type UpdateBankEmailInput,
 } from '@catatku/shared';
@@ -20,7 +21,8 @@ import { conflict, notFound, validationError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
-import { isFeatureEnabled } from '../features/featureFlag.service';
+import { hourInZone } from '../../lib/time';
+import { filterUsersWithFeatures, isFeatureEnabled } from '../features/featureFlag.service';
 import { notify } from '../notifications/notification.service';
 import { htmlToText, parseBankEmail } from './parsers';
 
@@ -408,4 +410,65 @@ export async function receiveEmail(
   if (!(await isFeatureEnabled(FEATURE_FLAGS.BANK_EMAIL, inbox.userId))) return null;
   const { result } = await ingestEmail(inbox.userId, raw);
   return result;
+}
+
+// ---------- Ringkasan harian antrean ----------
+
+/** Ringkasan dikirim mulai jam ini (zona pengguna). */
+const DIGEST_HOUR = 19;
+/** Yang baru masuk sudah diberi tahu satu per satu; jangan diulang dalam rentang ini. */
+const DIGEST_MIN_AGE_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Sekali sehari: "Ada N transaksi dari email bank menunggu dicek" untuk antrean yang belum
+ * dikonfirmasi. Satu per pengguna per hari lewat `dedupeKey`, jadi aman dijalankan tiap jam.
+ */
+export async function runPendingDigest(now: Date = new Date()): Promise<number> {
+  const evening = TIME_ZONES.filter((zone) => hourInZone(now, zone) >= DIGEST_HOUR);
+  if (evening.length === 0) return 0;
+  const groups = await prisma.inboundTransaction.groupBy({
+    by: ['userId', 'source'],
+    where: {
+      status: 'PENDING',
+      createdAt: { lt: new Date(now.getTime() - DIGEST_MIN_AGE_MS) },
+      user: { timeZone: { in: evening } },
+    },
+    _count: { _all: true },
+  });
+  if (groups.length === 0) return 0;
+
+  const byUser = new Map<string, { count: number; sources: Set<string> }>();
+  for (const g of groups) {
+    const entry = byUser.get(g.userId) ?? { count: 0, sources: new Set<string>() };
+    entry.count += g._count._all;
+    entry.sources.add(g.source);
+    byUser.set(g.userId, entry);
+  }
+  const users = await filterUsersWithFeatures(
+    await prisma.user.findMany({
+      where: { id: { in: [...byUser.keys()] } },
+      select: { id: true, plan: true, timeZone: true },
+    }),
+    [FEATURE_FLAGS.BANK_EMAIL, FEATURE_FLAGS.REMINDERS],
+  );
+
+  let sent = 0;
+  for (const { id: userId, timeZone } of users) {
+    const { count, sources } = byUser.get(userId)!;
+    try {
+      const only = sources.size === 1 ? [...sources][0]! : null;
+      const bank = only === 'bca' ? 'BCA' : 'bank';
+      const created = await notify(userId, {
+        type: 'BANK_EMAIL',
+        title: `${count} transaksi dari email ${bank} menunggu dicek`,
+        body: 'Konfirmasi agar saldo dan laporan tetap akurat, atau abaikan yang tidak perlu.',
+        link: '/email-bank',
+        dedupeKey: `bank-pending:${toDateString(now, timeZone)}`,
+      });
+      if (created) sent++;
+    } catch (err) {
+      logger.error({ err, userId }, 'Gagal mengirim ringkasan antrean email bank');
+    }
+  }
+  return sent;
 }
