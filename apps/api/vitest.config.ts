@@ -20,6 +20,9 @@ export default defineConfig({
       BCRYPT_COST: '4',
       AUTH_RATE_LIMIT: '1000',
       FEATURE_FLAGS_FORCE: '',
+      INBOUND_EMAIL_ADDRESS: 'catat@masuk.contoh.id',
+      INBOUND_EMAIL_SECRET: 'rahasia-inbound-khusus-tes-123',
+      INBOUND_IMAP_HOST: '',
     },
   },
 });

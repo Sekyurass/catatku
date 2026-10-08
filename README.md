@@ -142,6 +142,38 @@ cukup mengganti env, tanpa mengubah kode:
 
 Untuk R2: endpoint `https://<account-id>.r2.cloudflarestorage.com`, region `auto`. Restart API setelah mengisi.
 
+### Email bank masuk (opsional)
+
+Tanpa pengaturan ini fitur `bank_email` tetap jalan lewat unggah `.eml`. Untuk penerusan otomatis, isi
+`INBOUND_EMAIL_ADDRESS` (alamat dasar, mis. `catat@masuk.catatku.id`; alamat pengguna jadi
+`catat+<token>@masuk.catatku.id`) lalu pilih salah satu jalur:
+
+- **Webhook** (disarankan, mis. Cloudflare Email Routing → Email Worker): isi `INBOUND_EMAIL_SECRET`
+  (≥ 24 karakter acak). Worker mengirim email mentah:
+
+  ```js
+  export default {
+    async email(message, env) {
+      await fetch('https://<api>/api/v1/inbound/email', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.INBOUND_EMAIL_SECRET}`,
+          'Content-Type': 'message/rfc822',
+          'X-Envelope-To': message.to,
+        },
+        body: message.raw,
+      });
+    },
+  };
+  ```
+
+- **IMAP** (mis. akun Gmail khusus + _App password_, Gmail mendukung `+alias`): isi `INBOUND_IMAP_HOST`
+  (`imap.gmail.com`), `INBOUND_IMAP_PORT` (993), `INBOUND_IMAP_USER`, `INBOUND_IMAP_PASS`. Scheduler membaca
+  email belum dibaca tiap 2 menit lalu menghapusnya; di serverless panggil `POST /inbound/poll` dari cron
+  (butuh `INBOUND_EMAIL_SECRET`).
+
+DKIM dicek lewat DNS sistem dengan cadangan `DNS_FALLBACK_SERVERS` (bawaan `1.1.1.1,8.8.8.8`).
+
 ### Alternatif lokal
 
 `docker compose up -d db` lalu pakai URL lokal yang dikomentari di `.env.example`.
@@ -358,6 +390,21 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
   diperbarui), `PrivacyGate` menahan semua halaman privat sampai pengguna setuju (`PUT /me/privacy`).
   Mengubah isi kebijakan = naikkan `PRIVACY_POLICY_VERSION` di `packages/shared/src/schemas/auth.ts`.
   Di Profil, bagian **Privasi & data** berisi tautan kebijakan, sakelar Ketik cepat, dan ekspor data.
+- **Catat dari email bank** (Fase 3, flag `bank_email`, halaman `/email-bank`): pengguna meneruskan
+  notifikasi transaksi dari Gmail ke alamat pribadi `<lokal>+<token>@<domain>`; hasilnya masuk antrean
+  **Menunggu konfirmasi** dan baru jadi transaksi setelah pengguna menekan **Catat** (form transaksi biasa,
+  terisi, masih bisa diubah) → `InboundTransaction.transactionId`. Tanpa penerusan, file `.eml` bisa diunggah.
+  - **Keamanan**: token acak 20 hex per pengguna (bisa diganti); email wajib bertanda tangan **DKIM** yang
+    lolos dan selaras dengan domain From (`mailauth`); penerima di header To/Cc harus email akun atau Gmail
+    yang meneruskan (`sourceEmail`, dari email konfirmasi penerusan; titik & `+alias` Gmail diabaikan). Isi
+    email **tidak disimpan**, hanya hasil bacaan (nomor rekening disamarkan).
+  - **Kode konfirmasi Gmail**: email dari `forwarding-noreply@google.com` (DKIM google.com) disimpan kodenya
+    dan ditampilkan di halaman + notifikasi, jadi pengguna tidak perlu membuka kotak masuk alamat Catatku.
+  - **Pembaca** (`bankEmail/parsers.ts`, murni): BCA dengan label ("Transfer Amount", "Total", "Reference
+    No", "Nama Merchant", …) → `confident` bila tanggal & referensi terbaca; bank lain lewat pembaca umum
+    (kata kunci transaksi + nominal Rp/IDR, `confident: false`). Format BCA disusun dari pola umum, belum
+    dari email asli; tambah contoh nyata ke `bank-email-parsers.test.ts` (tanpa data pribadi).
+  - **Anti-ganda**: unik `(userId, source, reference)`; tanpa nomor referensi dipakai hash Message-ID.
 - **Perkiraan akhir bulan** (Fase 2.4, flag `forecast`): kartu di Beranda di bawah ringkasan. Perkiraan
   saldo akhir bulan = saldo sekarang − rata-rata pengeluaran harian × sisa hari − tagihan berulang yang
   akan datang + pemasukan terjadwal, ditampilkan sebagai **rentang pesimis–optimis**, plus rincian dan
@@ -571,6 +618,16 @@ safe|tight|short }`
 - ✅ `natural_input`: `GET /quick-text/sharing` → `{ enabled }`; `PUT /quick-text/sharing` `{ enabled }`
   (opt-in dataset); `POST /quick-text/samples` `{ text, parsed, final }` → 204 (403 bila belum opt-in,
   sampel tanpa koreksi diabaikan; maks. 60/jam per pengguna).
+- ✅ `bank_email`: `GET /bank-email` → `{ enabled, address, receiving, walletId, sourceEmail, forwardingCode,
+forwardingCodeAt, lastReceivedAt, lastResult, pendingCount }`; `PUT /bank-email` `{ enabled?, walletId? }`;
+  `POST /bank-email/address` (ganti alamat, yang lama mati); `POST /bank-email/upload` (isi = file `.eml`
+  mentah, maks. 1 MB) → `{ result, pending }`; `GET /bank-email/pending` → `{ items }`;
+  `POST /bank-email/pending/:id/confirm` `{ transactionId }` → 204 (409 bila sudah diproses / transaksi sudah
+  ditautkan); `POST /bank-email/pending/:id/dismiss` → 204. `result`: `parsed | duplicate | unrecognized |
+rejected_signature | rejected_recipient | forwarding_code`.
+- Server-ke-server (tanpa sesi, `Authorization: Bearer INBOUND_EMAIL_SECRET`, 404 bila rahasia tidak diisi):
+  `POST /inbound/email` (email mentah + header `X-Envelope-To`) → 202 `{ result | 'ignored' }`;
+  `POST /inbound/poll` → `{ processed }` (baca IMAP sekarang, untuk cron eksternal).
 
 ## Event analitik & gerbang fase
 

@@ -6,6 +6,7 @@ import {
   CheckCheck,
   Clock,
   type LucideIcon,
+  Mail,
   PencilLine,
   Repeat,
   Settings2,
@@ -38,6 +39,7 @@ const TYPE_ICON: Record<NotificationType, { icon: LucideIcon; color: string }> =
   REMINDER: { icon: PencilLine, color: '#0F766E' },
   RECURRING_PENDING: { icon: Clock, color: '#D97706' },
   RECURRING_POSTED: { icon: Repeat, color: '#2563EB' },
+  BANK_EMAIL: { icon: Mail, color: '#7C3AED' },
 };
 
 /** Hanya rute di dalam aplikasi; tautan lain dari mana pun diabaikan. */

@@ -270,6 +270,18 @@ async function auditAppPages(page: Page, browser: Browser) {
     });
   }
 
+  if (flags.bank_email) {
+    await page.goto('/email-bank');
+    await waitForApp(page);
+    await page.getByRole('switch', { name: 'Terima email bank otomatis' }).check({ force: true });
+    await expect(page.getByRole('switch', { name: 'Terima email bank otomatis' })).toBeChecked();
+    await waitForApp(page);
+    await test.step('/email-bank', async () => {
+      await expectNoViolations(page);
+      await expectTouchTargets(page);
+    });
+  }
+
   if (flags.reminders) {
     await page.goto('/');
     await waitForApp(page);

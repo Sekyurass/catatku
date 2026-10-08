@@ -10,7 +10,12 @@ export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
 export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
 
-export const NOTIFICATION_TYPES = ['REMINDER', 'RECURRING_PENDING', 'RECURRING_POSTED'] as const;
+export const NOTIFICATION_TYPES = [
+  'REMINDER',
+  'RECURRING_PENDING',
+  'RECURRING_POSTED',
+  'BANK_EMAIL',
+] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 /** Rentang jam pengingat yang bisa dipilih (WIB). */
@@ -62,6 +67,29 @@ export type GoalContributionType = (typeof GOAL_CONTRIBUTION_TYPES)[number];
 
 /** Impor CSV: ukuran file dan jumlah baris data maksimal per impor. */
 export const IMPORT_MAX_BYTES = 1024 * 1024;
+
+/** Email notifikasi bank (.eml utuh, termasuk HTML-nya). */
+export const BANK_EMAIL_MAX_BYTES = 1024 * 1024;
+/**
+ * Hasil memproses satu email masuk:
+ * - parsed: jadi transaksi menunggu konfirmasi
+ * - duplicate: transaksi yang sama sudah pernah masuk
+ * - unrecognized: email asli, tapi formatnya belum bisa dibaca
+ * - rejected_signature: tanda tangan DKIM pengirim tidak valid (bisa jadi email palsu)
+ * - rejected_recipient: email bank itu bukan untuk email terdaftar / Gmail yang meneruskan
+ * - forwarding_code: kode konfirmasi penerusan dari Gmail
+ */
+export const BANK_EMAIL_RESULTS = [
+  'parsed',
+  'duplicate',
+  'unrecognized',
+  'rejected_signature',
+  'rejected_recipient',
+  'forwarding_code',
+] as const;
+export type BankEmailResult = (typeof BANK_EMAIL_RESULTS)[number];
+export const BANK_EMAIL_KINDS = ['transfer', 'qris', 'payment', 'generic'] as const;
+export type BankEmailKind = (typeof BANK_EMAIL_KINDS)[number];
 export const IMPORT_MAX_ROWS = 5000;
 /** Di atas jumlah baris ini impor diproses di latar belakang dan statusnya dipantau. */
 export const IMPORT_SYNC_ROWS = 300;
@@ -87,6 +115,7 @@ export const FEATURE_FLAGS = {
   INSIGHTS: 'insights',
   ADVANCED_REPORTS: 'advanced_reports',
   NATURAL_INPUT: 'natural_input',
+  BANK_EMAIL: 'bank_email',
   FORECAST: 'forecast',
 } as const;
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];

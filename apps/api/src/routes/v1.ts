@@ -4,6 +4,7 @@ import { createApiLimiter } from '../middleware/rateLimit';
 import { createAttachmentsRouter } from '../modules/attachments/attachment.routes';
 import { createAuthRouter } from '../modules/auth/auth.routes';
 import { createProfileRouter } from '../modules/auth/profile.routes';
+import { createBankEmailRouter, createInboundRouter } from '../modules/bankEmail/bankEmail.routes';
 import { createBudgetsRouter } from '../modules/budgets/budget.routes';
 import { createCategoriesRouter } from '../modules/categories/category.routes';
 import { createEventsRouter } from '../modules/events/events.routes';
@@ -29,6 +30,7 @@ export function createV1Router(opts: V1Options = {}) {
   const router = Router();
   router.use(createApiLimiter());
   router.use('/auth', createAuthRouter({ rateLimit: opts.authRateLimit }));
+  router.use('/inbound', createInboundRouter());
 
   router.use(requireAuth);
   router.use('/me', createProfileRouter({ rateLimit: opts.authRateLimit }));
@@ -48,6 +50,7 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/goals', createGoalsRouter());
   router.use('/insights', createInsightsRouter());
   router.use('/quick-text', createQuickTextRouter());
+  router.use('/bank-email', createBankEmailRouter());
   router.use(createAttachmentsRouter());
   return router;
 }

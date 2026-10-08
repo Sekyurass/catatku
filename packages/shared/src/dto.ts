@@ -1,4 +1,6 @@
 import type {
+  BankEmailKind,
+  BankEmailResult,
   CategoryIcon,
   CategoryType,
   GoalContributionType,
@@ -220,6 +222,59 @@ export interface NotificationDTO {
   link: string | null;
   readAt: string | null;
   createdAt: string;
+}
+
+/** Pengaturan "catat dari email bank" milik satu pengguna. */
+export interface BankEmailInboxDTO {
+  enabled: boolean;
+  /** Alamat tujuan filter teruskan Gmail; null bila nonaktif atau server belum punya kotak masuk. */
+  address: string | null;
+  /** false = server belum dikonfigurasi menerima email; unggah .eml tetap bisa. */
+  receiving: boolean;
+  /** Dompet bawaan untuk transaksi dari email. */
+  walletId: string | null;
+  /** Gmail yang meminta penerusan (dari email konfirmasi Google). */
+  sourceEmail: string | null;
+  /** Kode konfirmasi penerusan Gmail terakhir; ditampilkan agar bisa dimasukkan di setelan Gmail. */
+  forwardingCode: string | null;
+  forwardingCodeAt: string | null;
+  lastReceivedAt: string | null;
+  lastResult: BankEmailResult | null;
+  pendingCount: number;
+}
+
+/** Transaksi dari email bank yang menunggu dikonfirmasi pengguna. */
+export interface BankEmailPendingDTO {
+  id: string;
+  /** "bca", atau domain pengirim bila dibaca dengan pembaca umum. */
+  source: string;
+  kind: BankEmailKind;
+  type: 'INCOME' | 'EXPENSE';
+  /** Rupiah utuh, positif, sudah termasuk biaya. */
+  amount: number;
+  /** Bagian dari amount; 0 bila tanpa biaya. */
+  fee: number;
+  date: string;
+  /** HH:mm WIB; null bila email tidak menyebut jam. */
+  time: string | null;
+  /** Toko / penerima. */
+  counterparty: string | null;
+  /** Usulan catatan transaksi. */
+  note: string;
+  /** Mis. "0403****10". */
+  accountHint: string | null;
+  /** Usulan dompet (pengaturan dompet bawaan); null bila belum diatur. */
+  walletId: string | null;
+  /** false = dibaca dengan pembaca umum, cek lagi sebelum disimpan. */
+  confident: boolean;
+  createdAt: string;
+}
+
+/** Hasil mengunggah satu file .eml. */
+export interface BankEmailUploadDTO {
+  result: BankEmailResult;
+  /** Terisi bila result "parsed" atau "duplicate" (transaksi yang sudah ada). */
+  pending: BankEmailPendingDTO | null;
 }
 
 export interface NotificationPageDTO {

@@ -10,6 +10,7 @@ import {
   ImageUp,
   KeyRound,
   LogOut,
+  Mail,
   Pencil,
   Repeat,
   ShieldCheck,
@@ -89,6 +90,13 @@ const IMPORT_LINK = {
   icon: FileUp,
 };
 
+const BANK_EMAIL_LINK = {
+  to: '/email-bank',
+  label: 'Catat dari email bank',
+  description: 'Notifikasi transaksi bank jadi catatan, tinggal konfirmasi',
+  icon: Mail,
+};
+
 const REMINDER_LINK = {
   to: '/pengingat',
   label: 'Pengingat & notifikasi',
@@ -111,6 +119,7 @@ export function ProfilePage() {
   const tagsOn = useFeature('tags');
   const reportsOn = useFeature('advanced_reports');
   const quickTextOn = useFeature('natural_input');
+  const bankEmailOn = useFeature('bank_email');
 
   return (
     <div className="flex flex-col gap-4">
@@ -150,6 +159,7 @@ export function ProfilePage() {
             ...(templatesOn ? [TEMPLATE_LINK] : []),
             ...(tagsOn ? [TAG_LINK] : []),
             ...(importOn ? [IMPORT_LINK] : []),
+            ...(bankEmailOn ? [BANK_EMAIL_LINK] : []),
             ...(remindersOn ? [REMINDER_LINK] : []),
           ].map(({ to, label, description, icon: Icon }) => (
             <li key={to}>

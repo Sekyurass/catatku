@@ -6,6 +6,7 @@ import { PrivacyGate } from './pages/privacy/PrivacyGate';
 import { GuestOnly, RequireAuth } from './routes/guards';
 import {
   AuthPage,
+  BankEmailPage,
   BudgetsPage,
   GoalsPage,
   CategoriesPage,
@@ -91,6 +92,7 @@ export function App() {
           <Route path="tag" element={<TagsPage />} />
           <Route path="laporan" element={<ReportsPage />} />
           <Route path="impor" element={<ImportPage />} />
+          <Route path="email-bank" element={<BankEmailPage />} />
           <Route path="pengingat" element={<NotificationSettingsPage />} />
           <Route path="profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFoundPage />} />

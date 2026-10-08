@@ -41,6 +41,9 @@ export const TagsPage = page(() => import('../pages/TagsPage').then((m) => m.Tag
 export const ReportsPage = page(() => import('../pages/ReportsPage').then((m) => m.ReportsPage));
 /** Jarang dibuka, jadi tidak ikut diunduh di muka. */
 export const ImportPage = page(() => import('../pages/ImportPage').then((m) => m.ImportPage));
+export const BankEmailPage = page(() =>
+  import('../pages/BankEmailPage').then((m) => m.BankEmailPage),
+);
 export const NotificationSettingsPage = page(() =>
   import('../pages/NotificationSettingsPage').then((m) => m.NotificationSettingsPage),
 );

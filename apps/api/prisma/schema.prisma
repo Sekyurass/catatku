@@ -47,6 +47,13 @@ enum NotificationType {
   REMINDER
   RECURRING_PENDING
   RECURRING_POSTED
+  BANK_EMAIL
+}
+
+enum InboundTransactionStatus {
+  PENDING
+  CONFIRMED
+  DISMISSED
 }
 
 enum ImportStatus {
@@ -94,6 +101,8 @@ model User {
   savingsGoals        SavingsGoal[]
   goalContributions   GoalContribution[]
   insightDismissals   InsightDismissal[]
+  emailInbox          EmailInbox?
+  inboundTransactions InboundTransaction[]
 }
 
 /// Tautan "lupa kata sandi": sekali pakai, umur pendek, hanya hash yang disimpan.
@@ -515,6 +524,57 @@ model QuickTextSample {
   expiresAt DateTime @db.Date
 
   @@index([expiresAt])
+}
+
+/// Kotak masuk "catat dari email bank". Alamatnya = INBOUND_EMAIL_ADDRESS dengan +token
+/// (mis. catatku.masuk+abc123@gmail.com); token acak, bisa diganti bila alamat bocor.
+model EmailInbox {
+  userId           String    @id
+  token            String    @unique
+  enabled          Boolean   @default(true)
+  walletId         String?
+  /// Gmail yang meminta penerusan ke alamat ini, dari email konfirmasi Google (bertanda tangan DKIM).
+  sourceEmail      String?
+  forwardingCode   String?
+  forwardingCodeAt DateTime?
+  lastReceivedAt   DateTime?
+  /// Salah satu BANK_EMAIL_RESULTS.
+  lastResult       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Transaksi yang dibaca dari email bank; baru menjadi Transaction setelah dikonfirmasi pengguna.
+/// Isi email tidak disimpan, hanya hasil bacaannya.
+model InboundTransaction {
+  id            String                   @id @default(cuid())
+  userId        String
+  /// "bca" atau domain pengirim untuk pembaca umum.
+  source        String
+  kind          String
+  /// Nomor referensi bank; tanpa itu Message-ID / hash email. Kunci anti-ganda.
+  reference     String
+  status        InboundTransactionStatus @default(PENDING)
+  type          TransactionType
+  /// Rupiah utuh, positif, sudah termasuk biaya.
+  amount        BigInt
+  fee           BigInt                   @default(0)
+  date          DateTime                 @db.Date
+  time          String?                  @db.Char(5)
+  counterparty  String?
+  note          String
+  accountHint   String?
+  confident     Boolean                  @default(true)
+  transactionId String?                  @unique
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, reference])
+  @@index([userId, status, date(sort: Desc)])
 }
 
 /// Flag fitur fase berikutnya. plan null = semua paket; userIds = allowlist per pengguna.

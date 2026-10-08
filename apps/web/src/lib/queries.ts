@@ -1,5 +1,7 @@
 import type {
   AttachmentDTO,
+  BankEmailInboxDTO,
+  BankEmailPendingDTO,
   BudgetMonthDTO,
   CategoryBreakdownDTO,
   CategoryDTO,
@@ -65,7 +67,26 @@ export const queryKeys = {
   yearlyReport: (year: number) => ['reports', 'yearly', year] as const,
   forecast: ['reports', 'forecast'] as const,
   quickTextSharing: ['quick-text', 'sharing'] as const,
+  bankEmail: ['bank-email'] as const,
+  bankEmailPending: ['bank-email', 'pending'] as const,
 };
+
+export function useBankEmail(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.bankEmail,
+    queryFn: ({ signal }) => api<BankEmailInboxDTO>('/bank-email', { signal }),
+    enabled,
+  });
+}
+
+export function useBankEmailPending(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.bankEmailPending,
+    queryFn: ({ signal }) =>
+      api<{ items: BankEmailPendingDTO[] }>('/bank-email/pending', { signal }).then((r) => r.items),
+    enabled,
+  });
+}
 
 export const quickTextSharingQuery = queryOptions({
   queryKey: queryKeys.quickTextSharing,

@@ -26,4 +26,5 @@ export * from './schemas/goal';
 export * from './schemas/import';
 export * from './schemas/notification';
 export * from './schemas/quickTextSample';
+export * from './schemas/bankEmail';
 export * from './dto';

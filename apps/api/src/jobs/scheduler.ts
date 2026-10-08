@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
 import { purgeOrphanAttachments } from '../modules/attachments/attachment.service';
+import { isImapConfigured, pollImap } from '../modules/bankEmail/imap';
 import { pruneNotifications, runReminders } from '../modules/notifications/notification.service';
 import { purgeExpiredSamples } from '../modules/quickText/quickText.service';
 import { runDueRules } from '../modules/recurring/recurring.service';
@@ -38,6 +39,15 @@ async function runNotifications() {
   }
 }
 
+async function runBankEmail() {
+  try {
+    const processed = await pollImap();
+    if (processed > 0) logger.info({ processed }, 'Email bank diproses');
+  } catch (err) {
+    logger.error({ err }, 'Membaca kotak masuk email bank gagal');
+  }
+}
+
 /**
  * Job latar di dalam proses API (node-cron, tanpa Redis). Putaran pertama saat server menyala
  * sekaligus menyusul yang terlewat ketika server mati. Aman dijalankan di beberapa instance
@@ -54,6 +64,9 @@ export function startScheduler() {
     cron.schedule('0 * * * *', runNotifications, { ...options, name: 'reminders' }),
     cron.schedule('5 * * * *', runRecurring, { ...options, name: 'recurring' }),
   ];
+  if (isImapConfigured()) {
+    jobs.push(cron.schedule('*/2 * * * *', runBankEmail, { ...options, name: 'bank-email' }));
+  }
   return () => {
     clearTimeout(boot);
     for (const job of jobs) void job.stop();

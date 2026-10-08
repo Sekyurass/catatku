@@ -65,6 +65,15 @@ import { useDeleteTransaction } from './useDeleteTransaction';
 
 export type TransactionKind = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
+/** Isian awal dari sumber luar (mis. email bank); semuanya masih bisa diubah sebelum disimpan. */
+export interface TransactionPrefill {
+  kind: 'EXPENSE' | 'INCOME';
+  amount: number;
+  date: string;
+  note: string;
+  walletId: string | null;
+}
+
 const KIND_OPTIONS: { value: TransactionKind; label: string }[] = [
   { value: 'EXPENSE', label: 'Keluar' },
   { value: 'INCOME', label: 'Masuk' },
@@ -119,12 +128,16 @@ export function TransactionSheet({
   editing,
   initialKind,
   template,
+  prefill,
+  onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   editing?: TransactionDTO;
   initialKind?: TransactionKind;
   template?: TransactionTemplateDTO;
+  prefill?: TransactionPrefill;
+  onSaved?: SavedHandler;
 }) {
   return (
     <Dialog open={open} onClose={onClose} title={editing ? 'Ubah transaksi' : 'Catat transaksi'}>
@@ -133,10 +146,15 @@ export function TransactionSheet({
         editing={editing}
         initialKind={initialKind}
         template={template}
+        prefill={prefill}
+        onSaved={onSaved}
       />
     </Dialog>
   );
 }
+
+/** Dipanggil setelah transaksi pemasukan/pengeluaran baru tersimpan. */
+export type SavedHandler = (transactionId: string) => Promise<unknown>;
 
 /** Isi form transaksi tanpa dialog (dipakai juga di onboarding). `onDone` dipanggil setelah tersimpan. */
 export function TransactionFormPanel({
@@ -144,12 +162,16 @@ export function TransactionFormPanel({
   editing,
   initialKind,
   template,
+  prefill,
+  onSaved,
   withTemplates = true,
 }: {
   onDone: () => void;
   editing?: TransactionDTO;
   initialKind?: TransactionKind;
   template?: TransactionTemplateDTO;
+  prefill?: TransactionPrefill;
+  onSaved?: SavedHandler;
   /** Pintasan (chip template, simpan sebagai template, ketik cepat); dimatikan di onboarding agar tetap ringkas. */
   withTemplates?: boolean;
 }) {
@@ -205,6 +227,8 @@ export function TransactionFormPanel({
       editing={editing}
       initialKind={initialKind}
       template={template}
+      prefill={prefill}
+      onSaved={onSaved}
       withTemplates={withTemplates}
       onDone={onDone}
     />
@@ -216,7 +240,20 @@ function defaultValues(
   editing?: TransactionDTO,
   initialKind: TransactionKind = 'EXPENSE',
   template?: TransactionTemplateDTO,
+  prefill?: TransactionPrefill,
 ): FormValues {
+  if (prefill) {
+    const walletActive = wallets.some((w) => w.id === prefill.walletId && !w.archivedAt);
+    return {
+      kind: prefill.kind,
+      amount: prefill.amount,
+      walletId: walletActive ? prefill.walletId! : (pickDefaultWallet(wallets)?.id ?? ''),
+      toWalletId: '',
+      categoryId: '',
+      date: prefill.date,
+      note: prefill.note.slice(0, 200),
+    };
+  }
   if (template) {
     const walletActive = wallets.some((w) => w.id === template.walletId && !w.archivedAt);
     return {
@@ -259,6 +296,8 @@ function TransactionForm({
   editing,
   initialKind,
   template,
+  prefill,
+  onSaved,
   withTemplates,
   onDone,
 }: {
@@ -267,6 +306,8 @@ function TransactionForm({
   editing?: TransactionDTO;
   initialKind?: TransactionKind;
   template?: TransactionTemplateDTO;
+  prefill?: TransactionPrefill;
+  onSaved?: SavedHandler;
   withTemplates: boolean;
   onDone: () => void;
 }) {
@@ -324,7 +365,7 @@ function TransactionForm({
     formState: { errors, isSubmitting, dirtyFields },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: defaultValues(wallets, editing, initialKind, template),
+    defaultValues: defaultValues(wallets, editing, initialKind, template, prefill),
   });
 
   // Form baru muncul setelah dompet & kategori termuat, jadi fokus awal dialog belum mengenai nominal.
@@ -585,8 +626,21 @@ function TransactionForm({
           : null;
       const attachFailed =
         attachOn && v.kind !== 'TRANSFER' && savedId ? await syncAttachments(savedId) : 0;
+      const linkFailed =
+        onSaved && !editing && savedId
+          ? await onSaved(savedId).then(
+              () => false,
+              () => true,
+            )
+          : false;
       void invalidate();
-      if (attachFailed > 0) {
+      if (linkFailed) {
+        toast({
+          message:
+            'Transaksi tersimpan, tapi daftar email bank gagal diperbarui. Abaikan item itu agar tidak tercatat dua kali.',
+          tone: 'warning',
+        });
+      } else if (attachFailed > 0) {
         toast({
           message: `Transaksi tersimpan, tapi ${attachFailed} foto gagal diproses. Coba lampirkan lagi.`,
           tone: 'warning',

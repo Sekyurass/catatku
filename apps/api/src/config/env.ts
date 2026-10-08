@@ -50,6 +50,23 @@ const envSchema = z
     STORAGE_S3_BUCKET: z.string().default(''),
     STORAGE_S3_ACCESS_KEY_ID: z.string().default(''),
     STORAGE_S3_SECRET_ACCESS_KEY: z.string().default(''),
+    /**
+     * Catat dari email bank. Alamat dasar kotak masuk; tiap pengguna mendapat varian +token
+     * (mis. catatku.masuk+abc123@gmail.com). Kosong = hanya unggah .eml manual.
+     */
+    INBOUND_EMAIL_ADDRESS: z.union([z.email(), z.literal('')]).default(''),
+    /** Rahasia untuk POST /api/v1/inbound/* (webhook Cloudflare Email Worker, cron pemicu IMAP). */
+    INBOUND_EMAIL_SECRET: z
+      .string()
+      .refine((v) => v === '' || v.length >= 24, 'INBOUND_EMAIL_SECRET minimal 24 karakter')
+      .default(''),
+    /** Kotak masuk yang dibaca berkala lewat IMAP, mis. Gmail khusus Catatku + app password. */
+    INBOUND_IMAP_HOST: z.string().default(''),
+    INBOUND_IMAP_PORT: z.coerce.number().int().positive().default(993),
+    INBOUND_IMAP_USER: z.string().default(''),
+    INBOUND_IMAP_PASS: z.string().default(''),
+    /** Server DNS cadangan untuk cek DKIM bila DNS sistem gagal, dipisah koma. */
+    DNS_FALLBACK_SERVERS: z.string().default('1.1.1.1,8.8.8.8'),
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.BCRYPT_COST >= 12, {
     message: 'BCRYPT_COST harus >= 12 di production',
@@ -73,6 +90,19 @@ const envSchema = z
       message:
         'STORAGE_S3_ENDPOINT, STORAGE_S3_BUCKET, STORAGE_S3_ACCESS_KEY_ID, dan STORAGE_S3_SECRET_ACCESS_KEY harus diisi semua (atau kosong semua)',
       path: ['STORAGE_S3_ENDPOINT'],
+    },
+  )
+  .refine(
+    (env) => {
+      const set = [env.INBOUND_IMAP_HOST, env.INBOUND_IMAP_USER, env.INBOUND_IMAP_PASS].filter(
+        Boolean,
+      ).length;
+      return set === 0 || (set === 3 && env.INBOUND_EMAIL_ADDRESS !== '');
+    },
+    {
+      message:
+        'INBOUND_IMAP_HOST, INBOUND_IMAP_USER, dan INBOUND_IMAP_PASS harus diisi semua (atau kosong semua), dan butuh INBOUND_EMAIL_ADDRESS',
+      path: ['INBOUND_IMAP_HOST'],
     },
   );
 

@@ -10,3 +10,6 @@ coverage/
 playwright-report/
 test-results/
 apps/web/e2e/.auth/
+# Contoh email/mutasi bank asli: berisi data pribadi, jangan pernah di-commit.
+*.eml
+.cursor/*.pdf

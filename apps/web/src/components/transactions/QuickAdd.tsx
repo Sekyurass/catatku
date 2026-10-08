@@ -1,7 +1,12 @@
 import type { TransactionDTO, TransactionTemplateDTO } from '@catatku/shared';
 import { createContext, type ReactNode, useContext, useMemo, useState } from 'react';
 import { TransactionDetail } from './TransactionDetail';
-import { type TransactionKind, TransactionSheet } from './TransactionSheet';
+import {
+  type SavedHandler,
+  type TransactionKind,
+  type TransactionPrefill,
+  TransactionSheet,
+} from './TransactionSheet';
 
 interface QuickAddApi {
   openNew: (kind?: TransactionKind) => void;
@@ -10,6 +15,8 @@ interface QuickAddApi {
   openDetail: (tx: TransactionDTO) => void;
   /** Form baru yang sudah terisi dari template (mis. template tanpa nominal). */
   openFromTemplate: (template: TransactionTemplateDTO) => void;
+  /** Form baru terisi dari sumber luar; `onSaved` menerima id transaksi yang tersimpan. */
+  openPrefilled: (prefill: TransactionPrefill, onSaved?: SavedHandler) => void;
 }
 
 const QuickAddContext = createContext<QuickAddApi | null>(null);
@@ -21,6 +28,8 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
     editing?: TransactionDTO;
     kind?: TransactionKind;
     template?: TransactionTemplateDTO;
+    prefill?: TransactionPrefill;
+    onSaved?: SavedHandler;
   }>({ open: false });
   const [detail, setDetail] = useState<TransactionDTO | null>(null);
 
@@ -30,6 +39,7 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
       openEdit: (editing) => setState({ open: true, editing }),
       openDetail: setDetail,
       openFromTemplate: (template) => setState({ open: true, template }),
+      openPrefilled: (prefill, onSaved) => setState({ open: true, prefill, onSaved }),
     }),
     [],
   );
@@ -50,6 +60,8 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
         editing={state.editing}
         initialKind={state.kind}
         template={state.template}
+        prefill={state.prefill}
+        onSaved={state.onSaved}
         onClose={() => setState((s) => ({ ...s, open: false }))}
       />
     </QuickAddContext.Provider>
