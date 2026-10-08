@@ -6,11 +6,10 @@ import {
   type QuickTextResult,
   type WalletDTO,
 } from '@catatku/shared';
-import { ArrowRight, CircleAlert, Sparkles } from 'lucide-react';
+import { ArrowRight, CircleAlert, CornerDownLeft, Sparkles } from 'lucide-react';
 import { type KeyboardEvent, type ReactNode, useId, useState } from 'react';
 import { cn } from '../../lib/cn';
 import { formatDayLabel, today } from '../../lib/format';
-import { Button } from '../ui/Button';
 import { Input } from '../ui/Field';
 
 const KIND_LABEL: Record<QuickTextResult['type'], string> = {
@@ -91,21 +90,34 @@ export function QuickTextField({
       <label htmlFor={id} className="text-sm font-medium text-fg">
         Ketik cepat
       </label>
-      <Input
-        id={id}
-        icon={Sparkles}
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          setStatus(null);
-        }}
-        onKeyDown={onKeyDown}
-        placeholder="Mis. makan siang 25rb di warteg"
-        enterKeyHint="go"
-        autoComplete="off"
-        maxLength={200}
-        aria-describedby={`${id}-hint`}
-      />
+      <div className="relative">
+        <Input
+          id={id}
+          icon={Sparkles}
+          className="pr-12"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setStatus(null);
+          }}
+          onKeyDown={onKeyDown}
+          placeholder="Mis. makan siang 25rb di warteg"
+          enterKeyHint="go"
+          autoComplete="off"
+          maxLength={200}
+          aria-describedby={`${id}-hint`}
+        />
+        <button
+          type="button"
+          onClick={apply}
+          disabled={!usable}
+          aria-label="Isi form"
+          title="Isi form (Enter)"
+          className="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 items-center justify-center rounded-control text-primary transition-colors hover:bg-primary-soft disabled:pointer-events-none disabled:text-muted disabled:opacity-50"
+        >
+          <CornerDownLeft className="size-5" aria-hidden />
+        </button>
+      </div>
       <p id={`${id}-hint`} className="text-xs text-muted">
         Tulis seperti chat: nominal (25rb, 1,5jt), kapan (kemarin, tgl 3), dompet (pakai BCA), atau
         &ldquo;transfer 200rb bca ke gopay&rdquo;.
@@ -135,9 +147,10 @@ export function QuickTextField({
             <Chip>{formatDayLabel(result.date ?? today())}</Chip>
             {result.note && <Chip>&ldquo;{result.note}&rdquo;</Chip>}
           </ul>
-          <Button variant="secondary" onClick={apply} className="self-start">
-            Isi form
-          </Button>
+          <p className="text-xs text-muted">
+            Tekan Enter atau tombol <CornerDownLeft className="inline size-3.5" aria-label="isi" />{' '}
+            untuk mengisi form.
+          </p>
         </div>
       )}
       {status && (
