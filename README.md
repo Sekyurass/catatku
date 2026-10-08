@@ -389,7 +389,13 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
   `privacyAgreedAt`. Bila `privacyVersion` ≠ `PRIVACY_POLICY_VERSION` (pengguna lama, atau kebijakan
   diperbarui), `PrivacyGate` menahan semua halaman privat sampai pengguna setuju (`PUT /me/privacy`).
   Mengubah isi kebijakan = naikkan `PRIVACY_POLICY_VERSION` di `packages/shared/src/schemas/auth.ts`.
-  Di Profil, bagian **Privasi & data** berisi tautan kebijakan, sakelar Ketik cepat, dan ekspor data.
+  Di Profil, bagian **Privasi & data** berisi tautan kebijakan, sakelar Ketik cepat, ekspor data, dan
+  **Hapus akun**.
+- **Hapus akun** (`DELETE /me`): dialog meminta kata sandi + ketik `HAPUS` (dengan tombol unduh CSV
+  sebelum menghapus). Server menghapus file lampiran di storage lebih dulu (gagal → 503, akun tetap
+  ada), lalu baris `User` beserta semua data turunannya lewat cascade. Sampel Ketik cepat tidak
+  terhubung ke akun sehingga tetap mengikuti masa simpannya. Access token yang sudah terbit tetap sah
+  sampai kedaluwarsa, tapi refresh/masuk langsung 401.
 - **Catat dari email bank** (Fase 3, flag `bank_email`, halaman `/email-bank`): pengguna meneruskan
   notifikasi transaksi dari Gmail ke alamat pribadi `<lokal>+<token>@<domain>`; hasilnya masuk antrean
   **Menunggu konfirmasi** dan baru jadi transaksi setelah pengguna menekan **Catat** (form transaksi biasa,
@@ -509,6 +515,8 @@ Base: `/api/v1`. Status endpoint ditandai ✅ bila sudah tersedia.
   Token sekali pakai, berlaku 30 menit, disimpan sebagai hash; tautan memakai fragmen
   `/atur-ulang-kata-sandi#token=…` agar token tidak terkirim ke server/log/Referer
 - ✅ `GET/PATCH /me` (ubah nama/email; ganti email wajib `currentPassword`), `PUT /me/password` (mengakhiri semua sesi lain, membalas sesi baru + cookie refresh)
+- ✅ `DELETE /me` `{ password, confirm: "HAPUS" }` → 204 + hapus cookie refresh; menghapus akun, semua data,
+  dan file lampiran (storage gagal → 503 tanpa menghapus apa pun)
 - ✅ `GET/PUT/DELETE /me/avatar` — PUT berisi byte gambar mentah (`Content-Type: image/webp|jpeg|png`,
   maks 300 kB) → `{ user }`; GET mengembalikan gambar (klien memakai `?v=<avatarUpdatedAt>` untuk cache)
 - ✅ `GET /features`, `GET /health` (di root)

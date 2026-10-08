@@ -1,5 +1,6 @@
 import {
   type ChangePasswordInput,
+  type DeleteAccountInput,
   type ForgotPasswordInput,
   type LoginInput,
   PRIVACY_POLICY_VERSION,
@@ -18,6 +19,7 @@ import { logger } from '../../lib/logger';
 import { mailer } from '../../lib/mailer';
 import { burnPasswordCheck, hashPassword, verifyPassword } from '../../lib/password';
 import { prisma } from '../../lib/prisma';
+import { getStorage } from '../../lib/storage';
 import { generateRefreshToken, hashToken, signAccessToken } from '../../lib/tokens';
 import { passwordResetEmail } from './emails';
 
@@ -203,6 +205,37 @@ export async function changePassword(
     prisma.refreshToken.deleteMany({ where: { userId } }),
   ]);
   return issueSession(updated, meta);
+}
+
+/**
+ * Menghapus akun beserta seluruh datanya (relasi User onDelete: Cascade). Berkas lampiran di
+ * object storage dihapus lebih dulu: bila gagal, akun tetap ada sehingga bisa dicoba lagi, alih-alih
+ * meninggalkan berkas yatim yang tidak bisa dijangkau siapa pun.
+ */
+export async function deleteAccount(userId: string, input: DeleteAccountInput): Promise<void> {
+  const user = await findUser(userId);
+  if (!(await verifyPassword(input.password, user.passwordHash))) {
+    throw validationError('Kata sandi salah', { password: 'Kata sandi salah' });
+  }
+  const attachments = await prisma.attachment.findMany({
+    where: { userId },
+    select: { storageKey: true },
+  });
+  const storage = getStorage();
+  if (attachments.length > 0 && storage) {
+    try {
+      await storage.remove(attachments.map((a) => a.storageKey));
+    } catch (err) {
+      logger.error({ err, userId }, 'Gagal menghapus lampiran saat hapus akun');
+      throw new AppError(
+        503,
+        'SERVICE_UNAVAILABLE',
+        'Foto lampiran belum bisa dihapus. Akun belum dihapus, coba lagi sebentar lagi.',
+      );
+    }
+  }
+  await prisma.user.delete({ where: { id: userId } });
+  logger.info({ userId, attachments: attachments.length }, 'Akun dihapus atas permintaan pengguna');
 }
 
 /** Agar tombol "kirim ulang" tidak bisa dipakai membanjiri kotak masuk seseorang. */

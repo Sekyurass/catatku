@@ -1,6 +1,7 @@
 import type {
   AuthResponse,
   ChangePasswordInput,
+  DeleteAccountInput,
   LoginInput,
   PrivacyConsentInput,
   RegisterInput,
@@ -44,6 +45,8 @@ interface AuthContextValue {
   removeAvatar: () => Promise<void>;
   /** Menampilkan layar "Sampai jumpa" lalu kembali ke halaman masuk. */
   logout: () => Promise<void>;
+  /** Menghapus akun permanen; berhasil berarti sesi di perangkat ini juga berakhir. */
+  deleteAccount: (input: DeleteAccountInput) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -150,6 +153,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setFarewell(null);
   }, [user, endSession]);
 
+  const deleteAccount = useCallback(
+    async (input: DeleteAccountInput) => {
+      await api('/me', { method: 'DELETE', body: input });
+      await Promise.race([disablePush(), wait(3000)]).catch(() => undefined);
+      setSignedOut(true);
+      endSession();
+    },
+    [endSession],
+  );
+
   const value = useMemo(
     () => ({
       status,
@@ -164,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       uploadAvatar,
       removeAvatar,
       logout,
+      deleteAccount,
     }),
     [
       status,
@@ -178,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       uploadAvatar,
       removeAvatar,
       logout,
+      deleteAccount,
     ],
   );
   return (

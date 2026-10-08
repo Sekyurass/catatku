@@ -9,6 +9,7 @@ export function createProfileRouter(opts: { rateLimit?: number } = {}) {
   const limiter = createAuthLimiter(opts.rateLimit);
   router.get('/', ctrl.me);
   router.patch('/', limiter, ctrl.updateProfile);
+  router.delete('/', limiter, ctrl.deleteAccount);
   router.put('/password', limiter, ctrl.changePassword);
   router.put('/privacy', ctrl.agreePrivacy);
   router.get('/avatar', ctrl.getAvatar);

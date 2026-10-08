@@ -1,5 +1,6 @@
 import {
   changePasswordSchema,
+  deleteAccountSchema,
   forgotPasswordSchema,
   loginSchema,
   privacyConsentSchema,
@@ -69,6 +70,13 @@ export async function agreePrivacy(req: Request, res: Response) {
 export async function changePassword(req: Request, res: Response) {
   const input = parse(changePasswordSchema, req.body);
   sendSession(res, await authService.changePassword(currentUserId(req), input, meta(req)));
+}
+
+export async function deleteAccount(req: Request, res: Response) {
+  const input = parse(deleteAccountSchema, req.body);
+  await authService.deleteAccount(currentUserId(req), input);
+  res.clearCookie(REFRESH_COOKIE, cookieOptions());
+  res.status(204).end();
 }
 
 export async function putAvatar(req: Request, res: Response) {

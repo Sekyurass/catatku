@@ -1,4 +1,10 @@
-import { registerSchema, type UserDTO } from '@catatku/shared';
+import {
+  DELETE_ACCOUNT_CONFIRMATION,
+  type DeleteAccountInput,
+  deleteAccountSchema,
+  registerSchema,
+  type UserDTO,
+} from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   BellRing,
@@ -110,7 +116,7 @@ const rowClass =
 export function ProfilePage() {
   const { user, logout } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [dialog, setDialog] = useState<'profile' | 'password' | 'photo' | null>(null);
+  const [dialog, setDialog] = useState<'profile' | 'password' | 'photo' | 'delete' | null>(null);
   const close = () => setDialog(null);
   const recurringOn = useFeature('recurring_transactions');
   const remindersOn = useFeature('reminders');
@@ -218,6 +224,21 @@ export function ProfilePage() {
           </div>
           <ExportButton label="Unduh CSV" />
         </Card>
+        <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <p className="font-medium text-expense-text">Hapus akun</p>
+            <p className="text-sm text-muted">
+              Hapus akun beserta seluruh transaksi, dompet, dan foto lampiran secara permanen.
+            </p>
+          </div>
+          <Button
+            variant="danger"
+            icon={<Trash2 className="size-4" aria-hidden />}
+            onClick={() => setDialog('delete')}
+          >
+            Hapus akun
+          </Button>
+        </Card>
       </section>
       {/* Di tablet & desktop tombol Keluar ada di sidebar; HP tidak punya sidebar. */}
       <Button
@@ -247,6 +268,14 @@ export function ProfilePage() {
         description="Setelah diganti, kamu tetap masuk di perangkat ini. Perangkat lain perlu masuk lagi."
       >
         {dialog === 'password' && <PasswordForm onDone={close} />}
+      </Dialog>
+      <Dialog
+        open={dialog === 'delete'}
+        onClose={close}
+        title="Hapus akun permanen?"
+        description="Akun dan seluruh datanya dihapus selamanya dan tidak bisa dikembalikan."
+      >
+        {dialog === 'delete' && <DeleteAccountForm onCancel={close} />}
       </Dialog>
     </div>
   );
@@ -472,6 +501,93 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
       <Button type="submit" size="lg" loading={isSubmitting} className="w-full">
         Ganti kata sandi
       </Button>
+    </form>
+  );
+}
+
+function DeleteAccountForm({ onCancel }: { onCancel: () => void }) {
+  const { deleteAccount } = useAuth();
+  const toast = useToast();
+  const [formError, setFormError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<DeleteAccountInput>({
+    resolver: zodResolver(deleteAccountSchema),
+    defaultValues: { password: '', confirm: '' },
+  });
+
+  const onSubmit = handleSubmit(async (input) => {
+    setFormError(null);
+    try {
+      await deleteAccount(input);
+      toast({ message: 'Akun dihapus. Terima kasih sudah memakai Catatku.' });
+    } catch (err) {
+      setFormError(applyServerErrors(err, setError, ['password', 'confirm']));
+    }
+  });
+
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      <FormAlert message={formError} />
+      <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
+        <li>Semua transaksi, dompet, kategori, anggaran, dan pengaturan ikut terhapus.</li>
+        <li>Foto lampiran dan foto profil ikut dihapus.</li>
+        <li>Kamu keluar dari semua perangkat.</li>
+      </ul>
+      <div className="flex flex-col items-start gap-2 rounded-control bg-surface-muted p-3 sm:flex-row sm:items-center">
+        <p className="flex-1 text-sm">Simpan salinan transaksimu dulu sebelum menghapus.</p>
+        <ExportButton label="Unduh CSV" />
+      </div>
+      <Field label="Kata sandi" error={errors.password?.message}>
+        {(a) => (
+          <PasswordInput
+            {...a}
+            autoComplete="current-password"
+            data-autofocus
+            {...register('password')}
+          />
+        )}
+      </Field>
+      <Field
+        label={`Ketik ${DELETE_ACCOUNT_CONFIRMATION}`}
+        hint="Huruf besar atau kecil sama saja."
+        error={errors.confirm?.message}
+      >
+        {(a) => (
+          <Input
+            {...a}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            {...register('confirm')}
+          />
+        )}
+      </Field>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row">
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          disabled={isSubmitting}
+          onClick={onCancel}
+          className="flex-1"
+        >
+          Batal
+        </Button>
+        <Button
+          type="submit"
+          variant="danger"
+          size="lg"
+          loading={isSubmitting}
+          icon={<Trash2 className="size-5" aria-hidden />}
+          className="flex-1"
+        >
+          Hapus akun permanen
+        </Button>
+      </div>
     </form>
   );
 }

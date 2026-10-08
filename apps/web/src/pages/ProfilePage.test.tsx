@@ -22,6 +22,7 @@ const auth = vi.hoisted(() => ({
   uploadAvatar: vi.fn(),
   removeAvatar: vi.fn(),
   logout: vi.fn(),
+  deleteAccount: vi.fn(),
 }));
 vi.mock('../lib/auth', () => ({ useAuth: () => auth }));
 
@@ -53,6 +54,7 @@ beforeEach(() => {
   auth.changePassword.mockReset().mockResolvedValue(undefined);
   auth.uploadAvatar.mockReset().mockResolvedValue(undefined);
   auth.removeAvatar.mockReset().mockResolvedValue(undefined);
+  auth.deleteAccount.mockReset().mockResolvedValue(undefined);
   compressAvatar.mockReset();
 });
 
@@ -187,5 +189,42 @@ describe('ProfilePage', () => {
         newPassword: 'sandibaru123',
       }),
     );
+  });
+
+  it('hapus akun wajib kata sandi dan ketik HAPUS sebelum mengirim', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('button', { name: 'Hapus akun' }));
+    const submit = screen.getByRole('button', { name: 'Hapus akun permanen' });
+
+    await user.click(submit);
+    expect(await screen.findByText('Masukkan kata sandi')).toBeVisible();
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText('Kata sandi'), 'rahasia123');
+    await user.type(screen.getByLabelText(/Ketik HAPUS/), 'hapu');
+    await user.click(submit);
+    expect(await screen.findByText('Ketik HAPUS untuk mengonfirmasi')).toBeVisible();
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText(/Ketik HAPUS/), 's');
+    await user.click(submit);
+    await waitFor(() =>
+      expect(auth.deleteAccount).toHaveBeenCalledWith({ password: 'rahasia123', confirm: 'hapus' }),
+    );
+  });
+
+  it('kata sandi salah saat hapus akun ditampilkan di kolomnya', async () => {
+    auth.deleteAccount.mockRejectedValue(
+      new ApiError(400, 'VALIDATION_ERROR', 'Kata sandi salah', { password: 'Kata sandi salah' }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('button', { name: 'Hapus akun' }));
+    await user.type(screen.getByLabelText('Kata sandi'), 'salahsekali');
+    await user.type(screen.getByLabelText(/Ketik HAPUS/), 'HAPUS');
+    await user.click(screen.getByRole('button', { name: 'Hapus akun permanen' }));
+    expect(await screen.findByText('Kata sandi salah')).toBeVisible();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

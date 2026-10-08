@@ -129,8 +129,10 @@ export function PrivacyPolicyPage() {
             <li>Mengunduh seluruh riwayat transaksi (Profil → Ekspor data).</li>
             <li>Berhenti ikut Ketik cepat kapan saja di Profil.</li>
             <li>
-              Meminta salinan data atau penghapusan akun beserta seluruh datanya lewat {contact}.
+              Menghapus akun beserta seluruh datanya kapan saja (Profil → Hapus akun). Sampel Ketik
+              cepat tidak terhubung ke akunmu, jadi tetap terhapus sesuai masa simpannya.
             </li>
+            <li>Meminta salinan data atau bertanya soal privasi lewat {contact}.</li>
           </ul>
         </Section>
 

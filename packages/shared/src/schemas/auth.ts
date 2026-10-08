@@ -71,6 +71,22 @@ export const changePasswordSchema = z
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
+export const DELETE_ACCOUNT_CONFIRMATION = 'HAPUS';
+
+/** Kata sandi + ketik "HAPUS": dua langkah agar tidak terhapus karena salah ketuk. */
+export const deleteAccountSchema = z.object({
+  password: z
+    .string({ error: 'Masukkan kata sandi' })
+    .min(1, { error: 'Masukkan kata sandi' })
+    .max(200),
+  confirm: z
+    .string({ error: `Ketik ${DELETE_ACCOUNT_CONFIRMATION}` })
+    .refine((v) => v.trim().toUpperCase() === DELETE_ACCOUNT_CONFIRMATION, {
+      error: `Ketik ${DELETE_ACCOUNT_CONFIRMATION} untuk mengonfirmasi`,
+    }),
+});
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+
 export const forgotPasswordSchema = z.object({ email: emailSchema });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
