@@ -3,6 +3,7 @@ import type {
   BankEmailResult,
   CategoryIcon,
   CategoryType,
+  DebtDirection,
   GoalContributionType,
   ImportStatus,
   NotificationType,
@@ -76,6 +77,8 @@ export interface TransactionDTO {
   counterpartWallet: { id: string; name: string; color: string } | null;
   /** Diisi bila transaksi dibuat oleh aturan transaksi berulang. */
   recurringRuleId: string | null;
+  /** Untuk tipe DEBT: utang/piutang asalnya. Diubah/dihapus dari halaman Utang. */
+  debtId: string | null;
   tags: TagRefDTO[];
   attachmentCount: number;
   deletedAt: string | null;
@@ -183,6 +186,44 @@ export interface GoalContributionDTO {
   transferGroupId: string | null;
   /** Dompet asal (setor) atau tujuan (tarik) dari transfer tersebut. */
   wallet: Ref | null;
+  createdAt: string;
+}
+
+export interface DebtDTO {
+  id: string;
+  direction: DebtDirection;
+  counterparty: string;
+  principal: number;
+  interest: number;
+  /** principal + interest. */
+  total: number;
+  /** Jumlah semua pembayaran tercatat. */
+  paid: number;
+  remaining: number;
+  startDate: string;
+  dueDate: string | null;
+  installments: number | null;
+  firstDueDate: string | null;
+  note: string | null;
+  walletId: string | null;
+  wallet: Ref | null;
+  /** Diisi otomatis saat sisa menjadi 0; dikosongkan lagi bila pembayaran dihapus. */
+  settledAt: string | null;
+  paymentCount: number;
+  createdAt: string;
+}
+
+export interface DebtPaymentDTO {
+  id: string;
+  debtId: string;
+  /** Selalu positif. */
+  amount: number;
+  date: string;
+  note: string | null;
+  walletId: string | null;
+  wallet: Ref | null;
+  /** Transaksi DEBT di dompet; null bila pembayaran tanpa dompet. */
+  transactionId: string | null;
   createdAt: string;
 }
 

@@ -8,6 +8,8 @@ import type {
   CategoryMapDTO,
   CategoryType,
   CompareDTO,
+  DebtDTO,
+  DebtPaymentDTO,
   ForecastDTO,
   GoalContributionDTO,
   GoalDTO,
@@ -61,6 +63,8 @@ export const queryKeys = {
   attachments: (transactionId: string) => ['attachments', transactionId] as const,
   goals: ['goals'] as const,
   goalContributions: (goalId: string) => ['goals', goalId, 'contributions'] as const,
+  debts: ['debts'] as const,
+  debtPayments: (debtId: string) => ['debts', debtId, 'payments'] as const,
   insights: ['insights'] as const,
   monthlyReport: (month: string) => ['reports', 'monthly', month] as const,
   compare: (from: string, to: string) => ['reports', 'compare', from, to] as const,
@@ -157,6 +161,25 @@ export function useGoalContributions(goalId: string | undefined) {
         (r) => r.items,
       ),
     enabled: !!goalId,
+  });
+}
+
+export function useDebts(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.debts,
+    queryFn: ({ signal }) => api<{ items: DebtDTO[] }>('/debts', { signal }).then((r) => r.items),
+    enabled,
+  });
+}
+
+export function useDebtPayments(debtId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.debtPayments(debtId ?? ''),
+    queryFn: ({ signal }) =>
+      api<{ items: DebtPaymentDTO[] }>(`/debts/${debtId}/payments`, { signal }).then(
+        (r) => r.items,
+      ),
+    enabled: !!debtId,
   });
 }
 
@@ -378,6 +401,7 @@ export function invalidateMoney(qc: QueryClient) {
       'templates',
       'tags',
       'goals',
+      'debts',
       'insights',
     ].map((key) => qc.invalidateQueries({ queryKey: [key] })),
   );

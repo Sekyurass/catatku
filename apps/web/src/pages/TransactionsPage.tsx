@@ -35,6 +35,7 @@ const TYPE_LABELS: Record<TransactionType, string> = {
   EXPENSE: 'Pengeluaran',
   INCOME: 'Pemasukan',
   TRANSFER: 'Transfer',
+  DEBT: 'Utang/Piutang',
 };
 
 function useFilters() {
@@ -118,7 +119,7 @@ export function TransactionsPage() {
         out.push(group);
       }
       group.items.push(tx);
-      if (tx.type !== 'TRANSFER') group.net += tx.amount;
+      if (tx.type === 'INCOME' || tx.type === 'EXPENSE') group.net += tx.amount;
     }
     return out;
   }, [query.data, filters.walletId]);

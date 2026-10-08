@@ -18,6 +18,7 @@ export const CSV_HEADER = csvRow([
 function typeLabel(tx: TransactionDTO): string {
   if (tx.type === 'INCOME') return 'Pemasukan';
   if (tx.type === 'EXPENSE') return 'Pengeluaran';
+  if (tx.type === 'DEBT') return 'Utang/Piutang';
   return tx.amount < 0 ? 'Transfer keluar' : 'Transfer masuk';
 }
 

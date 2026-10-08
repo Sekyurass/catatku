@@ -4,8 +4,20 @@ export type WalletType = (typeof WALLET_TYPES)[number];
 export const CATEGORY_TYPES = ['INCOME', 'EXPENSE'] as const;
 export type CategoryType = (typeof CATEGORY_TYPES)[number];
 
-export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE', 'TRANSFER'] as const;
+/** DEBT hanya dibuat dari halaman Utang (pinjaman awal & pembayarannya). */
+export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE', 'TRANSFER', 'DEBT'] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
+/** Jenis yang bisa dicatat langsung dari form/ketik cepat. */
+export type RegularTransactionType = Exclude<TransactionType, 'DEBT'>;
+
+/** PAYABLE = utang (saya meminjam), RECEIVABLE = piutang (saya meminjamkan). */
+export const DEBT_DIRECTIONS = ['PAYABLE', 'RECEIVABLE'] as const;
+export type DebtDirection = (typeof DEBT_DIRECTIONS)[number];
+export const MAX_DEBTS = 100;
+export const DEBT_COUNTERPARTY_MAX = 60;
+export const DEBT_MAX_INSTALLMENTS = 360;
+/** Pengingat dikirim sekian hari sebelum jatuh tempo, lalu sekali lagi bila terlewat. */
+export const DEBT_REMIND_DAYS = 3;
 
 export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
 export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
@@ -15,6 +27,7 @@ export const NOTIFICATION_TYPES = [
   'RECURRING_PENDING',
   'RECURRING_POSTED',
   'BANK_EMAIL',
+  'DEBT_DUE',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -117,6 +130,7 @@ export const FEATURE_FLAGS = {
   NATURAL_INPUT: 'natural_input',
   BANK_EMAIL: 'bank_email',
   FORECAST: 'forecast',
+  DEBTS: 'debts',
 } as const;
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
 

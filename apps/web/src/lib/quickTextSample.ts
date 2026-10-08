@@ -2,12 +2,12 @@ import type {
   CategoryDTO,
   QuickTextResult,
   QuickTextValues,
-  TransactionType,
+  RegularTransactionType,
   WalletDTO,
 } from '@catatku/shared';
 
 export interface SampleSource {
-  type: TransactionType;
+  type: RegularTransactionType;
   amount: number | null;
   date: string | null;
   walletId: string | null;

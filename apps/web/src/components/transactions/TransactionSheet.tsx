@@ -280,7 +280,8 @@ function defaultValues(
   const isOutLeg = editing.amount < 0;
   const counterpartId = editing.counterpartWallet?.id ?? '';
   return {
-    kind: editing.type,
+    // Transaksi DEBT tidak bisa dibuka di form ini (tombol Ubah disembunyikan di detail).
+    kind: editing.type === 'DEBT' ? 'EXPENSE' : editing.type,
     amount: Math.abs(editing.amount),
     walletId: editing.type === 'TRANSFER' && !isOutLeg ? counterpartId : editing.walletId,
     toWalletId: editing.type === 'TRANSFER' ? (isOutLeg ? counterpartId : editing.walletId) : '',

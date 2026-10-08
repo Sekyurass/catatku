@@ -27,6 +27,7 @@ export const TransactionsPage = page(() =>
 );
 export const BudgetsPage = page(() => import('../pages/BudgetsPage').then((m) => m.BudgetsPage));
 export const GoalsPage = page(() => import('../pages/GoalsPage').then((m) => m.GoalsPage));
+export const DebtsPage = page(() => import('../pages/DebtsPage').then((m) => m.DebtsPage));
 export const WalletsPage = page(() => import('../pages/WalletsPage').then((m) => m.WalletsPage));
 export const CategoriesPage = page(() =>
   import('../pages/CategoriesPage').then((m) => m.CategoriesPage),

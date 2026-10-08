@@ -5,6 +5,7 @@ import {
   BellOff,
   CheckCheck,
   Clock,
+  HandCoins,
   type LucideIcon,
   Mail,
   PencilLine,
@@ -40,6 +41,7 @@ const TYPE_ICON: Record<NotificationType, { icon: LucideIcon; color: string }> =
   RECURRING_PENDING: { icon: Clock, color: '#D97706' },
   RECURRING_POSTED: { icon: Repeat, color: '#2563EB' },
   BANK_EMAIL: { icon: Mail, color: '#7C3AED' },
+  DEBT_DUE: { icon: HandCoins, color: '#B45309' },
 };
 
 /** Hanya rute di dalam aplikasi; tautan lain dari mana pun diabaikan. */

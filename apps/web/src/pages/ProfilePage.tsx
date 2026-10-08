@@ -12,6 +12,7 @@ import {
   ChartColumn,
   ChevronRight,
   FileUp,
+  HandCoins,
   Hash,
   ImageUp,
   KeyRound,
@@ -66,6 +67,13 @@ const REPORTS_LINK = {
   label: 'Laporan',
   description: 'Bulanan & tahunan, unduh PDF',
   icon: ChartColumn,
+};
+
+const DEBTS_LINK = {
+  to: '/utang',
+  label: 'Utang & piutang',
+  description: 'Pinjaman, cicilan, dan pengingat jatuh tempo',
+  icon: HandCoins,
 };
 
 const RECURRING_LINK = {
@@ -126,6 +134,7 @@ export function ProfilePage() {
   const reportsOn = useFeature('advanced_reports');
   const quickTextOn = useFeature('natural_input');
   const bankEmailOn = useFeature('bank_email');
+  const debtsOn = useFeature('debts');
 
   return (
     <div className="flex flex-col gap-4">
@@ -161,6 +170,7 @@ export function ProfilePage() {
           {[
             ...(reportsOn ? [REPORTS_LINK] : []),
             ...LINKS,
+            ...(debtsOn ? [DEBTS_LINK] : []),
             ...(recurringOn ? [RECURRING_LINK] : []),
             ...(templatesOn ? [TEMPLATE_LINK] : []),
             ...(tagsOn ? [TAG_LINK] : []),

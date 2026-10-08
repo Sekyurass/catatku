@@ -15,6 +15,8 @@ export type EventName =
   | 'template_used'
   | 'goal_created'
   | 'goal_contribution'
+  | 'debt_created'
+  | 'debt_payment'
   | 'insight_dismissed'
   | 'import_completed'
   | 'import_rolled_back'

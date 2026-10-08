@@ -64,7 +64,7 @@ gaji, kos, pulsa otomatis, serta listrik yang menunggu konfirmasi bulan ini; plu
 kopi susu, Gojek ke kantor, parkir, dan makan siang tanpa nominal).
 
 Fitur Fase 1, target tabungan (Fase 2.1), laporan lanjutan (Fase 2.2), insight (Fase 2.3), tag & lampiran (Fase 2.5), pindai struk
-(Fase 3.1), saran kategori (Fase 3.2), dan ketik cepat (Fase 3.3) berada di balik feature flag yang **nonaktif** setelah seed. Untuk
+(Fase 3.1), saran kategori (Fase 3.2), ketik cepat (Fase 3.3), dan utang-piutang (Fase 4.3) berada di balik feature flag yang **nonaktif** setelah seed. Untuk
 menyalakannya:
 
 ```sql
@@ -72,10 +72,10 @@ menyalakannya:
 UPDATE "FeatureFlag" SET enabled = true
 WHERE key IN ('recurring_transactions', 'reminders', 'templates', 'csv_import', 'receipt_ocr', 'auto_category',
               'tags', 'attachments', 'savings_goals', 'insights', 'advanced_reports', 'natural_input',
-              'forecast');
+              'forecast', 'debts');
 ```
 
-atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on,advanced_reports:on,natural_input:on,forecast:on` di `apps/api/.env` (restart API).
+atau tanpa menyentuh DB: `FEATURE_FLAGS_FORCE=recurring_transactions:on,reminders:on,templates:on,csv_import:on,receipt_ocr:on,auto_category:on,tags:on,attachments:on,savings_goals:on,insights:on,advanced_reports:on,natural_input:on,forecast:on,debts:on` di `apps/api/.env` (restart API).
 Notifikasi push butuh kunci VAPID di `.env` (lihat `.env.example`); tanpa itu lonceng dan pengingat tetap jalan.
 Lampiran foto butuh `STORAGE_S3_*` (lihat [Lampiran foto](#lampiran-foto-supabase-storage)); tanpa itu flag
 `attachments` selalu dianggap mati. Akun baru dari halaman **Daftar**
@@ -486,6 +486,23 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     **Sesuai rencana** bila terkumpul ≥ jalur lurus dari bulan dibuat sampai bulan tenggat (per bulan penuh
     yang lewat; bulan pertama selalu sesuai), **Tertinggal** bila kurang atau tenggat lewat, **Tercapai**
     bila terkumpul ≥ target. Bilah progres beranimasi singkat (dimatikan oleh `prefers-reduced-motion`).
+- **Utang & piutang** (Fase 4.3, flag `debts`): halaman `/utang` (dari Profil). Tab **Utang saya** /
+  **Piutang saya**, ringkasan sisa, kartu per pihak dengan progres pelunasan dan angsuran berikutnya.
+  - **Model**: `Debt (direction PAYABLE|RECEIVABLE, counterparty, principal, interest, startDate, dueDate?,
+installments?, firstDueDate?, walletId?, settledAt?)` dan `DebtPayment`. Maks. 100 yang belum lunas.
+  - **Tipe transaksi `DEBT`**: pinjaman awal (bila dompet dipilih) dan setiap pembayaran dicatat sebagai
+    transaksi DEBT, jadi saldo dompet ikut bergerak (utang: pinjaman +, bayar −; piutang: pinjamkan −,
+    terima +). DEBT **tidak** dihitung di laporan, anggaran, perkiraan, maupun insight (semuanya memfilter
+    INCOME/EXPENSE). Di riwayat tampil dengan ikon sendiri; ubah/hapus hanya dari halaman Utang (API
+    transaksi → 409). Tanpa dompet = hanya mencatat sisa tagihan.
+  - **Cicilan** (`debtSchedule`/`debtProgress` di `packages/shared/src/debt.ts`): total = pokok + bunga/biaya
+    total, dibagi rata per bulan sejak `firstDueDate` (sisa pembagian di angsuran terakhir; tanggal 31 ikut
+    akhir bulan). Pembayaran dialokasikan berurutan dari angsuran pertama (lunas/sebagian/belum, terlambat
+    bila lewat jatuh tempo). Lunas otomatis saat sisa 0; menghapus pembayaran membukanya lagi. Mengubah
+    pokok menyesuaikan transaksi pinjaman awal; total tidak boleh di bawah yang sudah dibayar.
+  - **Pengingat** (butuh flag `reminders` juga): putaran pengingat tiap jam, mulai 08.00 WIB, mengirim satu
+    notifikasi "segera jatuh tempo" (≤ 3 hari) dan satu "lewat jatuh tempo" per angsuran (`Debt.lastReminder`
+    diklaim dulu + `dedupeKey`, aman diulang). Tautan membuka `/utang?debt=id`.
 - **Insight otomatis** (Fase 2.3, flag `insights`): bagian **Insight untukmu** di Beranda, maks. 3 kartu yang
   bisa digeser (di layar lebar jadi 3 kolom) plus **Lihat semua**. Tiap kartu membuka detail berisi angka
   pendukung, "Cara menghitung", dan langkah lanjutan; tombol × menyembunyikannya (bisa diurungkan).
@@ -626,6 +643,16 @@ transferGroupId, wallet }] }`; `POST /goals/:id/contributions` `{ type, amount, 
     tabungan itu sendiri) wajib; target tanpa dompet tabungan, dompet diarsipkan, atau tarik melebihi yang
     terkumpul → 400. `walletId: null` pada `POST`/`PATCH /goals` = buatkan dompet `Tabungan {nama}`
   - `DELETE /goals/contributions/:id` → 204 (transfer tertaut ikut dihapus)
+- ✅ `debts`: `GET /debts` → `{ items: [{ id, direction, counterparty, principal, interest, total, paid,
+remaining, startDate, dueDate, installments, firstDueDate, note, walletId, wallet, settledAt, paymentCount,
+createdAt }] }`, `GET /debts/:id`, `POST /debts` (201, `Idempotency-Key`), `PATCH /debts/:id` (tanpa
+  `direction`/`walletId`), `DELETE /debts/:id` → 204 (transaksi DEBT-nya ikut terhapus permanen)
+  - Body: `{ direction, counterparty: 1–60, principal, interest?: ≥0, startDate, dueDate?: null,
+installments?: 1–360|null, firstDueDate?: null (wajib bila installments), note?, walletId?: null }`
+  - `GET /debts/:id/payments` → `{ items: [{ id, debtId, amount, date, note, walletId, wallet, transactionId,
+createdAt }] }`; `POST /debts/:id/payments` `{ amount, date, note?, walletId?: null }` → utang terbaru (201,
+    `Idempotency-Key`; melebihi sisa → 400); `DELETE /debts/payments/:id` → utang terbaru
+  - Transaksi berisi `debtId`; `type=DEBT` bisa dipakai sebagai filter riwayat & ekspor ("Utang/Piutang")
 - ✅ `insights`: `GET /insights` → `{ items: [{ id, kind: category_change|budget_pace|new_subscription|
 unusual_expense, priority: high|medium|low, tone: warning|positive|info, title, body, detail }] }` (urut
   prioritas; tanpa yang ditutup). `POST /insights/:id/dismiss` → 204 (idempoten), `DELETE /insights/:id/dismiss`

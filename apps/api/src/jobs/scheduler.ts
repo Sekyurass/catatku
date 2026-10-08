@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { logger } from '../lib/logger';
 import { purgeOrphanAttachments } from '../modules/attachments/attachment.service';
 import { isImapConfigured, pollImap } from '../modules/bankEmail/imap';
+import { runDebtReminders } from '../modules/debts/debt.service';
 import { pruneNotifications, runReminders } from '../modules/notifications/notification.service';
 import { purgeExpiredSamples } from '../modules/quickText/quickText.service';
 import { runDueRules } from '../modules/recurring/recurring.service';
@@ -20,8 +21,11 @@ async function runRecurring() {
 async function runNotifications() {
   try {
     const sent = await runReminders();
+    const debts = await runDebtReminders();
     const pruned = await pruneNotifications();
-    if (sent > 0 || pruned > 0) logger.info({ sent, pruned }, 'Pengingat diproses');
+    if (sent > 0 || debts > 0 || pruned > 0) {
+      logger.info({ sent, debts, pruned }, 'Pengingat diproses');
+    }
   } catch (err) {
     logger.error({ err }, 'Putaran pengingat gagal');
   }

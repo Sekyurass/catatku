@@ -28,6 +28,14 @@ enum TransactionType {
   INCOME
   EXPENSE
   TRANSFER
+  /// Fase 4.3: uang pinjaman & pembayarannya. Mengubah saldo dompet, tidak masuk laporan/anggaran.
+  DEBT
+}
+
+/// PAYABLE = utang (pengguna meminjam), RECEIVABLE = piutang (pengguna meminjamkan).
+enum DebtDirection {
+  PAYABLE
+  RECEIVABLE
 }
 
 enum RecurrenceFrequency {
@@ -48,6 +56,7 @@ enum NotificationType {
   RECURRING_PENDING
   RECURRING_POSTED
   BANK_EMAIL
+  DEBT_DUE
 }
 
 enum InboundTransactionStatus {
@@ -103,6 +112,8 @@ model User {
   insightDismissals   InsightDismissal[]
   emailInbox          EmailInbox?
   inboundTransactions InboundTransaction[]
+  debts               Debt[]
+  debtPayments        DebtPayment[]
 }
 
 /// Tautan "lupa kata sandi": sekali pakai, umur pendek, hanya hash yang disimpan.
@@ -162,6 +173,8 @@ model Wallet {
   templates      TransactionTemplate[]
   importBatches  ImportBatch[]
   savingsGoals   SavingsGoal[]
+  debts          Debt[]
+  debtPayments   DebtPayment[]
 
   @@index([userId])
 }
@@ -223,6 +236,8 @@ model Transaction {
   recurringRuleId String?
   /// Diisi bila berasal dari impor CSV; membatalkan impor menghapus semua transaksinya.
   importBatchId   String?
+  /// Transaksi bertipe DEBT: uang pinjaman awal atau pembayaran utang/piutang ini.
+  debtId          String?
   deletedAt       DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -232,6 +247,7 @@ model Transaction {
   category      Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   recurringRule RecurringRule?   @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
   importBatch   ImportBatch?     @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  debt          Debt?            @relation(fields: [debtId], references: [id], onDelete: SetNull)
   tags          TransactionTag[]
   attachments   Attachment[]
 
@@ -241,6 +257,7 @@ model Transaction {
   @@index([transferGroupId])
   @@index([recurringRuleId])
   @@index([importBatchId])
+  @@index([debtId])
 }
 
 /// Fase 2.5. Label bebas milik pengguna; satu transaksi bisa punya banyak tag.
@@ -408,6 +425,63 @@ model GoalContribution {
   @@index([goalId, date(sort: Desc)])
   @@index([userId])
   @@index([transferGroupId])
+}
+
+/// Fase 4.3. Total kewajiban = principal + interest; sisa = total − Σ pembayaran.
+/// Jadwal cicilan tidak disimpan: dihitung dari installments + firstDueDate (shared/debt.ts).
+model Debt {
+  id           String        @id @default(cuid())
+  userId       String
+  direction    DebtDirection
+  /// Dengan siapa (orang, bank, leasing).
+  counterparty String
+  /// Rupiah utuh, positif.
+  principal    BigInt
+  /// Total bunga/biaya selama tenor (0 = tanpa bunga), dibagi rata ke setiap cicilan.
+  interest     BigInt        @default(0)
+  startDate    DateTime      @db.Date
+  /// Jatuh tempo pelunasan sekaligus (tanpa cicilan); null = tanpa jatuh tempo.
+  dueDate      DateTime?     @db.Date
+  /// Jumlah cicilan bulanan; null = dibayar sekaligus/bebas.
+  installments Int?
+  firstDueDate DateTime?     @db.Date
+  note         String?
+  /// Dompet tempat uang pinjaman masuk/keluar saat dicatat; null = tidak dicatat di dompet.
+  walletId     String?
+  /// Diisi saat sisa mencapai 0; dikosongkan lagi bila pembayaran dihapus.
+  settledAt    DateTime?
+  /// Pengingat terakhir yang dikirim ("<indeks cicilan>:soon|overdue"), agar tidak berulang.
+  lastReminder String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet       Wallet?       @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  payments     DebtPayment[]
+  transactions Transaction[]
+
+  @@index([userId, settledAt])
+}
+
+model DebtPayment {
+  id            String   @id @default(cuid())
+  debtId        String
+  userId        String
+  /// Rupiah utuh, positif.
+  amount        BigInt
+  date          DateTime @db.Date
+  note          String?
+  walletId      String?
+  /// Transaksi DEBT di dompet; null bila pembayaran tidak dicatat di dompet.
+  transactionId String?  @unique
+  createdAt     DateTime @default(now())
+
+  debt   Debt    @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet Wallet? @relation(fields: [walletId], references: [id], onDelete: SetNull)
+
+  @@index([debtId, date(sort: Desc)])
+  @@index([userId])
 }
 
 /// Satu baris per (aturan, tanggal): kunci idempotensi scheduler sekaligus antrean konfirmasi.

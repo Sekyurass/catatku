@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MAX_AMOUNT, TRANSACTION_TYPES, WALLET_TYPES } from '../constants';
+import { MAX_AMOUNT, WALLET_TYPES } from '../constants';
 
 /** Sampel dataset ketikan cepat dihapus otomatis setelah sekian hari. */
 export const QUICK_TEXT_SAMPLE_RETENTION_DAYS = 90;
@@ -24,7 +24,7 @@ const walletRef = z.object({ name, type: z.enum(WALLET_TYPES) }).nullable();
 
 /** Isian transaksi dalam bentuk yang tidak terikat akun (nama, bukan id; tanggal relatif). */
 export const quickTextValuesSchema = z.object({
-  type: z.enum(TRANSACTION_TYPES),
+  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']),
   amount: z.number().int().positive().max(MAX_AMOUNT).nullable(),
   /** Selisih hari terhadap hari input (0 = hari ini, -1 = kemarin). */
   dateOffset: z.number().int().min(-400).max(400),

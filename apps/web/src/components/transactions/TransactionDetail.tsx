@@ -1,7 +1,9 @@
 import { FEATURE_FLAGS, formatRupiah, type TransactionDTO } from '@catatku/shared';
-import { Pencil, Repeat, Trash2 } from 'lucide-react';
+import { HandCoins, Pencil, Repeat, Trash2 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { cn } from '../../lib/cn';
+import { DEBT_COLOR } from '../../lib/debts';
 import { useFeature } from '../../lib/features';
 import { formatLongDate } from '../../lib/format';
 import { categoryIcon, TransferIcon } from '../../lib/icons';
@@ -15,7 +17,12 @@ import { useToast } from '../ui/Toast';
 import { PhotoViewer } from './AttachmentField';
 import { useDeleteTransaction } from './useDeleteTransaction';
 
-const TYPE_LABEL = { EXPENSE: 'Pengeluaran', INCOME: 'Pemasukan', TRANSFER: 'Transfer' } as const;
+const TYPE_LABEL = {
+  EXPENSE: 'Pengeluaran',
+  INCOME: 'Pemasukan',
+  TRANSFER: 'Transfer',
+  DEBT: 'Utang/Piutang',
+} as const;
 
 /** Tampilan baca transaksi yang sudah tersimpan; mengubah lewat tombol Ubah. */
 export function TransactionDetail({
@@ -47,7 +54,12 @@ function DetailBody({
   const toast = useToast();
   const [deleting, setDeleting] = useState(false);
   const isTransfer = tx.type === 'TRANSFER';
-  const title = isTransfer ? 'Transfer' : (tx.category?.name ?? 'Tanpa kategori');
+  const isDebt = tx.type === 'DEBT';
+  const title = isTransfer
+    ? 'Transfer'
+    : isDebt
+      ? (tx.note ?? 'Utang/piutang')
+      : (tx.category?.name ?? 'Tanpa kategori');
   const other = tx.counterpartWallet?.name ?? 'dompet lain';
   const [from, to] = tx.amount < 0 ? [tx.wallet.name, other] : [other, tx.wallet.name];
   const noteItems = splitNoteItems(tx.note);
@@ -69,6 +81,8 @@ function DetailBody({
       <div className="flex items-center gap-3">
         {isTransfer ? (
           <IconBadge icon={TransferIcon} color="#475569" />
+        ) : isDebt ? (
+          <IconBadge icon={HandCoins} color={DEBT_COLOR} />
         ) : (
           <IconBadge
             icon={categoryIcon(tx.category?.icon)}
@@ -162,27 +176,45 @@ function DetailBody({
 
       <Attachments tx={tx} />
 
-      <div className="flex items-center gap-2 pt-1">
-        <Button
-          variant="ghost"
-          className="text-expense-text"
-          onClick={() => void remove()}
-          loading={deleting}
-          icon={<Trash2 className="size-4" aria-hidden />}
-        >
-          Hapus
-        </Button>
-        <Button
-          size="lg"
-          className="flex-1"
-          onClick={onEdit}
-          disabled={deleting}
-          icon={<Pencil className="size-4" aria-hidden />}
-          data-autofocus
-        >
-          Ubah
-        </Button>
-      </div>
+      {isDebt ? (
+        <div className="flex flex-col gap-2 pt-1">
+          <p className="text-sm text-muted">
+            Transaksi utang/piutang tidak dihitung sebagai pemasukan atau pengeluaran. Ubah atau
+            hapus lewat halaman Utang supaya sisa tagihannya tetap cocok.
+          </p>
+          <Link
+            to={tx.debtId ? `/utang?debt=${tx.debtId}` : '/utang'}
+            onClick={onClose}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-control bg-primary px-4 font-semibold text-on-primary"
+            data-autofocus
+          >
+            <HandCoins className="size-4" aria-hidden />
+            Buka di halaman Utang
+          </Link>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 pt-1">
+          <Button
+            variant="ghost"
+            className="text-expense-text"
+            onClick={() => void remove()}
+            loading={deleting}
+            icon={<Trash2 className="size-4" aria-hidden />}
+          >
+            Hapus
+          </Button>
+          <Button
+            size="lg"
+            className="flex-1"
+            onClick={onEdit}
+            disabled={deleting}
+            icon={<Pencil className="size-4" aria-hidden />}
+            data-autofocus
+          >
+            Ubah
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

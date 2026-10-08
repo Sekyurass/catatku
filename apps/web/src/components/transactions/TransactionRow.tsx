@@ -1,6 +1,7 @@
 import { formatRupiah, type TransactionDTO } from '@catatku/shared';
-import { Paperclip, Repeat } from 'lucide-react';
+import { HandCoins, Paperclip, Repeat } from 'lucide-react';
 import { cn } from '../../lib/cn';
+import { DEBT_COLOR } from '../../lib/debts';
 import { categoryIcon, TransferIcon } from '../../lib/icons';
 import { IconBadge } from '../IconBadge';
 
@@ -9,6 +10,12 @@ function describe(tx: TransactionDTO) {
     const other = tx.counterpartWallet?.name ?? 'dompet lain';
     const route = tx.amount < 0 ? `${tx.wallet.name} → ${other}` : `${other} → ${tx.wallet.name}`;
     return { title: 'Transfer', subtitle: tx.note ? `${route} · ${tx.note}` : route };
+  }
+  if (tx.type === 'DEBT') {
+    return {
+      title: tx.note ?? 'Utang/piutang',
+      subtitle: `${tx.wallet.name} · Utang/piutang`,
+    };
   }
   const title = tx.category?.name ?? 'Tanpa kategori';
   return { title, subtitle: tx.note ? `${tx.wallet.name} · ${tx.note}` : tx.wallet.name };
@@ -48,6 +55,8 @@ export function TransactionRow({
     >
       {isTransfer ? (
         <IconBadge icon={TransferIcon} color="#475569" />
+      ) : tx.type === 'DEBT' ? (
+        <IconBadge icon={HandCoins} color={DEBT_COLOR} />
       ) : (
         <IconBadge icon={categoryIcon(tx.category?.icon)} color={tx.category?.color ?? '#64748B'} />
       )}

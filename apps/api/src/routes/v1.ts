@@ -10,6 +10,7 @@ import { createCategoriesRouter } from '../modules/categories/category.routes';
 import { createEventsRouter } from '../modules/events/events.routes';
 import { createExportRouter } from '../modules/export/export.routes';
 import { createFeaturesRouter } from '../modules/features/features.routes';
+import { createDebtsRouter } from '../modules/debts/debt.routes';
 import { createGoalsRouter } from '../modules/goals/goal.routes';
 import { createImportsRouter } from '../modules/imports/import.routes';
 import { createInsightsRouter } from '../modules/insights/insight.routes';
@@ -48,6 +49,7 @@ export function createV1Router(opts: V1Options = {}) {
   router.use('/imports', createImportsRouter());
   router.use('/tags', createTagsRouter());
   router.use('/goals', createGoalsRouter());
+  router.use('/debts', createDebtsRouter());
   router.use('/insights', createInsightsRouter());
   router.use('/quick-text', createQuickTextRouter());
   router.use('/bank-email', createBankEmailRouter());

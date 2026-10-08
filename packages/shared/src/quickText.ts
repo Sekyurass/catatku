@@ -1,5 +1,10 @@
 import { suggestCategoryByKeyword } from './categorize';
-import { type CategoryType, MAX_AMOUNT, type TransactionType, type WalletType } from './constants';
+import {
+  type CategoryType,
+  MAX_AMOUNT,
+  type RegularTransactionType,
+  type WalletType,
+} from './constants';
 
 /**
  * Parser "ketik cepat" berbasis aturan (regex + kamus), tanpa AI: "makan siang 25rb di warteg",
@@ -37,7 +42,7 @@ export interface QuickTextContext {
 export type QuickTextField = 'type' | 'amount' | 'date' | 'wallet' | 'toWallet' | 'category';
 
 export interface QuickTextResult {
-  type: TransactionType;
+  type: RegularTransactionType;
   amount: number | null;
   /** null = tidak disebut (pakai hari ini). */
   date: string | null;
@@ -538,7 +543,7 @@ export function parseQuickText(input: string, ctx: QuickTextContext): QuickTextR
   const cashWallets = ctx.wallets.filter((w) => w.type === 'CASH');
   const cashId = cashWallets.length === 1 ? cashWallets[0]!.id : null;
 
-  let type: TransactionType | null = null;
+  let type: RegularTransactionType | null = null;
   let walletId: string | null = null;
   let toWalletId: string | null = null;
   const distinct = [...new Set(hits.map((h) => h.walletId))];

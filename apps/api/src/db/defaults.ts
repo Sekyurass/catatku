@@ -62,6 +62,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   [FEATURE_FLAGS.ADVANCED_REPORTS]: 'Fase 2.2 — halaman Laporan (bulanan/tahunan) + ekspor PDF',
   [FEATURE_FLAGS.NATURAL_INPUT]: 'Fase 3.3 — ketik cepat bahasa natural di form catat',
   [FEATURE_FLAGS.FORECAST]: 'Fase 2.4 — perkiraan saldo akhir bulan (rentang) di Beranda',
+  [FEATURE_FLAGS.DEBTS]: 'Fase 4.3 — utang, piutang & cicilan + pengingat jatuh tempo',
   [FEATURE_FLAGS.BANK_EMAIL]:
     'Catat dari email bank (unggah .eml; penerusan otomatis butuh INBOUND_* di server)',
 };

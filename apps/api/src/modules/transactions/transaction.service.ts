@@ -5,6 +5,7 @@ import type {
   ListTransactionsQuery,
   TransactionDTO,
   TransactionPage,
+  TransactionType,
   TransferDTO,
 } from '@catatku/shared';
 import {
@@ -17,7 +18,7 @@ import {
 import { Prisma } from '@prisma/client';
 import type { z } from 'zod';
 import { track } from '../../lib/analytics';
-import { notFound, validationError } from '../../lib/errors';
+import { conflict, notFound, validationError } from '../../lib/errors';
 import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
 import { parse } from '../../lib/validate';
@@ -60,6 +61,7 @@ function toDTO(
     transferGroupId: row.transferGroupId,
     counterpartWallet: counterpart,
     recurringRuleId: row.recurringRuleId,
+    debtId: row.debtId,
     tags,
     attachmentCount,
     deletedAt: row.deletedAt?.toISOString() ?? null,
@@ -115,6 +117,15 @@ async function tagsFromInput(userId: string, names: string[] | undefined) {
   if (names === undefined) return undefined;
   if (!(await isFeatureEnabled(FEATURE_FLAGS.TAGS, userId))) return undefined;
   return resolveTags(userId, names);
+}
+
+/** Transaksi utang/piutang mengikuti catatan di halaman Utang supaya sisa tagihan tetap cocok. */
+function assertNotDebt<T extends { type: TransactionType }>(
+  row: T,
+): asserts row is T & { type: Exclude<TransactionType, 'DEBT'> } {
+  if (row.type === 'DEBT') {
+    throw conflict('Transaksi utang/piutang diubah atau dihapus dari halaman Utang');
+  }
 }
 
 async function findActiveRow(userId: string, id: string): Promise<Row> {
@@ -295,6 +306,7 @@ export async function updateTransaction(
   body: unknown,
 ): Promise<TransactionDTO> {
   const existing = await findActiveRow(userId, id);
+  assertNotDebt(existing);
   if (existing.type === 'TRANSFER') {
     await updateTransfer(userId, existing, parse(updateTransferSchema, body));
     return getTransaction(userId, id);
@@ -419,6 +431,7 @@ async function updateTransfer(
 /** Soft delete; untuk transfer kedua sisinya ikut terhapus. */
 export async function deleteTransaction(userId: string, id: string): Promise<void> {
   const row = await findActiveRow(userId, id);
+  assertNotDebt(row);
   const where = row.transferGroupId
     ? { userId, transferGroupId: row.transferGroupId }
     : { userId, id };

@@ -8,6 +8,7 @@ import {
   AuthPage,
   BankEmailPage,
   BudgetsPage,
+  DebtsPage,
   GoalsPage,
   CategoriesPage,
   ForgotPasswordPage,
@@ -85,6 +86,7 @@ export function App() {
           <Route path="transaksi" element={<TransactionsPage />} />
           <Route path="anggaran" element={<BudgetsPage />} />
           <Route path="anggaran/target" element={<GoalsPage />} />
+          <Route path="utang" element={<DebtsPage />} />
           <Route path="dompet" element={<WalletsPage />} />
           <Route path="kategori" element={<CategoriesPage />} />
           <Route path="berulang" element={<RecurringPage />} />

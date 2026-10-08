@@ -64,6 +64,7 @@ const tx = (id: string, amount: number, note: string | null, day: string): Trans
   counterpartWallet: null,
   transferGroupId: null,
   recurringRuleId: null,
+  debtId: null,
   tags: [{ id: 'tg1', name: 'Kantor' }],
   attachmentCount: 0,
   deletedAt: null,
