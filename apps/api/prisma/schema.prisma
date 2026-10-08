@@ -295,6 +295,8 @@ model ImportBatch {
   userId       String
   walletId     String
   filename     String
+  /// null = CSV biasa; "bca" = mutasi bank (Fase 3.4).
+  source       String?
   status       ImportStatus @default(PROCESSING)
   /// { total, imported, skipped, failed }
   stats        Json

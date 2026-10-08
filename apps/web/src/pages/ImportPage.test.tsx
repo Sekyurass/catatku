@@ -1,4 +1,11 @@
-import type { ImportBatchDTO, ImportPreviewDTO, WalletDTO } from '@catatku/shared';
+import type {
+  CategoryDTO,
+  ImportBatchDTO,
+  ImportPreviewDTO,
+  StatementPreviewDTO,
+  StatementRowDTO,
+  WalletDTO,
+} from '@catatku/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -31,9 +38,68 @@ const PREVIEW: ImportPreviewDTO = {
   issues: [{ line: 3, kind: 'DUPLICATE', message: 'Sudah ada transaksi yang sama' }],
 };
 
+const BCA_CSV = [
+  'No. rekening : 1234567890',
+  'Periode : 25/09/2026 - 05/10/2026',
+  '',
+  'Tanggal Transaksi,Keterangan,Cabang,Jumlah,,Saldo',
+  "'25/09,'TRSF E-BANKING DB 2509/FTSCY/WS95051 ANDI WIJAYA,'0000,150000.00,DB,850000.00",
+  "'30/09,'KR OTOMATIS PT MAJU JAYA GAJI,'0998,5000000.00,CR,5850000.00",
+  "'01/10,'TARIKAN ATM 01/10,'0000,500000.00,DB,5350000.00",
+].join('\r\n');
+
+const CATEGORIES: CategoryDTO[] = [
+  { id: 'cat_lainnya_out', name: 'Lainnya', type: 'EXPENSE', icon: 'circle', color: '#64748B' },
+  { id: 'cat_belanja', name: 'Belanja', type: 'EXPENSE', icon: 'bag', color: '#EC4899' },
+  { id: 'cat_gaji', name: 'Gaji', type: 'INCOME', icon: 'banknote', color: '#16A34A' },
+] as CategoryDTO[];
+
+const row = (over: Partial<StatementRowDTO>): StatementRowDTO => ({
+  line: 5,
+  date: '2026-09-25',
+  pending: false,
+  type: 'EXPENSE',
+  amount: 150_000,
+  description: 'TRSF E-BANKING DB',
+  note: 'Transfer ke ANDI WIJAYA',
+  cash: false,
+  categoryId: 'cat_lainnya_out',
+  categorySource: 'default',
+  match: null,
+  bankEmailId: null,
+  ...over,
+});
+
+const STATEMENT_PREVIEW: StatementPreviewDTO = {
+  bank: 'bca',
+  bankName: 'BCA',
+  accountHint: '1234****90',
+  period: { from: '2026-09-25', to: '2026-10-05' },
+  balance: { opening: 1_000_000, closing: 5_350_000, balanced: true },
+  rows: [
+    row({
+      match: { id: 't1', date: '2026-09-26', type: 'EXPENSE', amount: 150_000, note: 'Utang Andi' },
+    }),
+    row({
+      line: 6,
+      date: '2026-09-30',
+      type: 'INCOME',
+      amount: 5_000_000,
+      note: 'PT MAJU JAYA GAJI',
+      categoryId: 'cat_gaji',
+      categorySource: 'keyword',
+      bankEmailId: 'mail1',
+    }),
+    row({ line: 7, date: '2026-10-01', amount: 500_000, note: 'Tarik tunai ATM', cash: true }),
+  ],
+  invalidLines: [],
+  stats: { total: 3, new: 2, matched: 1, failed: 0 },
+};
+
 const batch = (over: Partial<ImportBatchDTO> = {}): ImportBatchDTO => ({
   id: 'imp1',
   filename: 'mutasi.csv',
+  source: null,
   status: 'COMPLETED',
   walletId: 'w1',
   wallet: { id: 'w1', name: 'BCA', color: '#2563EB' },
@@ -52,7 +118,12 @@ function setup({ enabled = true, history = [] as ImportBatchDTO[] } = {}) {
     const url = String(input);
     if (url.includes('/features')) return json({ flags: { csv_import: enabled } });
     if (url.includes('/wallets')) return json({ items: [WALLET] });
+    if (url.includes('/categories')) return json({ items: CATEGORIES });
     if (url.includes('/imports/preview')) return json(PREVIEW);
+    if (url.includes('/imports/statements/preview')) return json(STATEMENT_PREVIEW);
+    if (url.endsWith('/imports/statements')) {
+      return json(batch({ source: 'bca', filename: 'mutasi-bca.csv' }), 201);
+    }
     if (url.includes('/rollback')) {
       return json(batch({ status: 'ROLLED_BACK', rolledBackAt: '2026-10-07T04:00:00.000Z' }));
     }
@@ -139,6 +210,67 @@ describe('ImportPage', () => {
       'href',
       '/transaksi',
     );
+  });
+
+  it('mutasi BCA → pilih dompet → rekonsiliasi → impor dengan keputusan per baris', async () => {
+    const user = userEvent.setup();
+    const { writes } = setup();
+
+    await user.upload(
+      await screen.findByLabelText(/Pilih file CSV/),
+      csvFile(BCA_CSV, 'mutasi-bca.csv'),
+    );
+    expect(await screen.findByRole('heading', { name: 'Pilih dompet' })).toHaveFocus();
+    expect(screen.getByText('Mutasi rekening BCA terdeteksi')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('combobox', { name: 'Rekening BCA ini dicatat di dompet' }),
+      ).toHaveTextContent('BCA'),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Cocokkan transaksi' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Cocokkan dengan catatanmu' }),
+    ).toBeInTheDocument();
+    expect(writes()[0]).toMatchObject({
+      url: expect.stringContaining('/imports/statements/preview'),
+      body: { filename: 'mutasi-bca.csv', walletId: 'w1', content: BCA_CSV },
+    });
+    expect(
+      screen.getByText('Saldo awal + mutasi = saldo akhir. File lengkap.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Sudah tercatat: Utang Andi/)).toBeInTheDocument();
+
+    // Bawaan: hanya gaji (yang sudah tercatat dan tarik tunai tidak dicentang).
+    const transfer = screen.getByRole('checkbox', { name: /Transfer ke ANDI WIJAYA/ });
+    const salary = screen.getByRole('checkbox', { name: /PT MAJU JAYA GAJI/ });
+    const atm = screen.getByRole('checkbox', { name: /Tarik tunai ATM/ });
+    expect(transfer).not.toBeChecked();
+    expect(salary).toBeChecked();
+    expect(atm).not.toBeChecked();
+    expect(
+      screen.getByRole('combobox', { name: 'Kategori untuk PT MAJU JAYA GAJI' }),
+    ).toHaveTextContent('Gaji');
+
+    await user.click(atm);
+    await user.click(screen.getByRole('combobox', { name: 'Kategori untuk Tarik tunai ATM' }));
+    await user.click(await screen.findByRole('option', { name: 'Belanja' }));
+    await user.click(screen.getByRole('button', { name: 'Impor 2 transaksi' }));
+
+    expect(await screen.findByRole('heading', { name: 'Impor selesai' })).toBeInTheDocument();
+    const submit = writes()[1]!;
+    expect(submit.url).toMatch(/\/imports\/statements$/);
+    expect(submit.headers['Idempotency-Key']).toMatch(/^[\w-]{8,}$/);
+    expect(submit.body).toEqual({
+      filename: 'mutasi-bca.csv',
+      walletId: 'w1',
+      content: BCA_CSV,
+      rows: [
+        { line: 5, import: false },
+        { line: 6, import: true, categoryId: 'cat_gaji' },
+        { line: 7, import: true, categoryId: 'cat_belanja' },
+      ],
+    });
   });
 
   it('menolak file yang bukan CSV', async () => {

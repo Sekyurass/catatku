@@ -299,6 +299,24 @@ DKIM dicek lewat DNS sistem dengan cadangan `DNS_FALLBACK_SERVERS` (bawaan `1.1.
     riwayat impornya tetap ada dengan status Dibatalkan.
   - **Batas**: file maks. 1 MB (dicek di browser dan server; body JSON khusus rute ini dinaikkan ke 3 MB),
     maks. 5.000 baris data, daftar baris bermasalah yang disimpan dipotong di 100.
+  - **Mutasi bank** (Fase 3.4, flag yang sama): file CSV "Mutasi Rekening" BCA (KlikBCA/myBCA) dikenali
+    otomatis saat diunggah dan masuk alur **Dompet → Rekonsiliasi**. Pembaca per bank ada di
+    `packages/shared/src/statements.ts` (antarmuka `StatementParser`; bank baru = parser baru): tahun
+    disimpulkan dari periode (termasuk lintas tahun), baris `PEND` diberi tanggal perkiraan, keterangan
+    dirapikan jadi catatan ("Transfer ke ANDI WIJAYA", "Tarik tunai ATM"), nomor rekening disamarkan, dan
+    saldo awal + mutasi dicek terhadap saldo akhir.
+    - **Anti-ganda**: tiap baris dipasangkan satu-lawan-satu dengan transaksi di dompet yang sama yang
+      nominal bertandanya sama dan tanggalnya selisih ≤ 3 hari (≤ 5 untuk `PEND`), selisih terkecil dulu;
+      kaki transfer ikut dicocokkan. Yang cocok tidak diimpor kecuali pengguna mencentangnya.
+    - **Email bank**: baris baru yang cocok dengan email bank berstatus menunggu (jenis + nominal + tanggal)
+      ikut dikonfirmasi dan ditautkan ke transaksi hasil impor; membatalkan impor mengembalikannya ke
+      status menunggu.
+    - **Kategori otomatis**: kategori yang pernah dipilih untuk toko/catatan itu → tebakan kata kunci →
+      Lainnya; bisa diganti per baris (pilihan pengguna ikut dipelajari). Tarik/setor tunai tidak dicentang
+      secara default karena lebih tepat dicatat sebagai transfer ke dompet tunai.
+    - **Privasi**: isi file hanya dibaca di memori untuk pratinjau dan impor (server membaca ulang file,
+      klien hanya mengirim keputusan per baris); tidak ada isi mentah yang disimpan, dan tidak pernah
+      meminta kredensial internet banking.
 - **Pindai struk** (Fase 3.1, flag `receipt_ocr`): tombol **Pindai struk** di form pengeluaran baru; di
   perangkat sentuh (`pointer: coarse`) menjadi **Foto struk** (`capture="environment"`, langsung membuka
   kamera belakang) + **Dari galeri**. OCR berjalan **di perangkat** dengan Tesseract.js (WebAssembly), jadi
@@ -579,6 +597,12 @@ defaultType?: SIGN|EXPENSE|INCOME, skipDuplicates?: boolean (default true) }`
   - Impor → `ImportBatch` (`201 COMPLETED`, atau `202 PROCESSING` bila > 300 baris) dengan
     `stats: { total, imported, skipped, failed }` dan `issues`; mendukung `Idempotency-Key`
   - Rollback → batch berstatus `ROLLED_BACK` (idempoten); 409 bila masih diproses atau impornya gagal
+  - Mutasi bank (Fase 3.4): `POST /imports/statements/preview` body `{ filename, walletId, content }` →
+    `{ bank, bankName, accountHint, period, balance: { opening, closing, balanced } | null, rows: [{ line, date,
+pending, type, amount, description, note, cash, categoryId, categorySource: history|keyword|default,
+match: { id, date, type, amount, note } | null, bankEmailId }], invalidLines, stats: { total, new, matched, failed } }`;
+    `POST /imports/statements` (+ `Idempotency-Key`) body sama + `rows: [{ line, import, categoryId? }]` →
+    `ImportBatch` dengan `source: "bca"`. File yang tidak dikenali → 400
 
 ### Fase 2 (di balik feature flag; flag mati → 404)
 
@@ -641,29 +665,30 @@ rejected_signature | rejected_recipient | forwarding_code`.
 
 ## Event analitik & gerbang fase
 
-| Event                                        | Dicatat oleh           | `props`                                       |
-| -------------------------------------------- | ---------------------- | --------------------------------------------- |
-| `user_registered`, `user_logged_in`          | API auth               | –                                             |
-| `wallet_created`                             | API                    | `type` (CASH/BANK/EWALLET)                    |
-| `transaction_created`                        | API                    | `type` (EXPENSE/INCOME/TRANSFER), `tags`      |
-| `attachment_uploaded`                        | API                    | `mimeType`, `size` (byte)                     |
-| `budget_saved`                               | API                    | `items`, `monthOnly` (jumlah), `custom?`      |
-| `export_csv`, `export_pdf`                   | API                    | –                                             |
-| `password_reset_requested`, `password_reset` | API auth               | –                                             |
-| `recurring_rule_created`                     | API                    | `frequency`, `autoPost`                       |
-| `reminder_sent`, `push_subscribed`           | API                    | –                                             |
-| `template_created`                           | API                    | `type`, `fixedAmount`                         |
-| `template_used`                              | API                    | `type`, `amountChanged`                       |
-| `goal_created`                               | API                    | `hasDeadline`, `newWallet`                    |
-| `goal_contribution`                          | API                    | `type` (DEPOSIT/WITHDRAW)                     |
-| `insight_dismissed`                          | API                    | `kind`                                        |
-| `insight_opened`                             | Klien (`POST /events`) | `kind`                                        |
-| `import_completed`                           | API                    | `imported`, `skipped`, `failed`, `background` |
-| `import_rolled_back`                         | API                    | `removed`                                     |
-| `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                                  |
-| `receipt_scanned`                            | Klien (`POST /events`) | `fields` (0–3 kolom terbaca)                  |
-| `category_suggestion`                        | Klien (`POST /events`) | `source` (history/keyword), `accepted`        |
-| `quick_text_used`                            | Klien (`POST /events`) | `fields` (0–6 terbaca), `accepted`            |
+| Event                                        | Dicatat oleh           | `props`                                               |
+| -------------------------------------------- | ---------------------- | ----------------------------------------------------- |
+| `user_registered`, `user_logged_in`          | API auth               | –                                                     |
+| `wallet_created`                             | API                    | `type` (CASH/BANK/EWALLET)                            |
+| `transaction_created`                        | API                    | `type` (EXPENSE/INCOME/TRANSFER), `tags`              |
+| `attachment_uploaded`                        | API                    | `mimeType`, `size` (byte)                             |
+| `budget_saved`                               | API                    | `items`, `monthOnly` (jumlah), `custom?`              |
+| `export_csv`, `export_pdf`                   | API                    | –                                                     |
+| `password_reset_requested`, `password_reset` | API auth               | –                                                     |
+| `recurring_rule_created`                     | API                    | `frequency`, `autoPost`                               |
+| `reminder_sent`, `push_subscribed`           | API                    | –                                                     |
+| `template_created`                           | API                    | `type`, `fixedAmount`                                 |
+| `template_used`                              | API                    | `type`, `amountChanged`                               |
+| `goal_created`                               | API                    | `hasDeadline`, `newWallet`                            |
+| `goal_contribution`                          | API                    | `type` (DEPOSIT/WITHDRAW)                             |
+| `insight_dismissed`                          | API                    | `kind`                                                |
+| `insight_opened`                             | Klien (`POST /events`) | `kind`                                                |
+| `import_completed`                           | API                    | `imported`, `skipped`, `failed`, `background`         |
+| `import_rolled_back`                         | API                    | `removed`                                             |
+| `statement_imported`                         | API                    | `bank`, `imported`, `skipped`, `failed`, `bankEmails` |
+| `onboarding_completed`, `onboarding_skipped` | Klien (`POST /events`) | `step` (1–3)                                          |
+| `receipt_scanned`                            | Klien (`POST /events`) | `fields` (0–3 kolom terbaca)                          |
+| `category_suggestion`                        | Klien (`POST /events`) | `source` (history/keyword), `accepted`                |
+| `quick_text_used`                            | Klien (`POST /events`) | `fields` (0–6 terbaca), `accepted`                    |
 
 Contoh kueri untuk menilai gerbang Fase 0 → Fase 1 (jalankan di SQL editor Supabase):
 

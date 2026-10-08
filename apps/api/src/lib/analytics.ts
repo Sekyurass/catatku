@@ -18,6 +18,7 @@ export type EventName =
   | 'insight_dismissed'
   | 'import_completed'
   | 'import_rolled_back'
+  | 'statement_imported'
   | 'reminder_sent'
   | 'push_subscribed'
   | 'budget_saved'

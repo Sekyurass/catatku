@@ -8,6 +8,7 @@ import {
   type ImportPreviewDTO,
   type importRequestSchema,
   parseCsv,
+  type StatementBank,
 } from '@catatku/shared';
 import type { Prisma } from '@prisma/client';
 import type { z } from 'zod';
@@ -24,7 +25,8 @@ type Kind = 'INCOME' | 'EXPENSE';
 type Stats = ImportBatchDTO['stats'];
 
 const include = { wallet: { select: { id: true, name: true, color: true } } } as const;
-type BatchRow = Prisma.ImportBatchGetPayload<{ include: typeof include }>;
+export type BatchRow = Prisma.ImportBatchGetPayload<{ include: typeof include }>;
+export const batchInclude = include;
 
 /** createMany per potongan agar jumlah parameter query tetap di bawah batas Postgres. */
 const INSERT_CHUNK = 1000;
@@ -32,10 +34,11 @@ const INSERT_CHUNK = 1000;
 const STALE_MS = 15 * 60 * 1000;
 const DUPLICATE_MESSAGE = 'Sudah ada transaksi dengan tanggal, jumlah, dan catatan yang sama';
 
-function toDTO(row: BatchRow): ImportBatchDTO {
+export function toDTO(row: BatchRow): ImportBatchDTO {
   return {
     id: row.id,
     filename: row.filename,
+    source: (row.source as StatementBank | null) ?? null,
     status: row.status,
     walletId: row.walletId,
     wallet: row.wallet,
@@ -275,7 +278,18 @@ export async function rollbackImport(userId: string, id: string): Promise<Import
     throw conflict('Impor masih diproses. Tunggu sampai selesai, lalu coba lagi.');
   }
   if (batch.status === 'FAILED') throw conflict('Impor ini gagal, tidak ada yang perlu dibatalkan');
-  const [removed, updated] = await prisma.$transaction([
+  const imported = batch.source
+    ? await prisma.transaction.findMany({
+        where: { userId, importBatchId: id },
+        select: { id: true },
+      })
+    : [];
+  const [, removed, updated] = await prisma.$transaction([
+    // Email bank yang ikut terkonfirmasi oleh impor mutasi kembali menunggu konfirmasi.
+    prisma.inboundTransaction.updateMany({
+      where: { userId, status: 'CONFIRMED', transactionId: { in: imported.map((t) => t.id) } },
+      data: { status: 'PENDING', transactionId: null },
+    }),
     prisma.transaction.deleteMany({ where: { userId, importBatchId: id } }),
     prisma.importBatch.update({
       where: { id },

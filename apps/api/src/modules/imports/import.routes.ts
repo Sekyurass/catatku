@@ -1,10 +1,16 @@
-import { FEATURE_FLAGS, importRequestSchema } from '@catatku/shared';
+import {
+  FEATURE_FLAGS,
+  importRequestSchema,
+  statementImportSchema,
+  statementPreviewSchema,
+} from '@catatku/shared';
 import { Router } from 'express';
 import { parse } from '../../lib/validate';
 import { currentUserId } from '../../middleware/auth';
 import { idempotent } from '../../middleware/idempotency';
 import { requireFeature } from '../features/features.routes';
 import * as imports from './import.service';
+import * as statements from './statement.service';
 
 export function createImportsRouter() {
   const router = Router();
@@ -23,6 +29,16 @@ export function createImportsRouter() {
     const input = parse(importRequestSchema, req.body);
     const batch = await imports.startImport(currentUserId(req), input);
     res.status(batch.status === 'PROCESSING' ? 202 : 201).json(batch);
+  });
+
+  router.post('/statements/preview', async (req, res) => {
+    const input = parse(statementPreviewSchema, req.body);
+    res.json(await statements.previewStatement(currentUserId(req), input));
+  });
+
+  router.post('/statements', idempotent, async (req, res) => {
+    const input = parse(statementImportSchema, req.body);
+    res.status(201).json(await statements.importStatement(currentUserId(req), input));
   });
 
   router.get('/:id', async (req, res) => {

@@ -90,7 +90,7 @@ export function ImportUploadStep({ onLoaded }: { onLoaded: (draft: ImportDraft) 
 
       <div className="rounded-control bg-surface-muted p-3 text-sm text-muted">
         <p>
-          Ekspor dari Excel, Google Sheets, atau mutasi rekening dalam format CSV. Minimal ada kolom
+          Ekspor dari Excel, Google Sheets, atau aplikasi lain dalam format CSV. Minimal ada kolom
           tanggal dan jumlah; keterangan, tipe, dan kategori opsional.
         </p>
         <a
@@ -101,6 +101,10 @@ export function ImportUploadStep({ onLoaded }: { onLoaded: (draft: ImportDraft) 
           <Download className="size-4" aria-hidden />
           Unduh contoh file
         </a>
+        <p className="mt-2">
+          Mutasi rekening BCA (CSV dari KlikBCA/myBCA) dikenali otomatis dan dicocokkan dengan
+          transaksi yang sudah kamu catat, jadi tidak tercatat dua kali.
+        </p>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import {
   type CsvRow,
   detectDateOrder,
   detectDecimal,
+  detectStatement,
   guessColumns,
   IMPORT_MAX_BYTES,
   IMPORT_MAX_ROWS,
@@ -10,6 +11,7 @@ import {
   parseAmountValue,
   parseCsv,
   parseDateValue,
+  type StatementBank,
 } from '@catatku/shared';
 
 export interface ImportDraft {
@@ -19,6 +21,8 @@ export interface ImportDraft {
   /** Jumlah kolom terbanyak di contoh baris, untuk pilihan pemetaan. */
   width: number;
   options: ImportParseOptions;
+  /** Terisi bila file dikenali sebagai mutasi bank: alurnya rekonsiliasi, bukan pemetaan kolom. */
+  statement: StatementBank | null;
 }
 
 export class ImportFileError extends Error {}
@@ -74,6 +78,17 @@ export async function readImportFile(file: File): Promise<ImportDraft> {
   const csv = await file.text();
   const { rows } = parseCsv(csv);
   if (rows.length === 0) throw new ImportFileError('File kosong.');
+  const statement = detectStatement(csv)?.bank ?? null;
+  if (statement) {
+    return {
+      filename: file.name,
+      csv,
+      rows,
+      width: 0,
+      options: detectOptions(rows, true),
+      statement,
+    };
+  }
   const hasHeader = looksLikeHeader(rows[0]!.cells);
   const dataRows = rows.length - (hasHeader ? 1 : 0);
   if (dataRows === 0) throw new ImportFileError('File hanya berisi judul kolom, belum ada data.');
@@ -88,6 +103,7 @@ export async function readImportFile(file: File): Promise<ImportDraft> {
     rows,
     width: Math.max(...rows.slice(0, SAMPLE).map((r) => r.cells.length)),
     options: detectOptions(rows, hasHeader),
+    statement: null,
   };
 }
 

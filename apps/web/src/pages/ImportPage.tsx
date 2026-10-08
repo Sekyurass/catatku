@@ -1,4 +1,9 @@
-import type { ImportBatchDTO, ImportParseOptions, ImportPreviewDTO } from '@catatku/shared';
+import type {
+  ImportBatchDTO,
+  ImportParseOptions,
+  ImportPreviewDTO,
+  StatementPreviewDTO,
+} from '@catatku/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { FileUp } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -8,6 +13,12 @@ import { ImportMapStep } from '../components/import/ImportMapStep';
 import { ImportResultStep } from '../components/import/ImportResultStep';
 import { ImportReviewStep } from '../components/import/ImportReviewStep';
 import { ImportUploadStep } from '../components/import/ImportUploadStep';
+import {
+  initialChoices,
+  type StatementChoices,
+  StatementReviewStep,
+} from '../components/import/StatementReviewStep';
+import { StatementWalletStep } from '../components/import/StatementWalletStep';
 import { StepIndicator } from '../components/import/StepIndicator';
 import { Card } from '../components/ui/Card';
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
@@ -21,6 +32,8 @@ const STEPS = ['Unggah', 'Petakan', 'Periksa', 'Hasil'] as const;
 type Step = 0 | 1 | 2 | 3;
 
 const STEP_TITLES = ['Pilih file CSV', 'Cocokkan kolom', 'Periksa sebelum impor'];
+const STATEMENT_STEPS = ['Unggah', 'Dompet', 'Rekonsiliasi', 'Hasil'] as const;
+const STATEMENT_STEP_TITLES = ['Pilih file CSV', 'Pilih dompet', 'Cocokkan dengan catatanmu'];
 
 export function ImportPage() {
   const features = useFeatures();
@@ -75,6 +88,8 @@ function ImportWizard() {
   const [walletId, setWalletId] = useState('');
   const [preview, setPreview] = useState<ImportPreviewDTO | null>(null);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [statementPreview, setStatementPreview] = useState<StatementPreviewDTO | null>(null);
+  const [choices, setChoices] = useState<StatementChoices>({});
   const [batch, setBatch] = useState<ImportBatchDTO | null>(null);
   const [busy, setBusy] = useState(false);
   // Satu kunci per hasil pemeriksaan: klik ganda / kirim ulang tidak mengimpor dua kali.
@@ -82,7 +97,11 @@ function ImportWizard() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const mounted = useRef(false);
 
-  const selectedWallet = walletId || pickDefaultWallet(wallets.data ?? [])?.id || '';
+  const bankWallet = draft?.statement
+    ? wallets.data?.find((w) => w.type === 'BANK' && !w.archivedAt)
+    : undefined;
+  const selectedWallet =
+    walletId || bankWallet?.id || pickDefaultWallet(wallets.data ?? [])?.id || '';
   const walletName = wallets.data?.find((w) => w.id === selectedWallet)?.name ?? '';
 
   useEffect(() => {
@@ -94,10 +113,12 @@ function ImportWizard() {
     setDraft(null);
     setOptions(null);
     setPreview(null);
+    setStatementPreview(null);
     setBatch(null);
     setSkipDuplicates(true);
     setStep(0);
   };
+  const statement = draft?.statement ?? null;
 
   const changeOptions = (next: ImportParseOptions) => {
     // Judul kolom berubah arti saat baris pertama dianggap data (atau sebaliknya): tebak ulang.
@@ -136,14 +157,51 @@ function ImportWizard() {
     }
   };
 
+  const statementRequest = () => ({
+    filename: draft!.filename,
+    walletId: selectedWallet,
+    content: draft!.csv,
+  });
+
+  const checkStatement = async () => {
+    setBusy(true);
+    try {
+      const result = await api<StatementPreviewDTO>('/imports/statements/preview', {
+        method: 'POST',
+        body: statementRequest(),
+      });
+      setStatementPreview(result);
+      setChoices(initialChoices(result));
+      setIdempotencyKey(crypto.randomUUID());
+      setStep(2);
+    } catch (err) {
+      showError(err, 'Gagal mencocokkan mutasi.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async () => {
     setBusy(true);
     try {
-      const result = await api<ImportBatchDTO>('/imports', {
-        method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKey },
-        body: { ...request(), skipDuplicates },
-      });
+      const result = statement
+        ? await api<ImportBatchDTO>('/imports/statements', {
+            method: 'POST',
+            headers: { 'Idempotency-Key': idempotencyKey },
+            body: {
+              ...statementRequest(),
+              rows: Object.entries(choices).map(([line, c]) => ({
+                line: Number(line),
+                import: c.import,
+                ...(c.import && { categoryId: c.categoryId }),
+              })),
+            },
+          })
+        : await api<ImportBatchDTO>('/imports', {
+            method: 'POST',
+            headers: { 'Idempotency-Key': idempotencyKey },
+            body: { ...request(), skipDuplicates },
+          });
       setBatch(result);
       setStep(3);
       queryClient.setQueryData<ImportBatchDTO[]>(queryKeys.imports, (old) =>
@@ -161,10 +219,10 @@ function ImportWizard() {
   return (
     <>
       <Card className="flex flex-col gap-5">
-        <StepIndicator steps={STEPS} current={step} />
+        <StepIndicator steps={statement ? STATEMENT_STEPS : STEPS} current={step} />
         {step < 3 && (
           <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">
-            {STEP_TITLES[step]}
+            {(statement ? STATEMENT_STEP_TITLES : STEP_TITLES)[step]}
           </h2>
         )}
         {step === 0 && (
@@ -176,7 +234,28 @@ function ImportWizard() {
             }}
           />
         )}
-        {step === 1 && draft && options && (
+        {step === 1 && draft && statement && (
+          <StatementWalletStep
+            draft={draft}
+            walletId={selectedWallet}
+            onWalletChange={setWalletId}
+            onChangeFile={restart}
+            onNext={() => void checkStatement()}
+            checking={busy}
+          />
+        )}
+        {step === 2 && statement && statementPreview && (
+          <StatementReviewStep
+            preview={statementPreview}
+            walletName={walletName}
+            choices={choices}
+            onChoicesChange={setChoices}
+            onBack={() => setStep(1)}
+            onSubmit={() => void submit()}
+            submitting={busy}
+          />
+        )}
+        {step === 1 && draft && !statement && options && (
           <ImportMapStep
             draft={draft}
             options={options}
@@ -188,7 +267,7 @@ function ImportWizard() {
             checking={busy}
           />
         )}
-        {step === 2 && preview && (
+        {step === 2 && !statement && preview && (
           <ImportReviewStep
             preview={preview}
             walletName={walletName}

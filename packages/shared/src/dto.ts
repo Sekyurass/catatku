@@ -11,6 +11,7 @@ import type {
   TransactionType,
   WalletType,
 } from './constants';
+import type { StatementBank } from './statements';
 
 export interface UserDTO {
   id: string;
@@ -199,9 +200,53 @@ export interface ImportPreviewDTO {
   issues: ImportIssue[];
 }
 
+/** Transaksi yang sudah ada dan dianggap sama dengan baris mutasi. */
+export interface StatementMatchDTO {
+  id: string;
+  date: string;
+  type: TransactionType;
+  /** Positif. */
+  amount: number;
+  note: string | null;
+}
+
+export interface StatementRowDTO {
+  line: number;
+  date: string;
+  /** Belum dibukukan bank ("PEND"); tanggal diperkirakan. */
+  pending: boolean;
+  type: 'INCOME' | 'EXPENSE';
+  amount: number;
+  description: string;
+  note: string;
+  /** Tarik/setor tunai. */
+  cash: boolean;
+  categoryId: string;
+  categorySource: 'history' | 'keyword' | 'default';
+  /** Sudah tercatat: tidak diimpor kecuali pengguna memilihnya. */
+  match: StatementMatchDTO | null;
+  /** Email bank yang menunggu konfirmasi untuk transaksi yang sama; ikut terkonfirmasi saat impor. */
+  bankEmailId: string | null;
+}
+
+export interface StatementPreviewDTO {
+  bank: StatementBank;
+  bankName: string;
+  accountHint: string | null;
+  period: { from: string; to: string } | null;
+  /** balanced: saldo awal + mutasi = saldo akhir (file utuh); null bila file tanpa ringkasan saldo. */
+  balance: { opening: number; closing: number; balanced: boolean | null } | null;
+  rows: StatementRowDTO[];
+  /** Nomor baris tabel yang tidak terbaca. */
+  invalidLines: number[];
+  stats: { total: number; new: number; matched: number; failed: number };
+}
+
 export interface ImportBatchDTO {
   id: string;
   filename: string;
+  /** null = CSV biasa; selain itu bank asal mutasi. */
+  source: StatementBank | null;
   status: ImportStatus;
   walletId: string;
   wallet: Ref;

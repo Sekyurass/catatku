@@ -1,4 +1,4 @@
-import type { ImportBatchDTO, ImportStatus } from '@catatku/shared';
+import { type ImportBatchDTO, type ImportStatus, STATEMENT_BANK_NAMES } from '@catatku/shared';
 import { FileText } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useImports } from '../../lib/queries';
@@ -72,6 +72,7 @@ function HistoryRow({ batch }: { batch: ImportBatchDTO }) {
           </p>
           <p className="text-sm text-muted">
             {dateTime.format(new Date(batch.createdAt))} · {batch.wallet.name}
+            {batch.source && ` · Mutasi ${STATEMENT_BANK_NAMES[batch.source]}`}
           </p>
           {(batch.status === 'COMPLETED' || batch.status === 'ROLLED_BACK') && (
             <p className="text-sm text-muted tabular">
