@@ -1,31 +1,42 @@
-import { APP_TIME_ZONE } from '@catatku/shared';
+import { defaultTimeZone } from '@catatku/shared';
 
-const partsFormat = new Intl.DateTimeFormat('en-US', {
-  timeZone: APP_TIME_ZONE,
-  year: 'numeric',
-  month: 'numeric',
-  day: 'numeric',
-  hour: 'numeric',
-  minute: 'numeric',
-  hourCycle: 'h23',
-});
+const formats = new Map<string, Intl.DateTimeFormat>();
 
-function zoneParts(instant: Date) {
+function partsFormat(timeZone: string) {
+  let format = formats.get(timeZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hourCycle: 'h23',
+    });
+    formats.set(timeZone, format);
+  }
+  return format;
+}
+
+function zoneParts(instant: Date, timeZone: string) {
   const parts = Object.fromEntries(
-    partsFormat.formatToParts(instant).map((p) => [p.type, Number(p.value)]),
+    partsFormat(timeZone)
+      .formatToParts(instant)
+      .map((p) => [p.type, Number(p.value)]),
   ) as Record<'year' | 'month' | 'day' | 'hour' | 'minute', number>;
   return parts;
 }
 
-/** Jam (0–23) di APP_TIME_ZONE. */
-export function hourInZone(instant: Date = new Date()): number {
-  return zoneParts(instant).hour;
+/** Jam (0–23) di zona waktu (bawaan: zona pengguna request). */
+export function hourInZone(instant: Date = new Date(), timeZone = defaultTimeZone()): number {
+  return zoneParts(instant, timeZone).hour;
 }
 
-/** Instant pukul 00.00 tanggal "YYYY-MM-DD" di APP_TIME_ZONE. */
-export function startOfDayInZone(date: string): Date {
+/** Instant pukul 00.00 tanggal "YYYY-MM-DD" di zona waktu (bawaan: zona pengguna request). */
+export function startOfDayInZone(date: string, timeZone = defaultTimeZone()): Date {
   const guess = new Date(`${date}T00:00:00Z`);
-  const p = zoneParts(guess);
+  const p = zoneParts(guess, timeZone);
   const offset = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - guess.getTime();
   return new Date(guess.getTime() - offset);
 }

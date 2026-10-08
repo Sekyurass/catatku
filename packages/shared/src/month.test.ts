@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { currentMonth, lastMonths, monthRange, shiftMonth, toDateString } from './month';
+import {
+  currentMonth,
+  defaultTimeZone,
+  isTimeZoneId,
+  lastMonths,
+  matchTimeZone,
+  monthRange,
+  setTimeZoneResolver,
+  shiftMonth,
+  toDateString,
+} from './month';
 
 describe('month utils', () => {
   it('shiftMonth melewati batas tahun', () => {
@@ -23,5 +33,24 @@ describe('month utils', () => {
     const instant = new Date('2026-10-05T18:00:00Z');
     expect(toDateString(instant)).toBe('2026-10-06');
     expect(currentMonth(new Date('2026-10-31T17:30:00Z'))).toBe('2026-11');
+  });
+
+  it('zona bawaan mengikuti resolver', () => {
+    // 2026-10-05T16:30Z = 23:30 WIB, 00:30 WITA, 01:30 WIT
+    const instant = new Date('2026-10-05T16:30:00Z');
+    try {
+      setTimeZoneResolver(() => 'Asia/Jayapura');
+      expect(defaultTimeZone()).toBe('Asia/Jayapura');
+      expect(toDateString(instant)).toBe('2026-10-06');
+      expect(toDateString(instant, 'Asia/Jakarta')).toBe('2026-10-05');
+    } finally {
+      setTimeZoneResolver(null);
+    }
+    expect(toDateString(instant)).toBe('2026-10-05');
+    expect(isTimeZoneId('Asia/Makassar')).toBe(true);
+    expect(isTimeZoneId('Asia/Tokyo')).toBe(false);
+    expect(matchTimeZone('Asia/Pontianak')).toBe('Asia/Jakarta');
+    expect(matchTimeZone('Asia/Jayapura')).toBe('Asia/Jayapura');
+    expect(matchTimeZone('Europe/Berlin')).toBeUndefined();
   });
 });

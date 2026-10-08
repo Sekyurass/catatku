@@ -21,6 +21,7 @@ import { burnPasswordCheck, hashPassword, verifyPassword } from '../../lib/passw
 import { prisma } from '../../lib/prisma';
 import { getStorage } from '../../lib/storage';
 import { generateRefreshToken, hashToken, signAccessToken } from '../../lib/tokens';
+import { asTimeZone, rememberUserTimeZone } from '../../lib/userZone';
 import { passwordResetEmail } from './emails';
 
 /** Token yang sudah dirotasi dalam jendela ini dianggap balapan antar-tab, bukan pencurian. */
@@ -46,6 +47,7 @@ export function toUserDTO(user: User): UserDTO {
     createdAt: user.createdAt.toISOString(),
     avatarUpdatedAt: user.avatarUpdatedAt?.toISOString() ?? null,
     privacyVersion: user.privacyVersion,
+    timeZone: asTimeZone(user.timeZone),
   };
 }
 
@@ -85,6 +87,7 @@ export async function register(input: RegisterInput, meta: ClientMeta): Promise<
       privacyVersion: PRIVACY_POLICY_VERSION,
       privacyAgreedAt: new Date(),
       shareQuickText: input.shareQuickText ?? false,
+      ...(input.timeZone && { timeZone: input.timeZone }),
     },
   });
   track(user.id, 'user_registered');
@@ -174,8 +177,10 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
       data: {
         ...(input.name !== undefined && { name: input.name }),
         ...(emailChanged && { email: input.email }),
+        ...(input.timeZone !== undefined && { timeZone: input.timeZone }),
       },
     });
+    rememberUserTimeZone(userId, updated.timeZone);
     return toUserDTO(updated);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

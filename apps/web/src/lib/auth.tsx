@@ -1,13 +1,15 @@
-import type {
-  AuthResponse,
-  ChangePasswordInput,
-  DeleteAccountInput,
-  LoginInput,
-  PrivacyConsentInput,
-  RegisterInput,
-  ResetPasswordInput,
-  UpdateProfileInput,
-  UserDTO,
+import {
+  type AuthResponse,
+  type ChangePasswordInput,
+  type DeleteAccountInput,
+  isTimeZoneId,
+  type LoginInput,
+  type PrivacyConsentInput,
+  type RegisterInput,
+  type ResetPasswordInput,
+  setTimeZoneResolver,
+  type UpdateProfileInput,
+  type UserDTO,
 } from '@catatku/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -56,16 +58,26 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<AuthStatus>('loading');
-  const [user, setUser] = useState<UserDTO | null>(null);
+  const [user, setUserState] = useState<UserDTO | null>(null);
   const [signedOut, setSignedOut] = useState(false);
+
+  /** "Hari ini" dan bulan berjalan di seluruh aplikasi mengikuti zona pengguna yang masuk. */
+  const setUser = useCallback((next: UserDTO | null) => {
+    const zone = isTimeZoneId(next?.timeZone) ? next.timeZone : null;
+    setTimeZoneResolver(zone ? () => zone : null);
+    setUserState(next);
+  }, []);
   const [farewell, setFarewell] = useState<{ message: string; leaving: boolean } | null>(null);
 
-  const applySession = useCallback((session: AuthResponse | null) => {
-    setAccessToken(session?.accessToken ?? null);
-    setUser(session?.user ?? null);
-    setStatus(session ? 'authenticated' : 'anonymous');
-    if (session) setSignedOut(false);
-  }, []);
+  const applySession = useCallback(
+    (session: AuthResponse | null) => {
+      setAccessToken(session?.accessToken ?? null);
+      setUser(session?.user ?? null);
+      setStatus(session ? 'authenticated' : 'anonymous');
+      if (session) setSignedOut(false);
+    },
+    [setUser],
+  );
 
   const endSession = useCallback(() => {
     applySession(null);
@@ -97,15 +109,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   );
 
-  const updateProfile = useCallback(async (input: UpdateProfileInput) => {
-    const res = await api<{ user: UserDTO }>('/me', { method: 'PATCH', body: input });
-    setUser(res.user);
-  }, []);
+  const updateProfile = useCallback(
+    async (input: UpdateProfileInput) => {
+      const res = await api<{ user: UserDTO }>('/me', { method: 'PATCH', body: input });
+      const zoneChanged = res.user.timeZone !== user?.timeZone;
+      setUser(res.user);
+      // Ringkasan, anggaran, dan pengingat dihitung ulang dengan "hari ini" yang baru.
+      if (zoneChanged) await queryClient.invalidateQueries();
+    },
+    [user?.timeZone, setUser, queryClient],
+  );
 
-  const agreePrivacy = useCallback(async (input: PrivacyConsentInput) => {
-    const res = await api<{ user: UserDTO }>('/me/privacy', { method: 'PUT', body: input });
-    setUser(res.user);
-  }, []);
+  const agreePrivacy = useCallback(
+    async (input: PrivacyConsentInput) => {
+      const res = await api<{ user: UserDTO }>('/me/privacy', { method: 'PUT', body: input });
+      setUser(res.user);
+    },
+    [setUser],
+  );
 
   const changePassword = useCallback(
     async (input: ChangePasswordInput) => {
@@ -123,15 +144,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   );
 
-  const uploadAvatar = useCallback(async (image: Blob) => {
-    const res = await api<{ user: UserDTO }>('/me/avatar', { method: 'PUT', body: image });
-    setUser(res.user);
-  }, []);
+  const uploadAvatar = useCallback(
+    async (image: Blob) => {
+      const res = await api<{ user: UserDTO }>('/me/avatar', { method: 'PUT', body: image });
+      setUser(res.user);
+    },
+    [setUser],
+  );
 
   const removeAvatar = useCallback(async () => {
     const res = await api<{ user: UserDTO }>('/me/avatar', { method: 'DELETE' });
     setUser(res.user);
-  }, []);
+  }, [setUser]);
 
   const logout = useCallback(async () => {
     const message = user ? `Sampai jumpa, ${user.name}!` : 'Sampai jumpa!';

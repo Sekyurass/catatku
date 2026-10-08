@@ -12,6 +12,7 @@ import {
   MAX_DEBTS,
   type SplitBillResultDTO,
   type splitBillSchema,
+  TIME_ZONES,
   toDateString,
   type updateDebtSchema,
 } from '@catatku/shared';
@@ -418,7 +419,7 @@ export async function createPayment(
 
 // ---------- Pengingat jatuh tempo ----------
 
-/** Pengingat dikirim mulai jam ini (zona aplikasi), tidak di tengah malam. */
+/** Pengingat dikirim mulai jam ini (zona pengguna), tidak di tengah malam. */
 const DEBT_REMINDER_HOUR = 8;
 
 const shortDate = (date: string) =>
@@ -464,8 +465,9 @@ function reminderText(
  * mengirim, jadi aman diulang atau dijalankan di beberapa instance.
  */
 export async function runDebtReminders(now: Date = new Date()): Promise<number> {
-  if (hourInZone(now) < DEBT_REMINDER_HOUR) return 0;
-  const today = toDateString(now);
+  const awake = TIME_ZONES.filter((zone) => hourInZone(now, zone) >= DEBT_REMINDER_HOUR);
+  if (awake.length === 0) return 0;
+  const todayIn = new Map(awake.map((zone) => [zone as string, toDateString(now, zone)]));
   const enabled = new Map<string, boolean>();
   let sent = 0;
   let cursor: string | undefined;
@@ -475,7 +477,9 @@ export async function runDebtReminders(now: Date = new Date()): Promise<number> 
       where: {
         settledAt: null,
         OR: [{ dueDate: { not: null } }, { firstDueDate: { not: null } }],
+        user: { timeZone: { in: awake } },
       },
+      include: { user: { select: { timeZone: true } } },
       orderBy: { id: 'asc' },
       take: 200,
       ...(cursor && { cursor: { id: cursor }, skip: 1 }),
@@ -489,6 +493,8 @@ export async function runDebtReminders(now: Date = new Date()): Promise<number> 
     });
 
     for (const debt of rows) {
+      const today = todayIn.get(debt.user.timeZone);
+      if (!today) continue;
       try {
         if (!enabled.has(debt.userId)) {
           enabled.set(debt.userId, await isFeatureEnabled(FEATURE_FLAGS.DEBTS, debt.userId));

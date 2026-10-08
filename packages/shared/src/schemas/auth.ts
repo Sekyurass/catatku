@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { TIME_ZONES } from '../month';
+
+const timeZoneSchema = z.enum(TIME_ZONES, { error: 'Zona waktu tidak dikenal' });
 
 const emailSchema = z
   .string({ error: 'Email wajib diisi' })
@@ -35,6 +38,8 @@ export const registerSchema = z.object({
   acceptPrivacy: acceptPrivacySchema,
   /** Opt-in dataset ketik cepat; bawaan tidak ikut. */
   shareQuickText: z.boolean().optional(),
+  /** Zona perangkat saat daftar; bawaan WIB. */
+  timeZone: timeZoneSchema.optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -57,6 +62,7 @@ export const updateProfileSchema = z.object({
   name: nameSchema.optional(),
   email: emailSchema.optional(),
   currentPassword: z.string().optional(),
+  timeZone: timeZoneSchema.optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 

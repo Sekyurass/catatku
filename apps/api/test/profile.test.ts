@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { app, authed, refreshCookie, registerUser, uniqueEmail } from './helpers';
 
 describe('GET /me', () => {
@@ -74,6 +74,46 @@ describe('PATCH /me', () => {
     const res = await authed(user).patch('/api/v1/me').send({ name: '', email: 'bukan-email' });
     expect(res.status).toBe(400);
     expect(Object.keys(res.body.error.fields).sort()).toEqual(['email', 'name']);
+  });
+});
+
+describe('zona waktu', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('bawaan WIB, bisa diganti, dan menolak zona di luar daftar', async () => {
+    const user = await registerUser();
+    expect((await authed(user).get('/api/v1/me')).body.user.timeZone).toBe('Asia/Jakarta');
+
+    const ok = await authed(user).patch('/api/v1/me').send({ timeZone: 'Asia/Makassar' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.user.timeZone).toBe('Asia/Makassar');
+
+    const bad = await authed(user).patch('/api/v1/me').send({ timeZone: 'Asia/Tokyo' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.fields.timeZone).toBeDefined();
+  });
+
+  it('zona dari pendaftaran dipakai', async () => {
+    const res = await request(app).post('/api/v1/auth/register').send({
+      name: 'Papua',
+      email: uniqueEmail(),
+      password: 'rahasia123',
+      acceptPrivacy: true,
+      timeZone: 'Asia/Jayapura',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.user.timeZone).toBe('Asia/Jayapura');
+  });
+
+  it('"bulan ini" di request mengikuti zona pengguna', async () => {
+    // 31 Okt 23.30 WIB = 1 Nov 01.30 WIT
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-31T16:30:00Z') });
+    const wib = await registerUser();
+    const wit = await registerUser();
+    await authed(wit).patch('/api/v1/me').send({ timeZone: 'Asia/Jayapura' });
+
+    expect((await authed(wib).get('/api/v1/budgets')).body.month).toBe('2026-10');
+    expect((await authed(wit).get('/api/v1/budgets')).body.month).toBe('2026-11');
   });
 });
 

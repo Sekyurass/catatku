@@ -235,7 +235,7 @@ DKIM dicek lewat DNS sistem dengan cadangan `DNS_FALLBACK_SERVERS` (bawaan `1.1.
   berikutnya. Tanggal ke-n selalu dihitung dari `startDate`, jadi "tanggal 31" jatuh di akhir bulan pada
   bulan pendek lalu kembali ke 31 (tidak bergeser), dan 29 Feb jatuh ke 28 Feb di tahun biasa.
   - **Penjadwal `node-cron` di proses API** (`jobs/scheduler.ts`): sekali saat start lalu tiap jam menit ke-5,
-    zona `Asia/Jakarta`. Tanpa layanan tambahan; cocok untuk satu instance. Bila nanti diskalakan, cukup
+    jadwal cron di zona `Asia/Jakarta` ("hari ini" tetap per zona pengguna). Tanpa layanan tambahan; cocok untuk satu instance. Bila nanti diskalakan, cukup
     pindahkan `runDueRules()` ke cron eksternal yang memanggil endpoint internal.
   - **Idempoten**: setiap kejadian punya baris `RecurringOccurrence` unik per `(ruleId, date)`, dan aturan
     dimajukan dengan _optimistic lock_ (`nextIndex` lama sebagai syarat update). Dua proses yang berjalan
@@ -247,14 +247,21 @@ DKIM dicek lewat DNS sistem dengan cadangan `DNS_FALLBACK_SERVERS` (bawaan `1.1.
     **Catat** (nominal boleh disesuaikan, mis. tagihan listrik) atau **Lewati**.
   - Dompet/kategori yang diarsipkan otomatis menjeda aturannya; menghapus aturan tidak menghapus transaksi
     yang sudah tercatat (tanda "Berulang" hilang). Transaksi hasil aturan diberi lencana **Berulang**.
+- **Zona waktu per pengguna**: `User.timeZone` = WIB (`Asia/Jakarta`, bawaan), WITA (`Asia/Makassar`), atau
+  WIT (`Asia/Jayapura`); diisi dari zona perangkat saat daftar dan bisa diganti di Profil. Di API,
+  `requireAuth` menjalankan sisa request di dalam zona pengguna (`AsyncLocalStorage`, `lib/userZone.ts`),
+  sehingga `toDateString()`/`currentMonth()` tanpa argumen otomatis memakai zona itu. Di luar request
+  (cron) bawaannya WIB, jadi job memakai zona secara eksplisit: pengingat harian & utang per zona,
+  transaksi berulang memakai "hari ini" tiap zona, email bank memakai zona penerima. Di web, zona
+  mengikuti pengguna yang masuk; mengganti zona memuat ulang semua data.
 - **Notifikasi & pengingat** (Fase 1.2, flag `reminders`): satu tabel `Notification` untuk lonceng,
   dengan `dedupeKey` unik per pengguna sehingga notifikasi yang sama tidak pernah tercatat dua kali
   (aman untuk cron ganda/restart). `notify()` = simpan ke lonceng lalu kirim push ke semua perangkat.
-  - **Pengingat harian**: pengguna memilih jam (05.00–23.00 WIB) dan hari. Cron tiap jam tepat mengirim
+  - **Pengingat harian**: pengguna memilih jam (05.00–23.00 di zonanya) dan hari. Cron tiap jam tepat mengirim
     pengingat hanya bila hari itu belum ada transaksi yang dicatat manual (transaksi otomatis dari aturan
     berulang tidak dihitung). Maksimal sekali sehari, diklaim lewat `lastReminderDate` (optimistic lock);
-    bila server sempat mati, pengingat masih dikirim sampai 2 jam setelah jam pilihan. Saat ini semua jam
-    memakai WIB (zona per pengguna belum ada).
+    bila server sempat mati, pengingat masih dikirim sampai 2 jam setelah jam pilihan. Jam, "hari ini",
+    dan hari dalam pekan dihitung per zona waktu pengguna (lihat **Zona waktu per pengguna**).
   - Transaksi berulang memberi kabar: "menunggu konfirmasi" (lonceng + push) dan "tercatat otomatis"
     (lonceng saja, agar tidak berisik). Notifikasi lebih tua dari 90 hari dihapus otomatis.
   - **Web Push** (`web-push` + VAPID, tanpa layanan pihak ketiga): service worker `public/sw.js` hanya
@@ -507,7 +514,7 @@ installments?, firstDueDate?, walletId?, settledAt?)` dan `DebtPayment`. Maks. 1
     akhir bulan). Pembayaran dialokasikan berurutan dari angsuran pertama (lunas/sebagian/belum, terlambat
     bila lewat jatuh tempo). Lunas otomatis saat sisa 0; menghapus pembayaran membukanya lagi. Mengubah
     pokok menyesuaikan transaksi pinjaman awal; total tidak boleh di bawah yang sudah dibayar.
-  - **Pengingat** (butuh flag `reminders` juga): putaran pengingat tiap jam, mulai 08.00 WIB, mengirim satu
+  - **Pengingat** (butuh flag `reminders` juga): putaran pengingat tiap jam, mulai 08.00 waktu pengguna, mengirim satu
     notifikasi "segera jatuh tempo" (≤ 3 hari) dan satu "lewat jatuh tempo" per angsuran (`Debt.lastReminder`
     diklaim dulu + `dedupeKey`, aman diulang). Tautan membuka `/anggaran/utang?debt=id`.
 - **Insight otomatis** (Fase 2.3, flag `insights`): bagian **Insight untukmu** di Beranda, maks. 3 kartu yang

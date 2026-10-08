@@ -1,8 +1,11 @@
 import {
+  defaultTimeZone,
   FEATURE_FLAGS,
+  isTimeZoneId,
   type NotificationSettingsDTO,
   REMINDER_HOUR_MAX,
   REMINDER_HOUR_MIN,
+  TIME_ZONE_LABELS,
 } from '@catatku/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { BellRing, Send, Smartphone } from 'lucide-react';
@@ -40,10 +43,11 @@ const DAYS = [
   { value: 0, short: 'Min', label: 'Minggu' },
 ];
 
-const HOUR_OPTIONS = Array.from({ length: REMINDER_HOUR_MAX - REMINDER_HOUR_MIN + 1 }, (_, i) => {
-  const hour = REMINDER_HOUR_MIN + i;
-  return { value: String(hour), label: `${String(hour).padStart(2, '0')}.00 WIB` };
-});
+const hourOptions = (zone: string) =>
+  Array.from({ length: REMINDER_HOUR_MAX - REMINDER_HOUR_MIN + 1 }, (_, i) => {
+    const hour = REMINDER_HOUR_MIN + i;
+    return { value: String(hour), label: `${String(hour).padStart(2, '0')}.00 ${zone}` };
+  });
 
 export function NotificationSettingsPage() {
   const features = useFeatures();
@@ -121,6 +125,8 @@ function ReminderCard({ settings }: { settings: NotificationSettingsDTO }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [daysError, setDaysError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const zone = defaultTimeZone();
+  const zoneLabel = isTimeZoneId(zone) ? TIME_ZONE_LABELS[zone].short : zone;
 
   const toggleDay = (day: number) =>
     setDays((current) =>
@@ -172,7 +178,7 @@ function ReminderCard({ settings }: { settings: NotificationSettingsDTO }) {
                 {...a}
                 value={String(hour)}
                 onChange={(v) => setHour(Number(v))}
-                options={HOUR_OPTIONS}
+                options={hourOptions(zoneLabel)}
               />
             )}
           </Field>

@@ -6,10 +6,12 @@ import { pinoHttp } from 'pino-http';
 import { env } from './config/env';
 import { logger } from './lib/logger';
 import { prisma } from './lib/prisma';
+import { installTimeZoneResolver } from './lib/userZone';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { createV1Router, type V1Options } from './routes/v1';
 
 export function createApp(opts: V1Options = {}) {
+  installTimeZoneResolver();
   const app = express();
   app.set('trust proxy', env.TRUST_PROXY);
   app.disable('x-powered-by');

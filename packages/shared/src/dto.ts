@@ -12,6 +12,7 @@ import type {
   TransactionType,
   WalletType,
 } from './constants';
+import type { TimeZoneId } from './month';
 import type { StatementBank } from './statements';
 
 export interface UserDTO {
@@ -24,6 +25,8 @@ export interface UserDTO {
   avatarUpdatedAt: string | null;
   /** Versi Kebijakan Privasi yang terakhir disetujui; null = belum pernah. */
   privacyVersion: string | null;
+  /** Salah satu `TIME_ZONES`; menentukan "hari ini", bulan berjalan, dan jam pengingat. */
+  timeZone: TimeZoneId;
 }
 
 export interface AuthResponse {

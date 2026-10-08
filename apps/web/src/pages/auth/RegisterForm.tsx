@@ -1,4 +1,4 @@
-import { registerSchema } from '@catatku/shared';
+import { matchTimeZone, registerSchema } from '@catatku/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LockKeyhole, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { useId, useState } from 'react';
@@ -47,7 +47,8 @@ export function RegisterForm() {
     setFormError(null);
     try {
       // Setelah status jadi 'authenticated', GuestOnly yang mengarahkan ke onboarding.
-      await signUp({ name, email, password, acceptPrivacy: true, shareQuickText });
+      const timeZone = matchTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+      await signUp({ name, email, password, acceptPrivacy: true, shareQuickText, timeZone });
     } catch (err) {
       setFormError(
         applyServerErrors(err, setError, ['name', 'email', 'password', 'acceptPrivacy']),

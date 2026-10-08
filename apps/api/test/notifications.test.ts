@@ -307,6 +307,16 @@ describe('pengingat harian', () => {
     expect((await notificationsOf(autoOnly.id)).map((n) => n.type)).toEqual(['REMINDER']);
   });
 
+  it('jam pengingat mengikuti zona waktu pengguna', async () => {
+    const wib = await withReminder(20);
+    const wit = await withReminder(20);
+    await authed(wit).patch('/api/v1/me').send({ timeZone: 'Asia/Jayapura' });
+    // 18.00 WIB = 20.00 WIT
+    await notifications.runReminders(at(18));
+    expect(await notificationsOf(wib.id)).toHaveLength(0);
+    expect(await notificationsOf(wit.id)).toHaveLength(1);
+  });
+
   it('hanya di hari yang dipilih', async () => {
     const offToday = await withReminder(20, [(weekdayOf(today) + 1) % 7]);
     await notifications.runReminders(at(20));

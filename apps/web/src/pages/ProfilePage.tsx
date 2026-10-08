@@ -34,6 +34,7 @@ import { Avatar } from '../components/Avatar';
 import { ExportButton } from '../components/ExportButton';
 import { QuickTextSharingCard } from '../components/quickText/QuickTextSharingCard';
 import { ThemePicker } from '../components/ThemePicker';
+import { TimeZonePicker } from '../components/TimeZonePicker';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
@@ -205,6 +206,9 @@ export function ProfilePage() {
       </Card>
       <Card>
         <ThemePicker />
+      </Card>
+      <Card>
+        <TimeZonePicker />
       </Card>
       <section aria-labelledby="privasi-data" className="flex flex-col gap-3">
         <h2 id="privasi-data" className="pt-2 text-lg font-semibold">

@@ -8,6 +8,8 @@ import {
   type PendingOccurrenceDTO,
   type RecurrenceSchedule,
   type RecurringRuleDTO,
+  TIME_ZONES,
+  type TimeZoneId,
   toDateString,
   type updateRecurringSchema,
 } from '@catatku/shared';
@@ -307,13 +309,24 @@ async function notifyProcessed(rule: RecurringRule, count: number) {
   }
 }
 
-/** Satu putaran scheduler untuk semua pengguna. Dipanggil saat server menyala dan tiap jam. */
-export async function runDueRules(today = toDateString()): Promise<number> {
+/**
+ * Satu putaran scheduler untuk semua pengguna. Dipanggil saat server menyala dan tiap jam.
+ * "Hari ini" mengikuti zona tiap pengguna, kecuali `today` diberikan (berlaku untuk semua).
+ */
+export async function runDueRules(today?: string, now: Date = new Date()): Promise<number> {
+  let created = 0;
+  for (const zone of TIME_ZONES) {
+    created += await runDueRulesInZone(today ?? toDateString(now, zone), zone);
+  }
+  return created;
+}
+
+async function runDueRulesInZone(today: string, zone: TimeZoneId): Promise<number> {
   let created = 0;
   let cursor: string | undefined;
   for (;;) {
     const batch = await prisma.recurringRule.findMany({
-      where: { pausedAt: null, nextRunAt: { lte: toDbDate(today) } },
+      where: { pausedAt: null, nextRunAt: { lte: toDbDate(today) }, user: { timeZone: zone } },
       orderBy: { id: 'asc' },
       take: 100,
       ...(cursor && { cursor: { id: cursor }, skip: 1 }),

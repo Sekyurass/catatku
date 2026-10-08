@@ -87,6 +87,8 @@ model User {
   /// Persetujuan Kebijakan Privasi terakhir (PRIVACY_POLICY_VERSION); null = belum pernah.
   privacyVersion  String?
   privacyAgreedAt DateTime?
+  /// Salah satu TIME_ZONES (WIB/WITA/WIT): "hari ini", bulan berjalan, dan jam pengingat.
+  timeZone        String    @default("Asia/Jakarta")
 
   avatar              UserAvatar?
   wallets             Wallet[]
@@ -543,7 +545,7 @@ model Notification {
 model NotificationSetting {
   userId           String    @id
   reminderEnabled  Boolean   @default(false)
-  /// Jam lokal APP_TIME_ZONE (WIB), 5–23.
+  /// Jam lokal di zona waktu pengguna (User.timeZone), 5–23.
   reminderHour     Int       @default(20)
   /// 0 = Minggu … 6 = Sabtu.
   reminderDays     Int[]     @default([0, 1, 2, 3, 4, 5, 6])

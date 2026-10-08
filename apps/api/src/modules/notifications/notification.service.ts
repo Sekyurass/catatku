@@ -7,6 +7,8 @@ import {
   type NotificationSettingsDTO,
   type NotificationType,
   type PushSubscriptionInput,
+  TIME_ZONES,
+  type TimeZoneId,
   toDateString,
   type updateNotificationSettingsSchema,
 } from '@catatku/shared';
@@ -221,9 +223,16 @@ export function sendTestPush(userId: string): Promise<number> {
  * pengingat per hari walau job berjalan di beberapa instance atau diulang.
  */
 export async function runReminders(now: Date = new Date()): Promise<number> {
-  const today = toDateString(now);
-  const hour = hourInZone(now);
-  const dayStart = startOfDayInZone(today);
+  let sent = 0;
+  for (const zone of TIME_ZONES) sent += await runRemindersInZone(now, zone);
+  return sent;
+}
+
+/** Jam pengingat, "hari ini", dan hari dalam pekan dihitung di zona waktu masing-masing pengguna. */
+async function runRemindersInZone(now: Date, zone: TimeZoneId): Promise<number> {
+  const today = toDateString(now, zone);
+  const hour = hourInZone(now, zone);
+  const dayStart = startOfDayInZone(today, zone);
   const notYetToday = [{ lastReminderDate: null }, { lastReminderDate: { lt: toDbDate(today) } }];
   let sent = 0;
 
@@ -233,6 +242,7 @@ export async function runReminders(now: Date = new Date()): Promise<number> {
         reminderEnabled: true,
         reminderHour: { lte: hour, gte: hour - REMINDER_GRACE_HOURS },
         reminderDays: { has: weekdayOf(today) },
+        user: { timeZone: zone },
         OR: notYetToday,
       },
       select: { userId: true },

@@ -241,9 +241,9 @@ async function signedBy(raw: Buffer, fromDomain: string): Promise<boolean> {
   }
 }
 
-function timeInZone(date: Date): string {
+function timeInZone(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Jakarta',
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
@@ -265,7 +265,10 @@ async function recordResult(inbox: EmailInbox | null, result: BankEmailResult) {
  */
 export async function ingestEmail(userId: string, raw: Buffer): Promise<BankEmailUploadDTO> {
   const [user, inbox] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } }),
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true, timeZone: true },
+    }),
     prisma.emailInbox.findUnique({ where: { userId } }),
   ]);
   const mail = await simpleParser(raw, { skipImageLinks: true });
@@ -344,8 +347,8 @@ export async function ingestEmail(userId: string, raw: Buffer): Promise<BankEmai
         type: parsed.type,
         amount: BigInt(parsed.amount),
         fee: BigInt(parsed.fee),
-        date: toDbDate(parsed.date ?? toDateString(sentAt)),
-        time: parsed.time ?? (parsed.date ? null : timeInZone(sentAt)),
+        date: toDbDate(parsed.date ?? toDateString(sentAt, user.timeZone)),
+        time: parsed.time ?? (parsed.date ? null : timeInZone(sentAt, user.timeZone)),
         counterparty: parsed.counterparty,
         note: parsed.note,
         accountHint: parsed.accountHint,

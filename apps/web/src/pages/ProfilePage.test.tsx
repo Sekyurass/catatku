@@ -127,6 +127,17 @@ describe('ProfilePage', () => {
     expect(button).toHaveClass('bg-expense', 'md:hidden');
   });
 
+  it('zona waktu bawaan WIB dan bisa diganti', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    expect(screen.getByRole('radio', { name: 'WIB' })).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'WIT' }));
+    await waitFor(() =>
+      expect(auth.updateProfile).toHaveBeenCalledWith({ timeZone: 'Asia/Jayapura' }),
+    );
+    expect(await screen.findByText('Zona waktu diganti ke WIT')).toBeInTheDocument();
+  });
+
   it('mengubah nama tanpa meminta kata sandi', async () => {
     const user = userEvent.setup();
     renderPage();
