@@ -178,6 +178,58 @@ DKIM dicek lewat DNS sistem dengan cadangan `DNS_FALLBACK_SERVERS` (bawaan `1.1.
 
 `docker compose up -d db` lalu pakai URL lokal yang dikomentari di `.env.example`.
 
+### Deploy ke Vercel
+
+Satu proyek Vercel (paket Hobby cukup), region `bom1` (dekat Supabase `ap-south-1`). Web = file statis
+`apps/web/dist`; semua `/api/*` dan `/health` = satu fungsi (`api/index.js`) yang menjalankan app Express
+hasil `npm run build` (`apps/api/dist/vercel.js`). Satu domain, jadi cookie refresh dan CORS tidak berubah.
+Konfigurasi di `vercel.json`; `npm run dev` lokal tidak berubah.
+
+1. Import repo di Vercel, _Root Directory_ = akar repo (framework: _Other_; perintah diambil dari `vercel.json`).
+2. Env production (Project Settings → Environment Variables), jangan pernah di-commit:
+
+| Variabel                                 | Isi                                                              |
+| ---------------------------------------- | ---------------------------------------------------------------- |
+| `NODE_ENV`                               | `production`                                                     |
+| `DATABASE_URL`                           | Transaction pooler **6543** `?pgbouncer=true&connection_limit=1` |
+| `DIRECT_URL`                             | Session pooler 5432                                              |
+| `JWT_ACCESS_SECRET`                      | ≥ 32 karakter acak                                               |
+| `CORS_ORIGINS`, `APP_URL`                | `https://<domain>`                                               |
+| `TRUST_PROXY`                            | `1`                                                              |
+| `SCHEDULER_ENABLED`                      | `false`                                                          |
+| `CRON_SECRET`                            | ≥ 24 karakter acak (sama dengan yang dipakai pg_cron di bawah)   |
+| SMTP, VAPID, `STORAGE_S3_*`, `INBOUND_*` | Seperti di `.env` lokal (opsional per fitur)                     |
+
+3. Migrasi **tidak** dijalankan saat build: jalankan `npm run db:deploy` (pakai `DIRECT_URL`) dari mesin
+   lokal/CI sebelum deploy yang mengubah skema. Prisma membawa engine `rhel-openssl-3.0.x` untuk Vercel.
+4. Jadwal: tanpa proses yang hidup terus, node-cron diganti **Supabase pg_cron + pg_net** yang memanggil
+   endpoint cron (tanpa/ salah `Authorization` → 404). Sekali di SQL editor Supabase:
+
+   ```sql
+   create extension if not exists pg_cron;
+   create extension if not exists pg_net;
+   select cron.schedule('catatku-reminders', '0 * * * *', $$
+     select net.http_post(url := 'https://<domain>/api/v1/cron/reminders',
+       headers := jsonb_build_object('Authorization', 'Bearer <CRON_SECRET>'));
+   $$);
+   select cron.schedule('catatku-recurring', '5 * * * *', $$
+     select net.http_post(url := 'https://<domain>/api/v1/cron/recurring',
+       headers := jsonb_build_object('Authorization', 'Bearer <CRON_SECRET>'));
+   $$);
+   -- Hanya bila email bank lewat IMAP:
+   select cron.schedule('catatku-bank-email', '*/2 * * * *', $$
+     select net.http_post(url := 'https://<domain>/api/v1/inbound/poll',
+       headers := jsonb_build_object('Authorization', 'Bearer <INBOUND_EMAIL_SECRET>'));
+   $$);
+   ```
+
+   Simpan rahasia di Supabase Vault bila memungkinkan. Semua job idempoten, jadi panggilan ganda aman.
+
+Pekerjaan yang tidak ditunggu respons (analitik, belajar kategori, impor CSV > 300 baris, email reset,
+pembersihan) lewat `runInBackground` (`lib/background.ts`) yang mendaftarkannya ke `waitUntil` Vercel agar
+tidak terpotong saat fungsi dibekukan. Batasan: body maks. 4,5 MB (lampiran dibatasi 4 MB), rate limit
+login disimpan di memori per instans (lebih longgar di serverless).
+
 ## Skrip
 
 | Perintah                                 | Fungsi                                                       |
@@ -235,8 +287,8 @@ DKIM dicek lewat DNS sistem dengan cadangan `DNS_FALLBACK_SERVERS` (bawaan `1.1.
   berikutnya. Tanggal ke-n selalu dihitung dari `startDate`, jadi "tanggal 31" jatuh di akhir bulan pada
   bulan pendek lalu kembali ke 31 (tidak bergeser), dan 29 Feb jatuh ke 28 Feb di tahun biasa.
   - **Penjadwal `node-cron` di proses API** (`jobs/scheduler.ts`): sekali saat start lalu tiap jam menit ke-5,
-    jadwal cron di zona `Asia/Jakarta` ("hari ini" tetap per zona pengguna). Tanpa layanan tambahan; cocok untuk satu instance. Bila nanti diskalakan, cukup
-    pindahkan `runDueRules()` ke cron eksternal yang memanggil endpoint internal.
+    jadwal cron di zona `Asia/Jakarta` ("hari ini" tetap per zona pengguna). Tanpa layanan tambahan; cocok untuk satu instance. Di serverless
+    job yang sama (`jobs/runners.ts`) dipicu dari luar lewat `POST /api/v1/cron/*` (lihat [Deploy ke Vercel](#deploy-ke-vercel)).
   - **Idempoten**: setiap kejadian punya baris `RecurringOccurrence` unik per `(ruleId, date)`, dan aturan
     dimajukan dengan _optimistic lock_ (`nextIndex` lama sebagai syarat update). Dua proses yang berjalan
     bersamaan atau restart di tengah jalan tidak pernah mencatat dobel.

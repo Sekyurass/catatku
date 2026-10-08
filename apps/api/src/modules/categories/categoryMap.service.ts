@@ -4,7 +4,7 @@ import {
   type CategoryMapDTO,
   type CategoryType,
 } from '@catatku/shared';
-import { logger } from '../../lib/logger';
+import { runInBackground } from '../../lib/background';
 import { prisma } from '../../lib/prisma';
 import { isFeatureEnabled } from '../features/featureFlag.service';
 
@@ -37,9 +37,12 @@ export function learnCategoryInBackground(
   type: CategoryType,
 ): void {
   if (!note || !merchantKey(note)) return;
-  isFeatureEnabled(FEATURE_FLAGS.AUTO_CATEGORY, userId)
-    .then((on) => (on ? learnCategory(userId, note, categoryId, type) : undefined))
-    .catch((err: unknown) => logger.warn({ err }, 'Gagal mempelajari kategori dari transaksi'));
+  runInBackground(
+    isFeatureEnabled(FEATURE_FLAGS.AUTO_CATEGORY, userId).then((on) =>
+      on ? learnCategory(userId, note, categoryId, type) : undefined,
+    ),
+    'Gagal mempelajari kategori dari transaksi',
+  );
 }
 
 export async function listCategoryMaps(userId: string): Promise<CategoryMapDTO[]> {

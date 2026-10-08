@@ -33,6 +33,11 @@ const envSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((v) => v === 'true'),
+    /** Rahasia untuk POST /api/v1/cron/* (pemicu pg_cron di Vercel). Kosong = endpoint 404. */
+    CRON_SECRET: z
+      .string()
+      .refine((v) => v === '' || v.length >= 24, 'CRON_SECRET minimal 24 karakter')
+      .default(''),
     RESET_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(RESET_LINK_TTL_MINUTES),
     /** Kunci Web Push (`npx web-push generate-vapid-keys`). Kosong = push nonaktif, lonceng tetap jalan. */
     VAPID_PUBLIC_KEY: z.string().default(''),

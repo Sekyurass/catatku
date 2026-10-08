@@ -2,62 +2,14 @@ import { APP_TIME_ZONE } from '@catatku/shared';
 import cron from 'node-cron';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
-import { purgeOrphanAttachments } from '../modules/attachments/attachment.service';
-import { runPendingDigest } from '../modules/bankEmail/bankEmail.service';
-import { isImapConfigured, pollImap } from '../modules/bankEmail/imap';
-import { runDebtReminders } from '../modules/debts/debt.service';
-import { pruneNotifications, runReminders } from '../modules/notifications/notification.service';
-import { purgeExpiredSamples } from '../modules/quickText/quickText.service';
-import { runDueRules } from '../modules/recurring/recurring.service';
-
-async function runRecurring() {
-  try {
-    const created = await runDueRules();
-    if (created > 0) logger.info({ created }, 'Transaksi berulang diproses');
-  } catch (err) {
-    logger.error({ err }, 'Putaran transaksi berulang gagal');
-  }
-}
-
-async function runNotifications() {
-  try {
-    const sent = await runReminders();
-    const debts = await runDebtReminders();
-    const bankPending = await runPendingDigest();
-    const pruned = await pruneNotifications();
-    if (sent > 0 || debts > 0 || bankPending > 0 || pruned > 0) {
-      logger.info({ sent, debts, bankPending, pruned }, 'Pengingat diproses');
-    }
-  } catch (err) {
-    logger.error({ err }, 'Putaran pengingat gagal');
-  }
-  try {
-    const purged = await purgeOrphanAttachments();
-    if (purged > 0) logger.info({ purged }, 'Lampiran tanpa transaksi dibersihkan');
-  } catch (err) {
-    logger.error({ err }, 'Pembersihan lampiran gagal');
-  }
-  try {
-    const expired = await purgeExpiredSamples();
-    if (expired > 0) logger.info({ expired }, 'Sampel ketik cepat kedaluwarsa dihapus');
-  } catch (err) {
-    logger.error({ err }, 'Pembersihan sampel ketik cepat gagal');
-  }
-}
-
-async function runBankEmail() {
-  try {
-    const processed = await pollImap();
-    if (processed > 0) logger.info({ processed }, 'Email bank diproses');
-  } catch (err) {
-    logger.error({ err }, 'Membaca kotak masuk email bank gagal');
-  }
-}
+import { isImapConfigured } from '../modules/bankEmail/imap';
+import { runBankEmail, runNotifications, runRecurring } from './runners';
 
 /**
  * Job latar di dalam proses API (node-cron, tanpa Redis). Putaran pertama saat server menyala
  * sekaligus menyusul yang terlewat ketika server mati. Aman dijalankan di beberapa instance
- * karena setiap job idempoten; matikan dengan SCHEDULER_ENABLED=false.
+ * karena setiap job idempoten; matikan dengan SCHEDULER_ENABLED=false (mis. di Vercel, tempat
+ * job dipicu dari luar lewat /api/v1/cron/*).
  */
 export function startScheduler() {
   if (!env.SCHEDULER_ENABLED) {

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createCronRouter } from '../jobs/cron.routes';
 import { requireAuth } from '../middleware/auth';
 import { createApiLimiter } from '../middleware/rateLimit';
 import { createAttachmentsRouter } from '../modules/attachments/attachment.routes';
@@ -32,6 +33,7 @@ export function createV1Router(opts: V1Options = {}) {
   router.use(createApiLimiter());
   router.use('/auth', createAuthRouter({ rateLimit: opts.authRateLimit }));
   router.use('/inbound', createInboundRouter());
+  router.use('/cron', createCronRouter());
 
   router.use(requireAuth);
   router.use('/me', createProfileRouter({ rateLimit: opts.authRateLimit }));

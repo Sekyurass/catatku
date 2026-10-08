@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { type AttachmentDTO, MAX_ATTACHMENTS_PER_TRANSACTION } from '@catatku/shared';
 import type { Attachment } from '@prisma/client';
 import { track } from '../../lib/analytics';
+import { runInBackground } from '../../lib/background';
 import { AppError, notFound, validationError } from '../../lib/errors';
 import { sniffImageType } from '../../lib/imageType';
-import { logger } from '../../lib/logger';
 import { prisma } from '../../lib/prisma';
 import { getStorage, type ObjectStorage } from '../../lib/storage';
 
@@ -123,7 +123,5 @@ export async function purgeOrphanAttachments(): Promise<number> {
 }
 
 export function purgeOrphansInBackground(): void {
-  purgeOrphanAttachments().catch((err: unknown) =>
-    logger.warn({ err }, 'Gagal membersihkan lampiran tanpa transaksi'),
-  );
+  runInBackground(purgeOrphanAttachments(), 'Gagal membersihkan lampiran tanpa transaksi');
 }

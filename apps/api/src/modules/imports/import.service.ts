@@ -13,6 +13,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import type { z } from 'zod';
 import { track } from '../../lib/analytics';
+import { runInBackground } from '../../lib/background';
 import { conflict, notFound, validationError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
@@ -188,7 +189,7 @@ export async function startImport(userId: string, input: ImportRequest): Promise
 
   const run = insertRows(userId, batch.id, input.walletId, rows, stats);
   if (rows.length > IMPORT_SYNC_ROWS) {
-    run.catch(() => undefined);
+    runInBackground(run, 'Impor CSV di latar gagal');
     return toDTO(batch);
   }
   return run;

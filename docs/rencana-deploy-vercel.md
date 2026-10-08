@@ -1,6 +1,8 @@
-# Rencana deploy ke Vercel (disimpan, belum dikerjakan)
+# Rencana deploy ke Vercel
 
-Status: **disetujui arahnya, ditunda**. Paket: **Vercel Hobby**; jadwal per jam dipicu dari
+Status: **kode siap** (`vercel.json`, `api/index.js`, `/api/v1/cron/*`, `runInBackground`, Prisma
+`binaryTargets`); panduan langkah demi langkah di README bagian "Deploy ke Vercel". Deploy sungguhan
+(akun Vercel, env, pg_cron) dilakukan pengguna. Paket: **Vercel Hobby**; jadwal per jam dipicu dari
 **Supabase pg_cron + pg_net**.
 
 ## Bentuk

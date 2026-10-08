@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import type { RequestHandler } from 'express';
+import { runInBackground } from '../lib/background';
 import { AppError, validationError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
@@ -32,9 +33,12 @@ export const idempotent: RequestHandler = async (req, res, next) => {
     .digest('hex');
 
   if (Math.random() < 0.01) {
-    void prisma.idempotencyKey
-      .deleteMany({ where: { createdAt: { lt: new Date(Date.now() - TTL_MS) } } })
-      .catch((err: unknown) => logger.warn({ err }, 'idempotency cleanup failed'));
+    runInBackground(
+      prisma.idempotencyKey.deleteMany({
+        where: { createdAt: { lt: new Date(Date.now() - TTL_MS) } },
+      }),
+      'idempotency cleanup failed',
+    );
   }
 
   /** true jika kunci berhasil diklaim oleh permintaan ini. */

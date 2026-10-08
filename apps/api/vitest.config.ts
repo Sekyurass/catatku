@@ -25,6 +25,7 @@ export default defineConfig({
       INBOUND_IMAP_HOST: '',
       INBOUND_IMAP_USER: '',
       INBOUND_IMAP_PASS: '',
+      CRON_SECRET: 'rahasia-cron-khusus-tes-12345',
     },
   },
 });

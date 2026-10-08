@@ -1,5 +1,5 @@
 import type { ClientEventName } from '@catatku/shared';
-import { logger } from './logger';
+import { runInBackground } from './background';
 import { prisma } from './prisma';
 
 export type EventName =
@@ -37,7 +37,8 @@ export type EventProps = Record<string, string | number | boolean>;
  * analitik tidak boleh memperlambat atau menggagalkan aksi pengguna.
  */
 export function track(userId: string, name: EventName, props?: EventProps): void {
-  prisma.analyticsEvent
-    .create({ data: { userId, name, ...(props && { props }) } })
-    .catch((err: unknown) => logger.warn({ err, name }, 'Gagal mencatat event analitik'));
+  runInBackground(
+    prisma.analyticsEvent.create({ data: { userId, name, ...(props && { props }) } }),
+    `Gagal mencatat event analitik ${name}`,
+  );
 }

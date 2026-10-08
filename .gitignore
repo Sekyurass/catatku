@@ -7,6 +7,7 @@ coverage/
 !.env.example
 .DS_Store
 .vite/
+.vercel/
 playwright-report/
 test-results/
 apps/web/e2e/.auth/

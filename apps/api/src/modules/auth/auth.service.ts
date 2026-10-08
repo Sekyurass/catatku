@@ -14,6 +14,7 @@ import {
 import { Prisma, type User } from '@prisma/client';
 import { env } from '../../config/env';
 import { track } from '../../lib/analytics';
+import { runInBackground } from '../../lib/background';
 import { AppError, notFound, unauthorized, validationError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { mailer } from '../../lib/mailer';
@@ -284,9 +285,12 @@ export async function requestPasswordReset(input: ForgotPasswordInput): Promise<
   // Fragmen (#) tidak ikut terkirim ke server mana pun, termasuk lewat header Referer.
   const link = `${env.appUrl}/atur-ulang-kata-sandi#token=${raw}`;
   track(user.id, 'password_reset_requested');
-  mailer
-    .send(passwordResetEmail(user.email, user.name, link, env.RESET_TOKEN_TTL_MINUTES))
-    .catch((err: unknown) => logger.error({ err }, 'Gagal mengirim email reset kata sandi'));
+  runInBackground(
+    mailer
+      .send(passwordResetEmail(user.email, user.name, link, env.RESET_TOKEN_TTL_MINUTES))
+      .catch((err: unknown) => logger.error({ err }, 'Gagal mengirim email reset kata sandi')),
+    'Gagal mengirim email reset kata sandi',
+  );
 }
 
 /** Kata sandi baru berlaku, semua sesi lama berakhir, dan perangkat ini langsung masuk. */
