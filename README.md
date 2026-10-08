@@ -174,6 +174,10 @@ Tanpa pengaturan ini fitur `bank_email` tetap jalan lewat unggah `.eml`. Untuk p
 
 DKIM dicek lewat DNS sistem dengan cadangan `DNS_FALLBACK_SERVERS` (bawaan `1.1.1.1,8.8.8.8`).
 
+Untuk menonaktifkan sementara: `FEATURE_FLAGS_FORCE=bank_email:off`. Menu dan halaman `/email-bank`
+hilang, rute `/bank-email/*` dan `/inbound/*` membalas 404, dan kotak masuk IMAP tidak dibaca sama sekali
+(email di sana tidak dihapus) meski `INBOUND_*` masih terisi.
+
 ### Alternatif lokal
 
 `docker compose up -d db` lalu pakai URL lokal yang dikomentari di `.env.example`.
@@ -198,6 +202,7 @@ Konfigurasi di `vercel.json`; `npm run dev` lokal tidak berubah.
 | `TRUST_PROXY`                            | `1`                                                              |
 | `SCHEDULER_ENABLED`                      | `false`                                                          |
 | `CRON_SECRET`                            | ≥ 24 karakter acak (sama dengan yang dipakai pg_cron di bawah)   |
+| `FEATURE_FLAGS_FORCE`                    | `bank_email:off` selama fitur email bank dinonaktifkan           |
 | SMTP, VAPID, `STORAGE_S3_*`, `INBOUND_*` | Seperti di `.env` lokal (opsional per fitur)                     |
 
 3. Migrasi **tidak** dijalankan saat build: jalankan `npm run db:deploy` (pakai `DIRECT_URL`) dari mesin
@@ -216,7 +221,7 @@ Konfigurasi di `vercel.json`; `npm run dev` lokal tidak berubah.
      select net.http_post(url := 'https://<domain>/api/v1/cron/recurring',
        headers := jsonb_build_object('Authorization', 'Bearer <CRON_SECRET>'));
    $$);
-   -- Hanya bila email bank lewat IMAP:
+   -- Hanya bila email bank lewat IMAP dan tidak dipaksa mati (bank_email:off):
    select cron.schedule('catatku-bank-email', '*/2 * * * *', $$
      select net.http_post(url := 'https://<domain>/api/v1/inbound/poll',
        headers := jsonb_build_object('Authorization', 'Bearer <INBOUND_EMAIL_SECRET>'));
@@ -520,8 +525,11 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     tunggu berurutan). Saat flag mati, tag dari klien diabaikan.
 - **Lampiran foto** (Fase 2.5, flag `attachments`): foto struk/bukti per transaksi di object storage
   (antarmuka `ObjectStorage`, `lib/storage.ts`; driver S3 untuk Supabase Storage/R2, driver memori untuk tes).
-  - **Browser mengompres** (sisi panjang ≤ 1600 px, WebP dengan fallback JPEG, kualitas turun bertahap) sehingga
-    satu foto ±150–250 kB; 1 GB cukup untuk ±4.000–6.000 foto. Server menerima byte mentah maks. 4 MB (di
+  - **Ambil foto langsung**: di HP tombol "Ambil foto" membuka aplikasi kamera bawaan
+    (`capture="environment"`, kamera belakang) sehingga foto diambil dengan resolusi penuh sensor.
+  - **Browser mengompres** dengan resolusi setinggi mungkin: sisi panjang 4096 px lebih dulu, lalu 3072, 2048,
+    dan 1600 px hanya bila file masih > 4 MB (WebP dengan fallback JPEG). Satu foto biasanya ±0,8–2,5 MB; 1 GB
+    cukup untuk ±500–1.000 foto. Foto sumber maks. 40 MB. Server menerima byte mentah maks. 4 MB (di
     bawah batas body Vercel 4,5 MB), memeriksa jenis dari _magic bytes_, maks. 5 foto per transaksi.
   - **Bucket privat**: kunci objek `userId/transactionId/uuid.ext`; klien hanya mendapat tautan bertanda
     tangan berumur 15 menit dari `GET /transactions/:id/attachments`. Kunci S3 tidak pernah keluar dari server.

@@ -1,11 +1,14 @@
+import { FEATURE_FLAGS } from '@catatku/shared';
 import { ImapFlow } from 'imapflow';
 import { env } from '../../config/env';
 import { logger } from '../../lib/logger';
+import { isFlagForcedOff } from '../features/featureFlag.service';
 import { receiveEmail } from './bankEmail.service';
 
 const MAX_PER_POLL = 50;
 
-export const isImapConfigured = () => env.INBOUND_IMAP_HOST !== '';
+export const isImapConfigured = () =>
+  env.INBOUND_IMAP_HOST !== '' && !isFlagForcedOff(FEATURE_FLAGS.BANK_EMAIL);
 
 let running: Promise<number> | null = null;
 let lastStartedAt = 0;

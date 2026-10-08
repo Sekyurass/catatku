@@ -59,7 +59,7 @@ export type AvatarMimeType = (typeof AVATAR_MIME_TYPES)[number];
 export const RECEIPT_MAX_BYTES = 15 * 1024 * 1024;
 
 /**
- * Lampiran foto dikompres di browser (sisi terpanjang 1600 px) sebelum diunggah. Batas server di
+ * Lampiran foto dikompres di browser (sisi terpanjang hingga 4096 px) sebelum diunggah. Batas server di
  * bawah 4,5 MB agar tetap muat di batas body fungsi serverless.
  */
 export const ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024;

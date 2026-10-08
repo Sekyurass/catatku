@@ -13,6 +13,7 @@ import { notFound, unauthorized } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { parse } from '../../lib/validate';
 import { currentUserId } from '../../middleware/auth';
+import { isFlagForcedOff } from '../features/featureFlag.service';
 import { requireFeature } from '../features/features.routes';
 import * as service from './bankEmail.service';
 import { pollImap } from './imap';
@@ -91,7 +92,9 @@ export function createBankEmailRouter() {
 const digest = (v: string) => createHash('sha256').update(v).digest();
 
 function requireInboundSecret(req: Request, _res: Response, next: NextFunction) {
-  if (!env.INBOUND_EMAIL_SECRET) throw notFound('Halaman');
+  if (!env.INBOUND_EMAIL_SECRET || isFlagForcedOff(FEATURE_FLAGS.BANK_EMAIL)) {
+    throw notFound('Halaman');
+  }
   const given = req.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '';
   if (!timingSafeEqual(digest(given), digest(env.INBOUND_EMAIL_SECRET))) {
     throw unauthorized('Rahasia tidak valid');

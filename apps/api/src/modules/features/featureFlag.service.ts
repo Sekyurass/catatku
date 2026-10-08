@@ -16,6 +16,9 @@ export function parseForcedFlags(raw: string): Map<string, boolean> {
 
 const forced = parseForcedFlags(env.FEATURE_FLAGS_FORCE);
 
+/** Dipaksa mati lewat FEATURE_FLAGS_FORCE: pekerjaan latar fitur ini juga tidak boleh jalan. */
+export const isFlagForcedOff = (key: FeatureFlagKey) => forced.get(key) === false;
+
 export function evaluateFlag(
   flag: Pick<FeatureFlag, 'key' | 'enabled' | 'plan' | 'userIds'> | undefined,
   user: { id: string; plan: Plan },
