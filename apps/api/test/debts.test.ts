@@ -174,6 +174,45 @@ describe('utang-piutang', () => {
     expect(await debtTransactions(user)).toHaveLength(0);
   });
 
+  it('bagi tagihan: saldo berkurang total, laporan hanya bagianku, piutang per teman', async () => {
+    const { user, wallet } = await setup();
+    const cats = await authed(user).get('/api/v1/categories?type=EXPENSE');
+    const categoryId = cats.body.items[0].id as string;
+    const bill = {
+      total: 300_000,
+      date: '2026-01-10',
+      walletId: wallet.id,
+      categoryId,
+      note: 'Makan malam',
+      myShare: 100_000,
+      participants: [
+        { name: 'Budi', amount: 120_000 },
+        { name: 'Sari', amount: 80_000 },
+      ],
+    };
+
+    const bad = await authed(user)
+      .post('/api/v1/debts/split')
+      .send({ ...bill, myShare: 50_000 });
+    expect(bad.status).toBe(400);
+
+    const res = await authed(user).post('/api/v1/debts/split').send(bill);
+    expect(res.status).toBe(201);
+    expect(res.body.transactionId).toEqual(expect.any(String));
+    const debts = res.body.debts as DebtDTO[];
+    expect(debts.map((d) => [d.counterparty, d.direction, d.total, d.note])).toEqual([
+      ['Budi', 'RECEIVABLE', 120_000, 'Makan malam'],
+      ['Sari', 'RECEIVABLE', 80_000, 'Makan malam'],
+    ]);
+    expect(await walletBalance(user, wallet.id)).toBe(700_000);
+    const summary = await authed(user).get('/api/v1/reports/summary?month=2026-01');
+    expect(summary.body).toMatchObject({ income: 0, expense: 100_000 });
+
+    // Teman membayar: saldo kembali naik, laporan tetap.
+    await pay(user, debts[0]!.id, { amount: 120_000, walletId: wallet.id });
+    expect(await walletBalance(user, wallet.id)).toBe(820_000);
+  });
+
   it('pengingat: sekali "segera" dan sekali "terlewat" per angsuran', async () => {
     const { user } = await setup();
     const debt = await createDebt(user, {

@@ -10,6 +10,8 @@ import {
   FEATURE_FLAGS,
   formatRupiah,
   MAX_DEBTS,
+  type SplitBillResultDTO,
+  type splitBillSchema,
   toDateString,
   type updateDebtSchema,
 } from '@catatku/shared';
@@ -21,6 +23,7 @@ import { logger } from '../../lib/logger';
 import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
 import { hourInZone } from '../../lib/time';
+import { findUsableCategory } from '../categories/category.service';
 import { isFeatureEnabled } from '../features/featureFlag.service';
 import { notify } from '../notifications/notification.service';
 import { findActiveWallet } from '../wallets/wallet.service';
@@ -171,6 +174,79 @@ export async function createDebt(
     withWallet: data.walletId !== null,
   });
   return toDTO(row);
+}
+
+/**
+ * Satu tagihan dibayar penuh dari satu dompet: bagian pengguna menjadi pengeluaran (masuk laporan),
+ * bagian tiap teman menjadi piutang dengan transaksi DEBT keluar dari dompet yang sama.
+ */
+export async function splitBill(
+  userId: string,
+  data: z.output<typeof splitBillSchema>,
+): Promise<SplitBillResultDTO> {
+  const [count] = await Promise.all([
+    prisma.debt.count({ where: { userId, settledAt: null } }),
+    findActiveWallet(userId, data.walletId),
+    data.myShare > 0 ? findUsableCategory(userId, data.categoryId, 'EXPENSE') : null,
+  ]);
+  if (count + data.participants.length > MAX_DEBTS) {
+    throw conflict(`Maksimal ${MAX_DEBTS} utang/piutang aktif.`);
+  }
+  const date = toDbDate(data.date);
+  const label = data.note ?? 'Bagi tagihan';
+
+  const { transactionId, ids } = await prisma.$transaction(async (tx) => {
+    const expense =
+      data.myShare > 0
+        ? await tx.transaction.create({
+            data: {
+              userId,
+              walletId: data.walletId,
+              categoryId: data.categoryId,
+              type: 'EXPENSE',
+              amount: BigInt(-data.myShare),
+              date,
+              note: data.note ?? 'Bagi tagihan (bagianku)',
+            },
+          })
+        : null;
+    const ids: string[] = [];
+    for (const p of data.participants) {
+      const debt = await tx.debt.create({
+        data: {
+          userId,
+          direction: 'RECEIVABLE',
+          counterparty: p.name,
+          principal: BigInt(p.amount),
+          interest: 0n,
+          startDate: date,
+          dueDate: data.dueDate ? toDbDate(data.dueDate) : null,
+          note: label,
+          walletId: data.walletId,
+        },
+      });
+      await tx.transaction.create({
+        data: {
+          userId,
+          walletId: data.walletId,
+          type: 'DEBT',
+          amount: -BigInt(p.amount),
+          date,
+          note: openingNote('RECEIVABLE', p.name),
+          debtId: debt.id,
+        },
+      });
+      ids.push(debt.id);
+    }
+    return { transactionId: expense?.id ?? null, ids };
+  });
+  track(userId, 'bill_split', {
+    participants: data.participants.length,
+    withMyShare: data.myShare > 0,
+  });
+  const rows = await prisma.debt.findMany({ where: { id: { in: ids } }, include });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return { transactionId, debts: ids.map((id) => toDTO(byId.get(id)!)) };
 }
 
 export async function updateDebt(

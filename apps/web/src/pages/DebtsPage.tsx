@@ -6,11 +6,12 @@ import {
   FEATURE_FLAGS,
   formatRupiah,
 } from '@catatku/shared';
-import { CircleCheck, HandCoins, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CircleCheck, HandCoins, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DebtForm } from '../components/debts/DebtForm';
 import { DebtPaymentForm } from '../components/debts/DebtPaymentForm';
+import { SplitBillForm } from '../components/debts/SplitBillForm';
 import { IconBadge } from '../components/IconBadge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -29,6 +30,7 @@ import { useDebtPayments, useDebts, useInvalidateMoney } from '../lib/queries';
 
 type View =
   | { kind: 'new' }
+  | { kind: 'split' }
   | { kind: 'edit'; id: string }
   | { kind: 'detail'; id: string }
   | { kind: 'pay'; id: string };
@@ -60,7 +62,7 @@ export function DebtsPage() {
   const close = () => setView(null);
 
   const items = debts.data ?? [];
-  const current = view && view.kind !== 'new' ? items.find((d) => d.id === view.id) : undefined;
+  const current = view && 'id' in view ? items.find((d) => d.id === view.id) : undefined;
   const shown = items.filter((d) => d.direction === tab);
   const active = shown.filter((d) => !d.settledAt);
   const settled = shown.filter((d) => d.settledAt);
@@ -71,12 +73,21 @@ export function DebtsPage() {
       <header className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Utang & piutang</h1>
         {enabled && items.length > 0 && (
-          <Button
-            icon={<Plus className="size-4" aria-hidden />}
-            onClick={() => setView({ kind: 'new' })}
-          >
-            Catat
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              icon={<Users className="size-4" aria-hidden />}
+              onClick={() => setView({ kind: 'split' })}
+            >
+              Bagi tagihan
+            </Button>
+            <Button
+              icon={<Plus className="size-4" aria-hidden />}
+              onClick={() => setView({ kind: 'new' })}
+            >
+              Catat
+            </Button>
+          </div>
         )}
       </header>
       <p className="-mt-2 text-sm text-muted">
@@ -125,12 +136,21 @@ export function DebtsPage() {
             title="Belum ada utang atau piutang"
             description="Catat pinjaman ke teman, kredit HP, atau uang yang kamu pinjamkan. Catatku menyusun jadwal cicilan dan mengingatkan sebelum jatuh tempo."
             action={
-              <Button
-                icon={<Plus className="size-4" aria-hidden />}
-                onClick={() => setView({ kind: 'new' })}
-              >
-                Catat utang/piutang
-              </Button>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  icon={<Plus className="size-4" aria-hidden />}
+                  onClick={() => setView({ kind: 'new' })}
+                >
+                  Catat utang/piutang
+                </Button>
+                <Button
+                  variant="ghost"
+                  icon={<Users className="size-4" aria-hidden />}
+                  onClick={() => setView({ kind: 'split' })}
+                >
+                  Bagi tagihan
+                </Button>
+              </div>
             }
           />
         </Card>
@@ -203,6 +223,22 @@ export function DebtsPage() {
         )}
         {view?.kind === 'edit' && current && (
           <DebtForm debt={current} onDone={() => setView({ kind: 'detail', id: current.id })} />
+        )}
+      </Dialog>
+
+      <Dialog
+        open={view?.kind === 'split'}
+        onClose={close}
+        title="Bagi tagihan"
+        description="Bagianmu dicatat sebagai pengeluaran, bagian teman menjadi piutang."
+      >
+        {view?.kind === 'split' && (
+          <SplitBillForm
+            onDone={() => {
+              setTab('RECEIVABLE');
+              close();
+            }}
+          />
         )}
       </Dialog>
 

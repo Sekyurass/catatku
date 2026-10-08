@@ -495,6 +495,11 @@ installments?, firstDueDate?, walletId?, settledAt?)` dan `DebtPayment`. Maks. 1
     terima +). DEBT **tidak** dihitung di laporan, anggaran, perkiraan, maupun insight (semuanya memfilter
     INCOME/EXPENSE). Di riwayat tampil dengan ikon sendiri; ubah/hapus hanya dari halaman Utang (API
     transaksi → 409). Tanpa dompet = hanya mencatat sisa tagihan.
+  - **Bagi tagihan** (tombol di halaman Utang): satu tagihan dibayar penuh dari satu dompet. Bagianmu jadi
+    **pengeluaran** berkategori (masuk laporan), bagian tiap teman jadi **piutang** dengan transaksi DEBT
+    keluar dari dompet yang sama, jadi saldo berkurang sebesar total tapi laporan hanya menghitung
+    bagianmu. Bagian dibagi rata otomatis (`splitEvenly`, sisa pembagian ke pengguna) sampai salah satu
+    angka diubah; jumlah semua bagian wajib sama dengan total. Maks. 20 teman.
   - **Cicilan** (`debtSchedule`/`debtProgress` di `packages/shared/src/debt.ts`): total = pokok + bunga/biaya
     total, dibagi rata per bulan sejak `firstDueDate` (sisa pembagian di angsuran terakhir; tanggal 31 ikut
     akhir bulan). Pembayaran dialokasikan berurutan dari angsuran pertama (lunas/sebagian/belum, terlambat
@@ -652,6 +657,8 @@ installments?: 1–360|null, firstDueDate?: null (wajib bila installments), note
   - `GET /debts/:id/payments` → `{ items: [{ id, debtId, amount, date, note, walletId, wallet, transactionId,
 createdAt }] }`; `POST /debts/:id/payments` `{ amount, date, note?, walletId?: null }` → utang terbaru (201,
     `Idempotency-Key`; melebihi sisa → 400); `DELETE /debts/payments/:id` → utang terbaru
+  - `POST /debts/split` `{ total, date, walletId, categoryId, note?, myShare, participants: [{ name, amount }],
+dueDate? }` → `{ transactionId, debts }` (201, `Idempotency-Key`; jumlah bagian ≠ total → 400)
   - Transaksi berisi `debtId`; `type=DEBT` bisa dipakai sebagai filter riwayat & ekspor ("Utang/Piutang")
 - ✅ `insights`: `GET /insights` → `{ items: [{ id, kind: category_change|budget_pace|new_subscription|
 unusual_expense, priority: high|medium|low, tone: warning|positive|info, title, body, detail }] }` (urut

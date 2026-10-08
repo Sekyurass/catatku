@@ -18,6 +18,7 @@ export const DEBT_COUNTERPARTY_MAX = 60;
 export const DEBT_MAX_INSTALLMENTS = 360;
 /** Pengingat dikirim sekian hari sebelum jatuh tempo, lalu sekali lagi bila terlewat. */
 export const DEBT_REMIND_DAYS = 3;
+export const SPLIT_MAX_PARTICIPANTS = 20;
 
 export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
 export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];

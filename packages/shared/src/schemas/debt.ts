@@ -4,6 +4,7 @@ import {
   DEBT_DIRECTIONS,
   DEBT_MAX_INSTALLMENTS,
   MAX_AMOUNT,
+  SPLIT_MAX_PARTICIPANTS,
 } from '../constants';
 import { amountSchema, dateSchema, idSchema, noteSchema } from './common';
 
@@ -85,6 +86,54 @@ export const updateDebtSchema = debtFields
   .partial()
   .superRefine(checkDates);
 export type UpdateDebtInput = z.input<typeof updateDebtSchema>;
+
+/**
+ * Bagi tagihan: pengguna membayar `total` dari `walletId`. Bagiannya sendiri dicatat sebagai
+ * pengeluaran, bagian tiap teman menjadi piutang, jadi saldo berkurang `total` tetapi laporan
+ * hanya menghitung `myShare`.
+ */
+export const splitBillSchema = z
+  .object({
+    total: amountSchema,
+    date: dateSchema,
+    walletId: idSchema,
+    categoryId: idSchema,
+    note: noteSchema,
+    myShare: z
+      .number({ error: 'Bagianmu harus angka' })
+      .int({ error: 'Bagianmu harus bilangan bulat Rupiah' })
+      .min(0, { error: 'Bagianmu tidak boleh negatif' })
+      .max(MAX_AMOUNT),
+    participants: z
+      .array(
+        z.object({
+          name: debtFields.shape.counterparty,
+          amount: amountSchema,
+        }),
+      )
+      .min(1, { error: 'Tambahkan minimal satu teman' })
+      .max(SPLIT_MAX_PARTICIPANTS, { error: `Maksimal ${SPLIT_MAX_PARTICIPANTS} teman` }),
+    /** Jatuh tempo piutang (opsional), sama untuk semua teman. */
+    dueDate: dateSchema.nullable().default(null),
+  })
+  .superRefine((v, ctx) => {
+    const sum = v.myShare + v.participants.reduce((s, p) => s + p.amount, 0);
+    if (sum !== v.total) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['total'],
+        message: 'Jumlah semua bagian harus sama dengan total tagihan',
+      });
+    }
+    if (v.dueDate && v.dueDate < v.date) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['dueDate'],
+        message: 'Jatuh tempo tidak boleh sebelum tanggal tagihan',
+      });
+    }
+  });
+export type SplitBillInput = z.input<typeof splitBillSchema>;
 
 /** `walletId` null = pembayaran tidak mengubah saldo dompet mana pun. */
 export const createDebtPaymentSchema = z.object({

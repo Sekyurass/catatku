@@ -80,6 +80,27 @@ function setup({ path = '/utang', debts = DEBTS } = {}) {
       return json({ ...d, paid: d.paid + body.amount, remaining: d.remaining - body.amount });
     }
     if (payments) return json({ items: [] }, 200);
+    if (url.pathname.endsWith('/categories')) {
+      return json(
+        {
+          items: [
+            {
+              id: 'c-food',
+              name: 'Makan',
+              type: 'EXPENSE',
+              icon: 'utensils',
+              color: '#EA580C',
+              isDefault: true,
+              archivedAt: null,
+            },
+          ],
+        },
+        200,
+      );
+    }
+    if (url.pathname.endsWith('/debts/split')) {
+      return json({ transactionId: 't1', debts: [] });
+    }
     if (url.pathname.endsWith('/debts') && init?.method === 'POST') {
       return json(debt({ id: 'd3', ...(JSON.parse(String(init.body)) as Partial<DebtDTO>) }));
     }
@@ -186,5 +207,42 @@ describe('DebtsPage', () => {
       note: null,
       walletId: null,
     });
+  });
+
+  it('bagi tagihan: rata otomatis, bisa diubah per orang', async () => {
+    const fetchMock = setup();
+    await userEvent.click(await screen.findByRole('button', { name: 'Bagi tagihan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Bagi tagihan' });
+    await userEvent.type(within(dialog).getByLabelText('Total tagihan'), '300000');
+    await userEvent.type(within(dialog).getByLabelText('Nama teman 1'), 'Budi');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Tambah teman' }));
+    await userEvent.type(within(dialog).getByLabelText('Nama teman 2'), 'Sari');
+    expect(within(dialog).getByLabelText('Bagian saya')).toHaveValue('100.000');
+    expect(within(dialog).getByLabelText('Bagian Sari')).toHaveValue('100.000');
+
+    const budi = within(dialog).getByLabelText('Bagian Budi');
+    await userEvent.clear(budi);
+    await userEvent.type(budi, '150000');
+    expect(within(dialog).getByText('Lebih Rp 50.000 dari total')).toBeInTheDocument();
+    const sari = within(dialog).getByLabelText('Bagian Sari');
+    await userEvent.clear(sari);
+    await userEvent.type(sari, '50000');
+
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Makan/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Simpan' }));
+
+    await waitFor(() => expect(posted(fetchMock).url).toMatch(/\/debts\/split$/));
+    expect(posted(fetchMock).body).toMatchObject({
+      total: 300_000,
+      categoryId: 'c-food',
+      myShare: 100_000,
+      participants: [
+        { name: 'Budi', amount: 150_000 },
+        { name: 'Sari', amount: 50_000 },
+      ],
+      dueDate: null,
+      note: null,
+    });
+    expect(await screen.findByText('Tagihan dibagi ke 2 teman')).toBeInTheDocument();
   });
 });

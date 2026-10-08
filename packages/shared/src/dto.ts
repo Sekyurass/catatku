@@ -227,6 +227,13 @@ export interface DebtPaymentDTO {
   createdAt: string;
 }
 
+export interface SplitBillResultDTO {
+  /** Pengeluaran bagian pengguna; null bila bagiannya 0. */
+  transactionId: string | null;
+  /** Satu piutang per teman, urut sesuai input. */
+  debts: DebtDTO[];
+}
+
 /** Baris yang tidak diimpor beserta alasannya. `line` = nomor baris di file. */
 export interface ImportIssue {
   line: number;

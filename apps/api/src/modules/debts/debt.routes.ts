@@ -2,6 +2,7 @@ import {
   createDebtPaymentSchema,
   createDebtSchema,
   FEATURE_FLAGS,
+  splitBillSchema,
   updateDebtSchema,
 } from '@catatku/shared';
 import { Router } from 'express';
@@ -22,6 +23,11 @@ export function createDebtsRouter() {
   router.post('/', idempotent, async (req, res) => {
     const input = parse(createDebtSchema, req.body);
     res.status(201).json(await debts.createDebt(currentUserId(req), input));
+  });
+
+  router.post('/split', idempotent, async (req, res) => {
+    const input = parse(splitBillSchema, req.body);
+    res.status(201).json(await debts.splitBill(currentUserId(req), input));
   });
 
   router.delete('/payments/:id', async (req, res) => {

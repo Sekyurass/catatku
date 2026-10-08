@@ -90,6 +90,16 @@ export function debtProgress(input: DebtProgressInput): DebtProgress {
   };
 }
 
+/**
+ * Bagi `total` rata ke `people` orang (termasuk pengguna di indeks 0). Sisa pembagian dibebankan
+ * ke pengguna, jadi teman selalu mendapat angka bulat yang sama.
+ */
+export function splitEvenly(total: number, people: number): number[] {
+  if (people <= 0) return [];
+  const base = Math.floor(total / people);
+  return Array.from({ length: people }, (_, i) => (i === 0 ? total - base * (people - 1) : base));
+}
+
 export interface DebtReminder {
   index: number;
   kind: 'soon' | 'overdue';

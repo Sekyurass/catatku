@@ -17,6 +17,7 @@ export type EventName =
   | 'goal_contribution'
   | 'debt_created'
   | 'debt_payment'
+  | 'bill_split'
   | 'insight_dismissed'
   | 'import_completed'
   | 'import_rolled_back'

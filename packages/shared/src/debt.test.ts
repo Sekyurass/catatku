@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { debtProgress, debtReminder, debtSchedule, type DebtProgressInput } from './debt';
-import { createDebtSchema, updateDebtSchema } from './schemas/debt';
+import {
+  debtProgress,
+  debtReminder,
+  debtSchedule,
+  splitEvenly,
+  type DebtProgressInput,
+} from './debt';
+import { createDebtSchema, splitBillSchema, updateDebtSchema } from './schemas/debt';
 
 const base: DebtProgressInput = {
   total: 1_000_000,
@@ -113,5 +119,39 @@ describe('createDebtSchema', () => {
 
   it('update tidak bisa mengubah arah', () => {
     expect(updateDebtSchema.parse({ direction: 'RECEIVABLE', note: 'x' })).toEqual({ note: 'x' });
+  });
+});
+
+describe('splitEvenly', () => {
+  it('teman dapat angka sama, sisa pembagian ke pengguna', () => {
+    expect(splitEvenly(100_000, 3)).toEqual([33_334, 33_333, 33_333]);
+    expect(splitEvenly(300_000, 3)).toEqual([100_000, 100_000, 100_000]);
+    expect(splitEvenly(5, 0)).toEqual([]);
+  });
+});
+
+describe('splitBillSchema', () => {
+  const bill = {
+    total: 300_000,
+    date: '2026-01-10',
+    walletId: 'w1',
+    categoryId: 'c1',
+    myShare: 100_000,
+    participants: [
+      { name: 'Budi', amount: 100_000 },
+      { name: 'Sari', amount: 100_000 },
+    ],
+  };
+
+  it('jumlah bagian harus sama dengan total', () => {
+    expect(splitBillSchema.parse(bill)).toMatchObject({ dueDate: null });
+    expect(splitBillSchema.safeParse({ ...bill, myShare: 90_000 }).success).toBe(false);
+  });
+
+  it('butuh minimal satu teman; jatuh tempo tidak sebelum tanggal tagihan', () => {
+    expect(splitBillSchema.safeParse({ ...bill, myShare: 300_000, participants: [] }).success).toBe(
+      false,
+    );
+    expect(splitBillSchema.safeParse({ ...bill, dueDate: '2026-01-01' }).success).toBe(false);
   });
 });
