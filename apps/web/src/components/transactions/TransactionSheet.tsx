@@ -50,7 +50,7 @@ import { TemplateChips } from '../templates/TemplateChips';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { DatePicker } from '../ui/DatePicker';
-import { Field, Input } from '../ui/Field';
+import { Field, Textarea } from '../ui/Field';
 import { RupiahInput } from '../ui/RupiahInput';
 import { Segmented } from '../ui/Segmented';
 import { ColorDot, Select, type SelectOption } from '../ui/Select';
@@ -866,13 +866,19 @@ function TransactionForm({
         hint={scanHint(scanned.note, note)}
       >
         {(a) => (
-          <Input
+          <Textarea
             {...a}
             placeholder={isTransfer ? 'Mis. tarik tunai' : 'Mis. makan siang'}
             maxLength={200}
             enterKeyHint="done"
+            onKeyDown={(e) => {
+              // Catatan satu paragraf: Enter tetap menyimpan seperti input biasa.
+              if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }}
             {...register('note', {
-              onChange: (e: ChangeEvent<HTMLInputElement>) => autoPick(e.target.value),
+              onChange: (e: ChangeEvent<HTMLTextAreaElement>) => autoPick(e.target.value),
             })}
           />
         )}

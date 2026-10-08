@@ -217,7 +217,7 @@ export function ReceiptScanner({
       className="flex flex-col gap-3 rounded-card border border-line bg-surface-muted/60 p-3"
     >
       {input}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5">
         {preview && (
           <button
             type="button"
@@ -233,7 +233,9 @@ export function ReceiptScanner({
           {state.status === 'scanning' && <ScanProgress progress={state.progress} />}
           {state.status === 'done' && <ScanSummary result={state.result} />}
           {state.status === 'failed' && (
-            <p className="text-sm font-medium text-expense-text">{state.message}</p>
+            <p className="text-[13px] leading-snug font-medium text-expense-text">
+              {state.message}
+            </p>
           )}
         </div>
         {state.status === 'scanning' ? (
@@ -279,8 +281,12 @@ function ScanProgress({ progress }: { progress: ReceiptProgress }) {
   const pct = loading ? null : Math.round(progress.progress * 100);
   return (
     <>
-      <p className="text-sm font-semibold">
-        {loading ? 'Menyiapkan pembaca struk…' : `Membaca struk… ${pct}%`}
+      <p className="text-[13px] leading-snug font-semibold">
+        {loading
+          ? 'Menyiapkan pembaca struk…'
+          : progress.stage === 'rereading'
+            ? `Membaca ulang lebih teliti… ${pct}%`
+            : `Membaca struk… ${pct}%`}
       </p>
       <div
         role="progressbar"
@@ -309,12 +315,21 @@ function ScanSummary({ result }: { result: ReceiptScanResult }) {
   const unsure = FIELD_KEYS.filter((k) => result[k]?.confidence === 'low');
   return (
     <>
-      <p className="text-sm font-semibold">Diisi dari struk, periksa lagi sebelum menyimpan</p>
+      <p className="text-[13px] leading-snug font-semibold">
+        Diisi dari struk, periksa lagi sebelum menyimpan
+      </p>
       {unsure.length > 0 && (
-        <p className="mt-0.5 text-sm text-warning-text">Kurang yakin: {listOf(unsure)}.</p>
+        <p className="mt-0.5 text-xs leading-snug text-warning-text">
+          Kurang yakin: {listOf(unsure)}.
+        </p>
       )}
       {missing.length > 0 && (
-        <p className="mt-0.5 text-sm text-muted">Tidak terbaca: {listOf(missing)}.</p>
+        <p className="mt-0.5 text-xs leading-snug text-muted">Tidak terbaca: {listOf(missing)}.</p>
+      )}
+      {result.items.length > 0 && (
+        <p className="mt-0.5 text-xs leading-snug text-muted">
+          {result.items.length} barang terbaca, masuk ke catatan.
+        </p>
       )}
     </>
   );

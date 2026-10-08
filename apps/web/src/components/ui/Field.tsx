@@ -1,5 +1,14 @@
 import { Eye, EyeOff, type LucideIcon } from 'lucide-react';
-import { forwardRef, type InputHTMLAttributes, type ReactNode, useId, useState } from 'react';
+import {
+  forwardRef,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { cn } from '../../lib/cn';
 
 interface FieldProps {
@@ -68,6 +77,41 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       <LeadingIcon icon={icon} />
       {input}
     </div>
+  );
+});
+
+/**
+ * Teks panjang (mis. catatan hasil pindai struk) dibungkus ke baris berikutnya dan tingginya ikut isi,
+ * jadi terbaca utuh di layar HP yang sempit. Tetap 16 px agar Safari iOS tidak memperbesar saat fokus.
+ */
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement>
+>(function Textarea({ className, onInput, ...props }, ref) {
+  const inner = useRef<HTMLTextAreaElement | null>(null);
+  const resize = () => {
+    const el = inner.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+  };
+  // Nilai bisa diganti dari luar (setValue react-hook-form) tanpa event input.
+  useLayoutEffect(resize);
+  return (
+    <textarea
+      ref={(el) => {
+        inner.current = el;
+        if (typeof ref === 'function') ref(el);
+        else if (ref) ref.current = el;
+      }}
+      rows={1}
+      onInput={(e) => {
+        resize();
+        onInput?.(e);
+      }}
+      className={cn(inputClass, 'block resize-none py-2.5 leading-snug', className)}
+      {...props}
+    />
   );
 });
 

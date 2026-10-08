@@ -5,8 +5,11 @@ export { countFields, receiptNote } from './parse';
 export { ReceiptImageError, validateReceiptFile } from './image';
 
 export interface ReceiptProgress {
-  /** `loading` = menyiapkan mesin OCR (unduhan pertama ±5 MB), `reading` = membaca teks. */
-  stage: 'loading' | 'reading';
+  /**
+   * `loading` = menyiapkan mesin OCR (unduhan pertama ±5 MB), `reading` = membaca teks,
+   * `rereading` = bacaan pertama kurang yakin, dibaca ulang dengan pengolahan foto lain.
+   */
+  stage: 'loading' | 'reading' | 'rereading';
   /** 0–1 */
   progress: number;
 }

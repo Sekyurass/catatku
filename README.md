@@ -393,9 +393,14 @@ login disimpan di memori per instans (lebih longgar di serverless).
 onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value, confidence: high|low }` atau
     `null`; `items` = daftar `{ name, price }` (maks. 12; `price` = subtotal baris atau `null`). Implementasi Tesseract (`tesseract.ts`) dimuat lazy hanya saat tombol dipakai; mengganti ke
     layanan OCR server cukup menambah implementasi baru (wajib persetujuan pengguna dulu).
-  - **Alur**: validasi (hanya gambar, maks. 15 MB) → diputar sesuai EXIF, diskalakan (sisi panjang ≤ 2000 px),
-    grayscale + kontras → Tesseract bahasa `ind` mode _single block_ (mode otomatis membuang teks di bawah
-    garis putus-putus struk) → `parseReceiptText()` (fungsi murni berbasis aturan).
+  - **Alur**: validasi (hanya gambar, maks. 15 MB) → diputar sesuai EXIF, diskalakan (maks. 4,5 MP dan sisi
+    panjang ≤ 3600 px, agar huruf struk panjang tetap cukup besar) → grayscale, kontras diregangkan (persentil
+    1–99%), lalu **pencahayaan diratakan** (tiap piksel dibagi rata-rata sekitarnya; bayangan tangan/HP hilang)
+    → Tesseract bahasa `ind` mode _single block_, DPI 300 (mode otomatis membuang teks di bawah garis
+    putus-putus struk) → `parseReceiptText()` (fungsi murni berbasis aturan).
+  - **Bacaan ulang**: bila total tidak terbaca/kurang yakin atau isian < 2, foto dibaca sekali lagi dengan
+    versi kontras biasa (tanpa perataan) dan mode _single column_; kedua hasil digabung per isian (yang yakin
+    menang). Struk yang jelas tetap hanya dibaca sekali.
   - **Aturan parser** (`parse.ts`): perbaikan salah baca angka (`O→0`, `l→1`, …), total dari kata kunci
     berbobot (GRAND TOTAL > TOTAL BAYAR > TOTAL > JUMLAH; abaikan SUBTOTAL, TOTAL ITEM, DISKON, PPN, TUNAI,
     KEMBALI, dll.) dan dicek silang dengan tunai − kembalian; tanggal `dd/mm/yy`, `yyyy-mm-dd`, `7 Okt 2026`
