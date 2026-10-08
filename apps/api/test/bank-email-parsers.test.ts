@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   extractFields,
+  htmlToText,
   maskAccount,
   parseBankEmail,
   parseDateTime,
@@ -148,6 +149,113 @@ describe('parseBankEmail', () => {
         subject: 'Newsletter',
         text: 'Hemat Rp 10.000',
       }),
+    ).toBeNull();
+  });
+});
+
+/** Tiruan struktur email "Internet Transaction Journal" myBCA (HTML saja, sel per baris). */
+function myBcaHtml(rows: [string, string][]) {
+  const tr = rows
+    .map(
+      ([label, value]) => `<tr>
+        <td width="198" valign="top" style="font-size:14px">${label}</td>
+        <td width="2" valign="top">: </td>
+        <td valign="top" style="font-size:14px">${value}</td>
+      </tr>`,
+    )
+    .join('\n');
+  return `<html><head><title></title><style>td{color:#000}</style></head><body>
+    <!--[if mso]><table><![endif]-->
+    <div class="wrap">Hai PENGUJI CATATKU,<br/>Anda baru saja melakukan transaksi dengan
+      menggunakan fasilitas myBCA.<br/>Berikut ini adalah detail transaksi Anda :</div>
+    <div class="table-box"><table>${tr}</table></div>
+    <div class="wrap">Mohon simpan email ini sebagai referensi transaksi Anda.</div>
+  </body></html>`;
+}
+
+describe('email myBCA (Internet Transaction Journal)', () => {
+  it('htmlToText: satu baris per pasangan label & nilai, entitas didekode', () => {
+    const text = htmlToText(myBcaHtml([['Nama Penerima', 'TOKO&nbsp;A &amp; B']]));
+    expect(text).toContain('Nama Penerima\t:\tTOKO A & B');
+    expect(text).not.toContain('color');
+    expect(text).not.toContain('mso');
+  });
+
+  it('transfer ke rekening BCA', () => {
+    const html = myBcaHtml([
+      ['Status', 'Berhasil'],
+      ['Tanggal Transaksi', '30 Sep 2026 09:41:41'],
+      ['Jenis Transfer', 'Transfer ke rekening BCA'],
+      ['Dari Rekening', '1234xxxx56'],
+      ['Mata Uang Asal', 'IDR - Indonesian Rupiah'],
+      ['Rekening Tujuan', '9876543210'],
+      ['Nama Penerima', 'KOPERASI CONTOH'],
+      ['Nominal Tujuan', 'IDR 150,000.00'],
+      ['Berita', 'Iuran bulanan'],
+      ['Nomor Referensi', '1111120260930094141029TRF1000000001'],
+    ]);
+    expect(
+      parseBankEmail({
+        fromDomain: 'bca.co.id',
+        subject: 'Internet Transaction Journal',
+        text: htmlToText(html),
+      }),
+    ).toEqual({
+      source: 'bca',
+      kind: 'transfer',
+      type: 'EXPENSE',
+      amount: 150_000,
+      fee: 0,
+      date: '2026-09-30',
+      time: '09:41',
+      counterparty: 'KOPERASI CONTOH',
+      reference: '1111120260930094141029TRF1000000001',
+      accountHint: '1234xxxx56',
+      note: 'Transfer ke KOPERASI CONTOH · Iuran bulanan',
+      confident: true,
+    });
+  });
+
+  it('pembayaran QRIS memakai Total Bayar & Pembayaran Ke', () => {
+    const html = myBcaHtml([
+      ['Status', 'Berhasil'],
+      ['Tanggal Transaksi', '29 Sep 2026 11:37:09'],
+      ['Jenis Transaksi', 'Pembayaran QRIS'],
+      ['Pembayaran Ke', 'WARUNG KOPI CONTOH'],
+      ['Merchant PAN', '9360000200000000001'],
+      ['Sumber Dana', 'TAHAPAN XPRESI - 1234****56'],
+      ['Total Bayar', 'IDR 5,000.00'],
+      ['RRN', '400000001'],
+      ['Nomor Referensi', '1111120260929113705219QRS1000000002'],
+    ]);
+    expect(
+      parseBankEmail({
+        fromDomain: 'bca.co.id',
+        subject: 'Internet Transaction Journal',
+        text: htmlToText(html),
+      }),
+    ).toMatchObject({
+      kind: 'qris',
+      type: 'EXPENSE',
+      amount: 5_000,
+      date: '2026-09-29',
+      time: '11:37',
+      counterparty: 'WARUNG KOPI CONTOH',
+      reference: '1111120260929113705219QRS1000000002',
+      accountHint: 'TAHAPAN XPRESI - 1234****56',
+      confident: true,
+    });
+  });
+
+  it('status gagal tidak dicatat', () => {
+    const html = myBcaHtml([
+      ['Status', 'Gagal'],
+      ['Tanggal Transaksi', '30 Sep 2026 09:41:41'],
+      ['Nominal Tujuan', 'IDR 150,000.00'],
+      ['Nomor Referensi', 'REF1'],
+    ]);
+    expect(
+      parseBankEmail({ fromDomain: 'bca.co.id', subject: 'x', text: htmlToText(html) }),
     ).toBeNull();
   });
 });

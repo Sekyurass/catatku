@@ -28,6 +28,7 @@ export interface ParsedBankEmail {
 }
 
 const AMOUNT_TOTAL_LABELS = [
+  'total bayar',
   'total payment',
   'total pembayaran',
   'total transaksi',
@@ -35,6 +36,7 @@ const AMOUNT_TOTAL_LABELS = [
   'total',
 ];
 const AMOUNT_LABELS = [
+  'nominal tujuan',
   'amount',
   'nominal',
   'jumlah',
@@ -82,6 +84,9 @@ const COUNTERPARTY_LABELS = [
   'sender name',
   'nama pengirim',
 ];
+const MEMO_LABELS = ['berita', 'keterangan', 'remark', 'remarks', 'description'];
+const STATUS_LABELS = ['status', 'status transaksi', 'transaction status'];
+const FAILED_RE = /gagal|failed|ditolak|rejected|dibatalkan|cancel/i;
 const ACCOUNT_LABELS = [
   'source of fund',
   'sumber dana',
@@ -199,6 +204,8 @@ export function extractFields(text: string): Map<string, string> {
       ...DATE_LABELS,
       ...REFERENCE_LABELS,
       ...COUNTERPARTY_LABELS,
+      ...MEMO_LABELS,
+      ...STATUS_LABELS,
       ...ACCOUNT_LABELS,
     ].map(normLabel),
   );
@@ -267,7 +274,7 @@ const INCOME_RE =
   /dana masuk|transfer masuk|uang masuk|incoming|credited|dikreditkan|received from|menerima transfer|terima transfer/;
 const TRANSACTION_RE = /transaksi|transaction|transfer|pembayaran|payment|qris|debit|kredit/;
 
-function noteFor(
+function baseNote(
   kind: BankEmailKind,
   type: 'INCOME' | 'EXPENSE',
   who: string | null,
@@ -280,6 +287,55 @@ function noteFor(
   return subject.replace(/\s+/g, ' ').trim().slice(0, 60) || 'Transaksi dari email bank';
 }
 
+function noteFor(
+  kind: BankEmailKind,
+  type: 'INCOME' | 'EXPENSE',
+  who: string | null,
+  subject: string,
+  memo: string | null,
+) {
+  const note = baseNote(kind, type, who, subject);
+  const extra = memo?.replace(/\s+/g, ' ').trim();
+  return (extra && extra !== '-' ? `${note} · ${extra}` : note).slice(0, 120);
+}
+
+const ENTITIES: Record<string, string> = {
+  nbsp: ' ',
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+};
+
+/** HTML email → teks: sel tabel dipisah tab, baris/blok jadi baris baru. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(head|style|script|title)\b[\s\S]*?<\/\1>/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/<\/(td|th)>/gi, '\t')
+    .replace(/<br\s*\/?>|<\/(tr|p|div|li|h[1-6]|table)>|<p\s*\/>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, code: string) => {
+      if (code[0] !== '#') return ENTITIES[code.toLowerCase()] ?? m;
+      const n =
+        code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : Number(code.slice(1));
+      return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : m;
+    })
+    .split('\n')
+    .map((line) =>
+      line
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]*\t[ \t]*/g, '\t')
+        .replace(/ {2,}/g, ' ')
+        .replace(/^\t+|\t+$/g, '')
+        .trim(),
+    )
+    .filter(Boolean)
+    .join('\n');
+}
+
 /**
  * Membaca satu email notifikasi bank. BCA dibaca dengan label-labelnya; bank lain dengan pembaca
  * umum (confident=false, pengguna diminta mengecek). null = bukan email transaksi / tidak terbaca.
@@ -288,6 +344,8 @@ export function parseBankEmail(email: EmailContent): ParsedBankEmail | null {
   const isBca = email.fromDomain === 'bca.co.id' || email.fromDomain.endsWith('.bca.co.id');
   const fields = extractFields(email.text);
   const haystack = `${email.subject}\n${email.text}`.toLowerCase();
+  const status = pick(fields, STATUS_LABELS);
+  if (status && FAILED_RE.test(status)) return null;
 
   const totalRaw = pick(fields, AMOUNT_TOTAL_LABELS);
   const amountRaw = pick(fields, AMOUNT_LABELS);
@@ -324,7 +382,7 @@ export function parseBankEmail(email: EmailContent): ParsedBankEmail | null {
     counterparty,
     reference,
     accountHint: maskAccount(pick(fields, ACCOUNT_LABELS)),
-    note: noteFor(kind, type, counterparty, email.subject),
+    note: noteFor(kind, type, counterparty, email.subject, pick(fields, MEMO_LABELS)),
     confident: isBca && when.date !== null && reference !== null,
   };
 }

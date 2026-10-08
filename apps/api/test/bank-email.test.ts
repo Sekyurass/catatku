@@ -44,6 +44,7 @@ interface MailOptions {
   subject?: string;
   body?: string;
   headers?: string[];
+  contentType?: string;
 }
 
 const bcaBody = (reference = `REF${randomUUID().slice(0, 8)}`) =>
@@ -57,7 +58,14 @@ const bcaBody = (reference = `REF${randomUUID().slice(0, 8)}`) =>
     `Reference No : ${reference}`,
   ].join('\r\n');
 
-function compose({ from = 'BCA <bca@bca.co.id>', to, subject, body, headers = [] }: MailOptions) {
+function compose({
+  from = 'BCA <bca@bca.co.id>',
+  to,
+  subject,
+  body,
+  headers = [],
+  contentType = 'text/plain',
+}: MailOptions) {
   return [
     ...headers,
     `From: ${from}`,
@@ -66,7 +74,7 @@ function compose({ from = 'BCA <bca@bca.co.id>', to, subject, body, headers = []
     'Date: Thu, 08 Oct 2026 03:15:30 +0000',
     `Message-ID: <${randomUUID()}@contoh.id>`,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=utf-8',
+    `Content-Type: ${contentType}; charset=utf-8`,
     '',
     body ?? bcaBody(),
     '',
@@ -158,6 +166,34 @@ describe('email bank: unggah .eml', () => {
 
     const list = await authed(user).get('/api/v1/bank-email/pending').expect(200);
     expect(list.body.items).toHaveLength(1);
+  });
+
+  it('email myBCA berisi HTML saja tetap terbaca', async () => {
+    const user = await newUser();
+    const row = (label: string, value: string) =>
+      `<tr>\r\n<td width="198">${label}</td>\r\n<td width="2">: </td>\r\n<td>${value}</td>\r\n</tr>`;
+    const body = [
+      '<html><body><div class="table-box"><table>',
+      row('Status', 'Berhasil'),
+      row('Tanggal Transaksi', '29 Sep 2026 11:37:09'),
+      row('Jenis Transaksi', 'Pembayaran QRIS'),
+      row('Pembayaran Ke', 'WARUNG KOPI CONTOH'),
+      row('Total Bayar', 'IDR 5,000.00'),
+      row('Nomor Referensi', `QRS${randomUUID().slice(0, 8)}`),
+      '</table></div></body></html>',
+    ].join('\r\n');
+    const res = await upload(
+      user,
+      await signed({ to: user.email, body, contentType: 'text/html' }),
+    ).expect(200);
+    expect(res.body.result).toBe('parsed');
+    expect(res.body.pending).toMatchObject({
+      kind: 'qris',
+      amount: 5_000,
+      date: '2026-09-29',
+      note: 'WARUNG KOPI CONTOH',
+      confident: true,
+    });
   });
 
   it('isi diubah setelah ditandatangani → ditolak', async () => {

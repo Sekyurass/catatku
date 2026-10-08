@@ -22,7 +22,7 @@ import { fromDbDate, toDbDate, toNumber } from '../../lib/money';
 import { prisma } from '../../lib/prisma';
 import { isFeatureEnabled } from '../features/featureFlag.service';
 import { notify } from '../notifications/notification.service';
-import { parseBankEmail } from './parsers';
+import { htmlToText, parseBankEmail } from './parsers';
 
 const GMAIL_FORWARDING_SENDER = 'forwarding-noreply@google.com';
 
@@ -308,7 +308,8 @@ export async function ingestEmail(userId: string, raw: Buffer): Promise<BankEmai
   const parsed = parseBankEmail({
     fromDomain,
     subject: mail.subject ?? '',
-    text: mail.text ?? '',
+    // mailparser meratakan tabel HTML menjadi satu baris saat mengisi text dari email HTML saja.
+    text: typeof mail.html === 'string' ? htmlToText(mail.html) : (mail.text ?? ''),
   });
   if (!parsed) return done('unrecognized');
 

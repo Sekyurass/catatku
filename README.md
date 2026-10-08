@@ -408,8 +408,10 @@ onProgress })` → `{ total, date, merchant, items, text }`, tiap kolom `{ value
     dan ditampilkan di halaman + notifikasi, jadi pengguna tidak perlu membuka kotak masuk alamat Catatku.
   - **Pembaca** (`bankEmail/parsers.ts`, murni): BCA dengan label ("Transfer Amount", "Total", "Reference
     No", "Nama Merchant", …) → `confident` bila tanggal & referensi terbaca; bank lain lewat pembaca umum
-    (kata kunci transaksi + nominal Rp/IDR, `confident: false`). Format BCA disusun dari pola umum, belum
-    dari email asli; tambah contoh nyata ke `bank-email-parsers.test.ts` (tanpa data pribadi).
+    (kata kunci transaksi + nominal Rp/IDR, `confident: false`). Sudah dicocokkan dengan email myBCA asli
+    "Internet Transaction Journal" (transfer & QRIS; HTML saja, tabel `Label | : | nilai`, dibaca lewat
+    `htmlToText`; status gagal diabaikan, berita transfer masuk catatan). Format baru: tambah contoh
+    tersamarkan ke `bank-email-parsers.test.ts`. Jangan commit file `.eml` asli.
   - **Anti-ganda**: unik `(userId, source, reference)`; tanpa nomor referensi dipakai hash Message-ID.
 - **Perkiraan akhir bulan** (Fase 2.4, flag `forecast`): kartu di Beranda di bawah ringkasan. Perkiraan
   saldo akhir bulan = saldo sekarang − rata-rata pengeluaran harian × sisa hari − tagihan berulang yang

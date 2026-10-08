@@ -90,6 +90,35 @@ export function PrivacyPolicyPage() {
           <p>Bawaannya tidak ikut. Kamu bisa menyalakan atau mematikannya kapan saja di Profil.</p>
         </Section>
 
+        <Section title="Catat dari email bank (opsional)">
+          <p>
+            Fitur ini mati sampai kamu menyalakannya di halaman Email bank. Setelah aktif, kamu
+            mendapat alamat penerusan unik dan bisa meneruskan email notifikasi transaksi dari bank
+            (mis. myBCA &ldquo;Internet Transaction Journal&rdquo;) ke alamat itu, atau mengunggah
+            file .eml secara manual. Saat email diterima:
+          </p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              keaslian email diperiksa lewat tanda tangan digital (DKIM) bank; email palsu atau yang
+              isinya diubah ditolak;
+            </li>
+            <li>
+              email hanya diterima bila ditujukan ke email akunmu atau ke Gmail yang kamu sambungkan
+              lewat konfirmasi penerusan Gmail;
+            </li>
+            <li>
+              isi email dibaca otomatis lalu dibuang dari server kami; yang disimpan hanya hasil
+              bacaannya: jenis transaksi, nominal, biaya, tanggal, jam, nama penerima atau merchant,
+              berita transfer, nomor referensi, dan nomor rekening yang sudah disamarkan bank;
+            </li>
+            <li>hasil bacaan masuk antrean dan baru menjadi transaksi setelah kamu konfirmasi.</li>
+          </ul>
+          <p>
+            Kamu bisa mematikan fitur ini atau mengganti alamat penerusan kapan saja; alamat lama
+            langsung tidak berlaku. Jangan lupa menghapus penerusan di pengaturan Gmail-mu juga.
+          </p>
+        </Section>
+
         <Section title="Untuk apa data dipakai">
           <ul className="list-disc space-y-1 pl-5">
             <li>Menampilkan saldo, laporan, perkiraan, dan wawasan keuanganmu.</li>
@@ -102,9 +131,9 @@ export function PrivacyPolicyPage() {
         <Section title="Pihak lain yang terlibat">
           <p>
             Data disimpan di penyedia infrastruktur yang kami pakai untuk menjalankan Catatku:
-            hosting aplikasi, database, penyimpanan file (foto), dan pengiriman email. Mereka hanya
-            memproses data atas nama kami. Kami tidak membagikan datamu ke pihak lain kecuali
-            diwajibkan hukum.
+            hosting aplikasi, database, penyimpanan file (foto), serta pengiriman dan penerimaan
+            email (termasuk kotak masuk penerusan email bank). Mereka hanya memproses data atas nama
+            kami. Kami tidak membagikan datamu ke pihak lain kecuali diwajibkan hukum.
           </p>
         </Section>
 
@@ -128,6 +157,7 @@ export function PrivacyPolicyPage() {
             <li>Melihat dan mengubah data profil serta catatanmu kapan saja di aplikasi.</li>
             <li>Mengunduh seluruh riwayat transaksi (Profil → Ekspor data).</li>
             <li>Berhenti ikut Ketik cepat kapan saja di Profil.</li>
+            <li>Mematikan Catat dari email bank kapan saja di halaman Email bank.</li>
             <li>
               Menghapus akun beserta seluruh datanya kapan saja (Profil → Hapus akun). Sampel Ketik
               cepat tidak terhubung ke akunmu, jadi tetap terhapus sesuai masa simpannya.
